@@ -305,6 +305,7 @@ function _updateCharacterPremiumRig(egg,speed){
     if(!egg||!egg.mesh||!egg.mesh.userData)return;
     var ud=egg.mesh.userData;
     var now=(typeof performance!=='undefined'&&performance.now)?performance.now()*0.001:Date.now()*0.001;
+    _animateCuteCharacterDetails(egg.mesh,now);
     var moving=speed>0.006&&egg.onGround;
     var phase=egg.walkPhase||0;
     if(ud._decorArms){
@@ -316,7 +317,10 @@ function _updateCharacterPremiumRig(egg,speed){
             var tuck=(egg._atkAnim>0||egg.holding||egg.heldBy)?0.32:0;
             arm.rotation.z+=(restZ+swing+side*tuck-arm.rotation.z)*0.18;
             arm.rotation.x+=(0.05+Math.sin(now*1.7+side)*0.035-arm.rotation.x)*0.14;
-            if(arm.userData._hand)arm.userData._hand.scale.set(1.08,0.86+Math.sin(now*3.1+side)*0.035,1.0);
+            if(arm.userData._hand){
+                var handPulse=1+Math.sin(now*3.1+side)*0.018;
+                arm.userData._hand.scale.setScalar(handPulse);
+            }
         }
     }
     // Gentle eye tracking in the movement direction.
@@ -326,7 +330,7 @@ function _updateCharacterPremiumRig(egg,speed){
         for(var pi=0;pi<ud._pupils.length;pi++){
             var ps=pi===0?-1:1;
             ud._pupils[pi].position.x+=((ps*0.225+lookX)-ud._pupils[pi].position.x)*0.16;
-            ud._pupils[pi].position.y+=((0.125+lookY)-ud._pupils[pi].position.y)*0.16;
+            ud._pupils[pi].position.y+=((0.165+lookY)-ud._pupils[pi].position.y)*0.16;
             if(ud._shines&&ud._shines[pi]){
                 ud._shines[pi].position.x+=((ps*0.195+lookX*0.45)-ud._shines[pi].position.x)*0.16;
                 ud._shines[pi].position.y+=((0.245+lookY*0.35)-ud._shines[pi].position.y)*0.16;
@@ -363,6 +367,40 @@ function _updateCharacterPremiumRig(egg,speed){
     }
 }
 
+function _animateCuteCharacterDetails(model,now){
+    if(!model||!model.userData)return;
+    var ud=model.userData;
+    if(ud._angelWings){
+        // One very gentle full flap every three seconds.
+        var flap=Math.sin(now*Math.PI*2/3);
+        for(var wi=0;wi<ud._angelWings.length;wi++){
+            var wing=ud._angelWings[wi],side=wing.userData._side||1;
+            wing.rotation.z=(wing.userData._restZ||0)+side*flap*0.13;
+            wing.rotation.y=(wing.userData._restY||0)-side*flap*0.08;
+        }
+    }
+    if(ud._crystalSparkles){
+        for(var si=0;si<ud._crystalSparkles.length;si++){
+            var sparkle=ud._crystalSparkles[si];
+            var pulse=0.72+Math.sin(now*2.25+si*1.71)*0.28;
+            sparkle.scale.setScalar((sparkle.userData._baseScale||1)*(0.82+pulse*0.24));
+            sparkle.material.opacity=0.34+pulse*0.34;
+            sparkle.rotation.z=now*0.22*(si%2?1:-1)+si*0.48;
+        }
+    }
+    if(ud._starDetails){
+        for(var sti=0;sti<ud._starDetails.length;sti++){
+            var star=ud._starDetails[sti],phase=star.userData._phase||0;
+            var twinkle=0.92+Math.sin(now*2.15+phase)*0.10;
+            star.scale.setScalar((star.userData._baseScale||1)*twinkle);
+            star.rotation.z=(star.userData._restZ||0)+Math.sin(now*0.85+phase)*0.10;
+            if(star.material&&star.material.opacity!==undefined){
+                star.material.opacity=(star.userData._baseOpacity||0.92)*(0.88+Math.sin(now*2.15+phase)*0.10);
+            }
+        }
+    }
+}
+
 function _createCuteRoundCharacterMesh(color,accent,charType){
     var g=new THREE.Group(),type=charType||'egg';
     accent=(accent===undefined||accent===null)?0xFF6F7D:accent;
@@ -373,92 +411,186 @@ function _createCuteRoundCharacterMesh(color,accent,charType){
     var speciesY=type==='cockroach'?1.08:(type==='bear'?1.03:1);
     for(var bi=0;bi<bp.count;bi++){
         var x=bp.getX(bi),y=bp.getY(bi),z=bp.getZ(bi),ny=y/0.70;
-        var taper=1.075-(ny+1)*0.075;
-        x*=taper*speciesX;z*=0.97+(1-ny)*0.025;y*=1.08*speciesY;
-        if(y<-0.58)y=-0.58+(y+0.58)*0.34;
+        // A distinctly egg/pear-shaped mascot silhouette: broad lower mass, tapered crown,
+        // a gently projected front and a flatter shell-bearing back. This remains local to
+        // the body mesh so facial parts and combat animations cannot drift in world space.
+        var taper=1.14-(ny+1)*0.13;
+        x*=taper*speciesX;
+        z*=(0.96+(1-ny)*0.04)*(z>0?1.035:0.985);
+        y*=1.16*speciesY;
+        if(y<-0.61)y=-0.61+(y+0.61)*0.28;
         bp.setXYZ(bi,x,y,z);
     }
     bodyGeo.computeVertexNormals();
-    var bodyMat=softPBR(color,{pastelAmount:0.045,roughness:0.29,clearcoat:0.52,clearcoatRoughness:0.18,envMapIntensity:0.72});
+    var bodyOpts={pastelAmount:0.035,roughness:0.36,clearcoat:0.30,clearcoatRoughness:0.24,envMapIntensity:0.50};
+    if(type==='cat')bodyOpts={pastelAmount:0.025,roughness:0.25,metalness:0.015,clearcoat:0.62,clearcoatRoughness:0.16,envMapIntensity:0.68};
+    if(type==='bear')bodyOpts={pastelAmount:0.018,roughness:0.89,metalness:0,clearcoat:0.025,clearcoatRoughness:0.88,envMapIntensity:0.13};
+    var bodyMat=softPBR(color,bodyOpts);
     var body=new THREE.Mesh(bodyGeo,bodyMat);body.position.y=0.79;body.castShadow=true;body.receiveShadow=true;g.add(body);
 
     var outline=new THREE.Mesh(bodyGeo.clone(),new THREE.MeshBasicMaterial({color:0x251F38,side:THREE.BackSide,transparent:true,opacity:0.065,depthWrite:false}));
     outline.scale.setScalar(1.025);outline.renderOrder=-2;body.add(outline);g.userData._toonOutline=outline;
 
-    var shellColor=_charMixHex(color,0xFFF8EA,0.62);
-    var shellMat=softPBR(shellColor,{pastelAmount:0.02,roughness:0.34,clearcoat:0.34,clearcoatRoughness:0.22,envMapIntensity:0.52});
-    var rimMat=softPBR(_charMixHex(shellColor,accent,0.18),{pastelAmount:0.02,roughness:0.30,clearcoat:0.38,envMapIntensity:0.54});
-    var frontPlate=new THREE.Mesh(new THREE.SphereGeometry(0.48,high?32:20,high?22:14),shellMat);
-    frontPlate.position.set(0,-0.06,0.54);frontPlate.scale.set(0.94,1.02,0.24);frontPlate.castShadow=true;body.add(frontPlate);
-    var backPlate=new THREE.Mesh(new THREE.SphereGeometry(0.46,high?32:20,high?22:14),shellMat);
-    backPlate.position.set(0,-0.035,-0.55);backPlate.scale.set(0.96,1.06,0.23);backPlate.castShadow=true;body.add(backPlate);
-    var backRim=new THREE.Mesh(new THREE.TorusGeometry(0.38,0.035,high?14:8,high?48:24),rimMat);
-    backRim.position.set(0,-0.035,-0.675);backRim.scale.y=1.08;body.add(backRim);
-    var seamMat=softPBR(_charMixHex(shellColor,0x625B6B,0.30),{pastelAmount:0.01,roughness:0.55});
-    [[0,-0.37,0,0.31],[-0.26,-0.22,-0.07,0.28],[0.26,-0.22,0.07,0.28]].forEach(function(q){
-        var curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(q[0],q[1],-0.695),new THREE.Vector3(q[0]*0.38,0,-0.715),new THREE.Vector3(q[2],q[3],-0.695));
-        body.add(new THREE.Mesh(new THREE.TubeGeometry(curve,12,0.012,6,false),seamMat));
-    });
+    var shellColor=_charMixHex(color,0xDCCFB8,0.42);
+    var shellMat=softPBR(shellColor,type==='bear'?
+        {pastelAmount:0.01,roughness:0.90,clearcoat:0.02,envMapIntensity:0.12}:
+        {pastelAmount:0.02,roughness:0.42,clearcoat:0.22,clearcoatRoughness:0.28,envMapIntensity:0.40});
+    // Keep the torso as one integrated silhouette. The old front plate caused a
+    // protruding "chin", while the circular rear plate and torus read as a wheel.
 
-    var gloss=new THREE.Mesh(new THREE.CircleGeometry(0.17,24),new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.24,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,fog:false}));
-    gloss.position.set(-0.25,0.34,0.70);gloss.scale.set(1,0.46,1);gloss.rotation.z=-0.28;body.add(gloss);
+    var gloss=new THREE.Mesh(new THREE.CircleGeometry(0.10,20),new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.10,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending,fog:false}));
+    gloss.position.set(-0.32,0.39,0.70);gloss.scale.set(0.72,0.28,1);gloss.rotation.z=-0.28;body.add(gloss);
 
-    var eyeG=new THREE.SphereGeometry(0.125,high?24:16,high?18:12);
-    var eyeMat=softPBR(0x12182A,{pastelAmount:0,roughness:0.12,clearcoat:0.92,clearcoatRoughness:0.06,envMapIntensity:0.86});
-    var irisMat=softPBR(0x3159A8,{pastelAmount:0,roughness:0.18,emissive:0x14285D,emissiveIntensity:0.12});
+    var eyeG=new THREE.SphereGeometry(0.130,high?24:16,high?18:12);
+    var eyeMat=softPBR(0xFFFDF4,{pastelAmount:0,roughness:0.20,clearcoat:0.58,clearcoatRoughness:0.12,envMapIntensity:0.56});
+    var irisPalette={egg:0x647FCE,bull:0x4F916A,cat:0x4B9DD6,rooster:0x687BCB,dog:0xA15E92,monkey:0x5C69B7,bear:0x5D708D,cockroach:0x765FA9};
+    var irisColor=irisPalette[type]||0x557FC7;
+    var irisMat=softPBR(irisColor,{pastelAmount:0,roughness:0.20,clearcoat:0.38,emissive:_charMixHex(irisColor,0x111B36,0.62),emissiveIntensity:0.045});
+    var pupilMat=softPBR(0x101522,{pastelAmount:0,roughness:0.16,clearcoat:0.48,envMapIntensity:0.44});
     var shineMat=new THREE.MeshBasicMaterial({color:0xFFFFFF,fog:false});
+    var lashMat=softPBR(0x282236,{pastelAmount:0,roughness:0.58});
     var _eyeWhites=[],_pupils=[],_shines=[],_eyeBaseScales=[];
     [-1,1].forEach(function(s){
-        var eye=new THREE.Mesh(eyeG,eyeMat);eye.position.set(s*0.225,0.19,0.665);eye.scale.set(0.68,1.35,0.28);body.add(eye);_eyeWhites.push(eye);_eyeBaseScales.push(eye.scale.clone());
-        var iris=new THREE.Mesh(new THREE.SphereGeometry(0.048,12,8),irisMat);iris.position.set(s*0.225,0.125,0.703);iris.scale.set(0.80,1.05,0.22);body.add(iris);_pupils.push(iris);
-        var hi=new THREE.Mesh(new THREE.SphereGeometry(0.030,10,8),shineMat);hi.position.set(s*0.195,0.245,0.715);hi.scale.z=0.20;body.add(hi);_shines.push(hi);
-        var hi2=new THREE.Mesh(new THREE.SphereGeometry(0.013,8,6),shineMat);hi2.position.set(s*0.245,0.185,0.718);hi2.scale.z=0.18;body.add(hi2);
+        var eye=new THREE.Mesh(eyeG,eyeMat);eye.position.set(s*0.225,0.20,0.665);eye.scale.set(0.64,1.12,0.27);body.add(eye);_eyeWhites.push(eye);_eyeBaseScales.push(eye.scale.clone());
+        var iris=new THREE.Mesh(new THREE.SphereGeometry(0.102,high?22:14,high?16:10),irisMat);iris.position.set(s*0.225,0.165,0.702);iris.scale.set(0.72,1.08,0.22);body.add(iris);_pupils.push(iris);
+        var pupil=new THREE.Mesh(new THREE.SphereGeometry(0.052,high?16:10,high?12:8),pupilMat);pupil.position.set(0,-0.006,0.094);pupil.scale.set(0.82,1.10,0.26);iris.add(pupil);
+        var hi=new THREE.Mesh(new THREE.SphereGeometry(0.031,10,8),shineMat);hi.position.set(s*0.196,0.245,0.718);hi.scale.z=0.18;body.add(hi);_shines.push(hi);
+        var hi2=new THREE.Mesh(new THREE.SphereGeometry(0.014,8,6),shineMat);hi2.position.set(s*0.245,0.185,0.720);hi2.scale.z=0.16;body.add(hi2);
+        var lashCurve=new THREE.QuadraticBezierCurve3(
+            new THREE.Vector3(s*0.305,0.300,0.700),
+            new THREE.Vector3(s*0.225,0.338,0.720),
+            new THREE.Vector3(s*0.145,0.302,0.700)
+        );
+        body.add(new THREE.Mesh(new THREE.TubeGeometry(lashCurve,10,0.011,6,false),lashMat));
     });
     var smileCurve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(-0.12,-0.13,0.694),new THREE.Vector3(0,-0.205,0.715),new THREE.Vector3(0.12,-0.13,0.694));
     var smile=new THREE.Mesh(new THREE.TubeGeometry(smileCurve,14,0.018,8,false),softPBR(0x211A25,{pastelAmount:0,roughness:0.55}));body.add(smile);
     var blushG=new THREE.CircleGeometry(0.105,24),blushM=toon(0xFF779F,{transparent:true,opacity:0.48,side:THREE.DoubleSide});
     [-1,1].forEach(function(s){var bl=new THREE.Mesh(blushG,blushM);bl.position.set(s*0.41,-0.055,0.635);bl.scale.set(1.22,0.62,1);bl.rotation.y=s*0.34;body.add(bl);});
 
-    var decorArms=[],armMat=softPBR(color,{pastelAmount:0.045,roughness:0.31,clearcoat:0.40,clearcoatRoughness:0.22,envMapIntensity:0.60});
+    var decorArms=[],armMat=softPBR(color,type==='bear'?
+        {pastelAmount:0.018,roughness:0.91,clearcoat:0.02,envMapIntensity:0.11}:
+        {pastelAmount:0.045,roughness:0.31,clearcoat:0.40,clearcoatRoughness:0.22,envMapIntensity:0.60});
     [-1,1].forEach(function(s){
-        var armG=new THREE.Group(),arm=new THREE.Mesh(new THREE.SphereGeometry(type==='bear'?0.22:0.19,high?24:14,high?16:10),armMat);
-        arm.position.y=-0.10;arm.scale.set(0.82,1.34,0.70);arm.castShadow=true;armG.add(arm);
-        var hand=new THREE.Mesh(new THREE.SphereGeometry(0.105,high?18:12,high?12:8),shellMat);hand.position.set(0,-0.31,0.03);hand.scale.set(1.08,0.78,0.92);armG.add(hand);armG.userData._hand=hand;
+        var armRadius=type==='bear'?0.165:0.142;
+        var handRadius=type==='bear'?0.215:0.188;
+        var armG=new THREE.Group(),arm=new THREE.Mesh(new THREE.SphereGeometry(armRadius,high?22:14,high?14:9),armMat);
+        arm.position.y=-0.10;arm.scale.set(0.68,1.55,0.60);arm.castShadow=true;armG.add(arm);
+        var hand=new THREE.Mesh(new THREE.SphereGeometry(handRadius,high?24:14,high?18:10),shellMat);hand.name='danbo-character-hand';hand.position.set(0,-0.36,0.035);hand.scale.setScalar(1);hand.castShadow=true;armG.add(hand);armG.userData._hand=hand;armG.userData._baseHandRadius=handRadius;
         armG.position.set(s*(type==='bear'?0.73:0.66),0.00,0.015);armG.rotation.z=s*0.48;armG.userData._side=s;armG.userData._restZ=armG.rotation.z;body.add(armG);decorArms.push(armG);
     });
     g.userData._decorArms=decorArms;
 
-    var footColor=_charMixHex(accent,0xFF667A,0.14),ftM=softPBR(footColor,{pastelAmount:0.025,roughness:0.26,clearcoat:0.58,clearcoatRoughness:0.16,envMapIntensity:0.72});
+    var footColor=_charMixHex(accent,0xFF667A,0.14),ftM=softPBR(footColor,type==='bear'?
+        {pastelAmount:0.012,roughness:0.84,clearcoat:0.035,clearcoatRoughness:0.78,envMapIntensity:0.14}:
+        {pastelAmount:0.025,roughness:0.26,clearcoat:0.58,clearcoatRoughness:0.16,envMapIntensity:0.72});
     var ftG=new THREE.SphereGeometry(0.22,high?28:16,high?18:10);ftG.scale(1.42,0.54,1.74);var feet=[];
     [-1,1].forEach(function(s){var ft=new THREE.Mesh(ftG,ftM);ft.castShadow=true;ft.receiveShadow=true;ft.position.set(s*0.29,0.105,0.15);ft.rotation.y=-s*0.08;g.add(ft);feet.push(ft);});
 
+    var angelWings=[],crystalSparkles=[],candyEars=[],forestLeaves=[],rockDetails=[],starDetails=[];
     if(type==='egg'){
         for(var ei=0;ei<5;ei++){var shard=new THREE.Mesh(new THREE.ConeGeometry(0.070,0.19,5),shellMat);shard.position.set(-0.25+ei*0.125,0.66+(ei%2)*0.025,0.00);shard.rotation.z=(ei-2)*0.16;body.add(shard);}
     }else if(type==='dog'){
-        [-1,1].forEach(function(s){var ear=new THREE.Mesh(new THREE.SphereGeometry(0.19,18,12),softPBR(_charMixHex(color,0x8B5E46,0.30),{roughness:0.42}));ear.position.set(s*0.46,0.42,-0.02);ear.scale.set(0.68,1.38,0.50);ear.rotation.z=s*0.42;body.add(ear);});
+        // Long side-swept candy-ribbon ears: rounded and low, never upright like a rabbit.
+        var candyEarMat=softPBR(_charMixHex(color,0xFFB0C3,0.22),{roughness:0.34,clearcoat:0.34,clearcoatRoughness:0.22});
+        var candyInnerMat=softPBR(_charMixHex(accent,0xFFF4D8,0.48),{roughness:0.30,clearcoat:0.40});
+        [-1,1].forEach(function(s){
+            var earRoot=new THREE.Group();earRoot.position.set(s*0.43,0.40,-0.02);earRoot.rotation.z=-s*0.95;body.add(earRoot);
+            var ear=new THREE.Mesh(new THREE.SphereGeometry(0.22,high?24:14,high?16:10),candyEarMat);
+            ear.position.y=0.20;ear.scale.set(0.58,1.78,0.48);ear.castShadow=true;earRoot.add(ear);
+            var inner=new THREE.Mesh(new THREE.SphereGeometry(0.16,high?20:12,high?14:9),candyInnerMat);
+            inner.position.set(0,0.22,0.085);inner.scale.set(0.42,1.55,0.20);earRoot.add(inner);
+            var tip=new THREE.Mesh(new THREE.SphereGeometry(0.075,14,10),candyInnerMat);
+            tip.position.set(0,0.53,0.01);tip.scale.set(1.18,0.74,0.85);earRoot.add(tip);
+            candyEars.push(earRoot);
+        });
     }else if(type==='cat'){
         [-1,1].forEach(function(s){var ear=new THREE.Mesh(new THREE.ConeGeometry(0.17,0.30,5),armMat);ear.position.set(s*0.39,0.57,0.01);ear.rotation.z=s*0.22;body.add(ear);});
+        var crystalMat=softPBR(0xA8EEFF,{pastelAmount:0,roughness:0.18,metalness:0.04,clearcoat:0.68,clearcoatRoughness:0.10,emissive:0x245C78,emissiveIntensity:0.08,transparent:true,opacity:0.76,depthWrite:false});
+        [[-0.39,0.33,0.58,0.065],[0.40,0.04,0.57,0.052],[-0.33,-0.20,0.61,0.045],[0.30,0.48,0.53,0.040]].forEach(function(cp,ci){
+            var gem=new THREE.Mesh(new THREE.OctahedronGeometry(cp[3],0),crystalMat.clone());
+            gem.position.set(cp[0],cp[1],cp[2]);gem.scale.set(0.68,1.34,0.42);gem.rotation.z=ci*0.61;body.add(gem);crystalSparkles.push(gem);
+            gem.userData._baseScale=1;
+        });
+        for(var csi=0;csi<(high?4:2);csi++){
+            var sparkle=new THREE.Mesh(_starShapeGeometry(0.040,0.010,4),new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.58,depthWrite:false,fog:false,side:THREE.DoubleSide}));
+            var sp=[[-0.31,0.43],[0.34,0.28],[-0.29,-0.10],[0.27,-0.24]][csi];
+            sparkle.position.set(sp[0],sp[1],0.714);sparkle.userData._baseScale=0.82+csi*0.08;body.add(sparkle);crystalSparkles.push(sparkle);
+        }
     }else if(type==='rooster'){
-        var combM=softPBR(0xFF5570,{roughness:0.32,clearcoat:0.32});for(var ri=0;ri<3;ri++){var cb=new THREE.Mesh(new THREE.SphereGeometry(0.09,14,10),combM);cb.position.set(-0.10+ri*0.10,0.64+Math.abs(ri-1)*0.025,0.04);body.add(cb);}
+        var haloM=softPBR(0xFFD978,{roughness:0.28,metalness:0.08,emissive:0x9A6312,emissiveIntensity:0.12});
+        var halo=new THREE.Mesh(new THREE.TorusGeometry(0.25,0.025,8,32),haloM);halo.position.set(0,0.86,-0.01);halo.rotation.x=Math.PI/2;body.add(halo);
+        var featherMat=softPBR(0xFFFDF5,{pastelAmount:0,roughness:0.46,clearcoat:0.08,transparent:true,opacity:0.76,depthWrite:false,side:THREE.DoubleSide,envMapIntensity:0.28});
+        var featherTipMat=softPBR(0xDDF1FF,{pastelAmount:0,roughness:0.50,transparent:true,opacity:0.58,depthWrite:false,side:THREE.DoubleSide});
+        [-1,1].forEach(function(s){
+            var wing=new THREE.Group();wing.position.set(s*0.22,0.25,-0.46);wing.rotation.z=s*0.18;wing.rotation.y=-s*0.10;wing.userData._side=s;wing.userData._restZ=wing.rotation.z;wing.userData._restY=wing.rotation.y;
+            for(var fi=0;fi<4;fi++){
+                var feather=new THREE.Mesh(new THREE.SphereGeometry(0.24-fi*0.015,high?20:12,high?14:9),fi===3?featherTipMat:featherMat);
+                feather.position.set(s*(0.22+fi*0.15),0.13-fi*0.12,0);
+                feather.scale.set(0.48,1.24-fi*0.08,0.19);feather.rotation.z=s*(0.66+fi*0.12);feather.castShadow=high;wing.add(feather);
+            }
+            body.add(wing);angelWings.push(wing);
+        });
     }else if(type==='monkey'){
         [-1,1].forEach(function(s){var ear=new THREE.Mesh(new THREE.SphereGeometry(0.16,18,12),softPBR(0xFFD4AA,{roughness:0.38}));ear.position.set(s*0.53,0.22,0);ear.scale.z=0.55;body.add(ear);});
+        // Star Wish Egg: an original celestial crest and three small star charms.
+        // The motif is attached to the body in local space, so it stays aligned
+        // during selection-page sway, combat and every gameplay animation.
+        var starGold=softPBR(0xFFD75A,{pastelAmount:0,roughness:0.28,metalness:0.10,clearcoat:0.52,clearcoatRoughness:0.16,emissive:0x8D5A08,emissiveIntensity:0.10,transparent:true,opacity:0.96,side:THREE.DoubleSide});
+        var starCream=softPBR(0xFFF2B0,{pastelAmount:0,roughness:0.24,clearcoat:0.48,emissive:0xA66A10,emissiveIntensity:0.08,transparent:true,opacity:0.92,side:THREE.DoubleSide});
+        var mainStar=new THREE.Mesh(_starShapeGeometry(0.145,0.064,5),starGold);
+        mainStar.name='danbo-starwish-main-star';mainStar.position.set(0,0.56,0.704);mainStar.rotation.z=-0.08;
+        mainStar.userData._baseScale=1;mainStar.userData._phase=0.25;mainStar.userData._restZ=mainStar.rotation.z;mainStar.userData._baseOpacity=0.96;
+        body.add(mainStar);starDetails.push(mainStar);
+        var starCore=new THREE.Mesh(_starShapeGeometry(0.070,0.031,5),starCream);
+        starCore.name='danbo-starwish-star-core';starCore.position.set(0,0.56,0.714);starCore.rotation.z=0.10;
+        starCore.userData._baseScale=1;starCore.userData._phase=1.4;starCore.userData._restZ=starCore.rotation.z;starCore.userData._baseOpacity=0.92;
+        body.add(starCore);starDetails.push(starCore);
+        [[-0.43,0.42,0.040,0.15],[0.43,0.35,0.046,2.35],[-0.32,-0.20,0.034,4.20]].forEach(function(sp){
+            var charm=new THREE.Mesh(_starShapeGeometry(sp[2]*2.2,sp[2],5),starCream.clone());
+            charm.name='danbo-starwish-orbit-star';charm.position.set(sp[0],sp[1],0.704);
+            charm.userData._baseScale=1;charm.userData._phase=sp[3];charm.userData._restZ=sp[3]*0.12;charm.userData._baseOpacity=0.82;
+            charm.rotation.z=charm.userData._restZ;body.add(charm);starDetails.push(charm);
+        });
     }else if(type==='bull'){
-        [-1,1].forEach(function(s){var horn=new THREE.Mesh(new THREE.ConeGeometry(0.07,0.31,10),softPBR(0xFFF0C8,{roughness:0.40}));horn.position.set(s*0.46,0.44,0);horn.rotation.z=-s*0.82;body.add(horn);});
+        // Forest Egg: a readable crown of leaves, kept compact enough to be a motif.
+        var stemM=softPBR(0x356E3E,{roughness:0.88}),leafM=softPBR(0x5AAE60,{roughness:0.80,clearcoat:0.025,envMapIntensity:0.18}),leafLightM=softPBR(0x82C967,{roughness:0.82,envMapIntensity:0.16});
+        var stem=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.037,0.30,8),stemM);stem.position.set(0,0.78,0.015);stem.rotation.z=-0.06;body.add(stem);
+        [[-0.13,0.91,-0.52,1.42],[0.13,0.92,0.52,1.42],[0.00,1.00,0.04,1.22]].forEach(function(lp,li){
+            var leaf=new THREE.Mesh(new THREE.SphereGeometry(0.13,high?20:12,high?12:8),li===2?leafLightM:leafM);
+            leaf.position.set(lp[0],lp[1],0.045);leaf.scale.set(lp[3],0.45,0.72);leaf.rotation.z=lp[2];leaf.castShadow=true;body.add(leaf);forestLeaves.push(leaf);
+        });
     }else if(type==='bear'){
         [-1,1].forEach(function(s){var ear=new THREE.Mesh(new THREE.SphereGeometry(0.16,18,12),armMat);ear.position.set(s*0.42,0.52,0);body.add(ear);});
+        var rockM=softPBR(_charMixHex(color,0x5C5960,0.42),{pastelAmount:0.01,roughness:0.94,metalness:0,clearcoat:0,envMapIntensity:0.08});
+        [[-0.41,0.22,0.54,0.090],[0.40,-0.10,0.55,0.075],[0.27,0.46,0.49,0.065],[-0.30,-0.29,0.59,0.055],[0.47,0.27,0.42,0.050]].forEach(function(rp,ri){
+            var rock=new THREE.Mesh(new THREE.IcosahedronGeometry(rp[3],ri%2),rockM);rock.position.set(rp[0],rp[1],rp[2]);rock.scale.set(1.24,0.84,0.52);rock.rotation.set(ri*0.31,ri*0.47,ri*0.18);rock.castShadow=true;body.add(rock);rockDetails.push(rock);
+        });
+        var crackM=softPBR(0x51433C,{pastelAmount:0,roughness:1,emissive:0x211A18,emissiveIntensity:0.025});
+        function addRockCrack(points){
+            var curve=new THREE.CatmullRomCurve3(points.map(function(p){return new THREE.Vector3(p[0],p[1],p[2]);}));
+            var crack=new THREE.Mesh(new THREE.TubeGeometry(curve,10,0.010,5,false),crackM);body.add(crack);rockDetails.push(crack);
+        }
+        addRockCrack([[-0.20,0.42,0.681],[-0.16,0.34,0.700],[-0.21,0.27,0.704],[-0.17,0.20,0.708]]);
+        addRockCrack([[-0.16,0.34,0.701],[-0.09,0.31,0.710],[-0.05,0.25,0.712]]);
+        addRockCrack([[0.25,-0.05,0.704],[0.20,-0.12,0.716],[0.24,-0.19,0.711],[0.18,-0.25,0.700]]);
+        addRockCrack([[0.20,-0.12,0.716],[0.12,-0.14,0.719],[0.08,-0.20,0.710]]);
     }else if(type==='cockroach'){
-        [-1,1].forEach(function(s){var pts=[];for(var ai=0;ai<=7;ai++){var t=ai/7;pts.push(new THREE.Vector3(s*0.10+s*t*0.31,0.48+t*0.38,0.01-t*0.10));}body.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),10,0.014,6,false),softPBR(0x6F4A25,{roughness:0.60})));});
+        // Wind Egg intentionally keeps a clean aerodynamic crown; no insect antennae.
     }
 
     var lidMat=softPBR(_charMixHex(color,0xFFE9F4,0.30),{roughness:0.42}),blinkLids=[];
     [-1,1].forEach(function(s){var lid=new THREE.Mesh(new THREE.CircleGeometry(0.145,24),lidMat);lid.position.set(s*0.225,0.19,0.723);lid.scale.set(0.68,0.08,1);lid.visible=false;body.add(lid);blinkLids.push(lid);});g.userData._blinkLids=blinkLids;
 
-    var fistMat=softPBR(0xFFFFFF,{roughness:0.35}),rightArm=new THREE.Mesh(new THREE.SphereGeometry(0.20,14,10),fistMat),leftArm=new THREE.Mesh(new THREE.SphereGeometry(0.20,14,10),fistMat);
+    var fistMat=softPBR(0xFFFFFF,{roughness:0.35}),rightArm=new THREE.Mesh(new THREE.SphereGeometry(0.235,high?20:14,high?14:10),fistMat),leftArm=new THREE.Mesh(new THREE.SphereGeometry(0.235,high?20:14,high?14:10),fistMat);
+    rightArm.name='danbo-combat-hand-right';leftArm.name='danbo-combat-hand-left';
     rightArm.position.set(0.4,0.2,0.7);leftArm.position.set(-0.4,0.2,0.7);rightArm.visible=leftArm.visible=false;body.add(rightArm);body.add(leftArm);
     var legMat=softPBR(accent,{roughness:0.38}),rightLeg=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.14,0.72,10),legMat),leftLeg=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.14,0.72,10),legMat);
     rightLeg.position.set(0.24,0.12,0.52);leftLeg.position.set(-0.24,0.12,0.52);rightLeg.rotation.x=leftLeg.rotation.x=-Math.PI/3;rightLeg.visible=leftLeg.visible=false;g.add(rightLeg);g.add(leftLeg);
 
     g.userData.body=body;g.userData.feet=feet;g.userData._charType=charType;
+    g.userData._angelWings=angelWings;g.userData._crystalSparkles=crystalSparkles;
+    g.userData._candyEars=candyEars;g.userData._forestLeaves=forestLeaves;g.userData._rockDetails=rockDetails;g.userData._starDetails=starDetails;
     g.userData._eyeWhites=_eyeWhites;g.userData._pupils=_pupils;g.userData._shines=_shines;g.userData._eyeBaseScales=_eyeBaseScales;g.userData._smile=smile;g.userData._eyeY=0.19;
     g.userData.rightArm=rightArm;g.userData.leftArm=leftArm;g.userData.rightLeg=rightLeg;g.userData.leftLeg=leftLeg;
     return g;
@@ -1039,6 +1171,24 @@ function createEggMesh(color, accent, charType) {
 const allEggs=[];
 let playerEgg=null;
 
+var PLAYER_ARROW_DEFAULT_Y=2.25;
+var PLAYER_ARROW_EQUIPMENT_CLEARANCE=0.55;
+function _updatePlayerArrowClearance(cosmeticRoot){
+    if(!playerEgg||!playerEgg.arrow||!playerEgg.mesh)return;
+    var baseY=PLAYER_ARROW_DEFAULT_Y;
+    if(cosmeticRoot&&cosmeticRoot.children&&cosmeticRoot.children.length){
+        playerEgg.mesh.updateMatrixWorld(true);
+        var bounds=new THREE.Box3().setFromObject(cosmeticRoot);
+        if(!bounds.isEmpty()){
+            var topPoint=bounds.getCenter(new THREE.Vector3());topPoint.y=bounds.max.y;
+            var topLocal=playerEgg.mesh.worldToLocal(topPoint);
+            baseY=Math.max(baseY,topLocal.y+PLAYER_ARROW_EQUIPMENT_CLEARANCE);
+        }
+    }
+    playerEgg.arrow.userData.baseY=baseY;
+    playerEgg.arrow.position.set(0,baseY,0);
+}
+
 function createEgg(x,z,color,accent,isPlayer,targetScene,charType){
     const mesh=createEggMesh(color,accent,charType);
     mesh.position.set(x,0.01,z);
@@ -1047,7 +1197,10 @@ function createEgg(x,z,color,accent,isPlayer,targetScene,charType){
     if(isPlayer){
         const ag=new THREE.ConeGeometry(0.25,0.5,8);
         arrow=new THREE.Mesh(ag,toon(0xFFCC00,{emissive:0xFFCC00,emissiveIntensity:0.4}));
-        arrow.rotation.x=Math.PI; arrow.position.y=2.0; mesh.add(arrow);
+        arrow.rotation.x=Math.PI;
+        arrow.position.set(0,PLAYER_ARROW_DEFAULT_Y,0);
+        arrow.userData.baseY=PLAYER_ARROW_DEFAULT_Y;
+        mesh.add(arrow);
     }
     const egg={
         mesh, vx:0,vy:0,vz:0, onGround:false, isPlayer,
@@ -1123,4 +1276,3 @@ function _updateDropShadow(){
     _dropShadowMesh.scale.set(sc,sc,sc);
     _dropShadowMesh.material.opacity=Math.max(0.08,0.35-height*0.012);
 }
-

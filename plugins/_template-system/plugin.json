@@ -1,0 +1,10 @@
+{
+  "id": "_template-system",
+  "type": "system",
+  "name": "系统插件模板",
+  "version": "0.1.0",
+  "enabled": false,
+  "autoStart": true,
+  "scripts": ["plugins/_template-system/plugin.js"],
+  "description": "常驻系统插件模板：复制本文件夹改个 id 即可开发自己的城市系统功能，全部通过 ctx.api 与内核通信。"
+}

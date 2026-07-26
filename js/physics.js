@@ -474,7 +474,10 @@ function updateEggPhysics(egg, isCity){
     }
     // Clamp max height to prevent flying off screen
     // No height limit — let eggs fly freely
-    if(egg.arrow)egg.arrow.position.y=2.0+Math.sin(Date.now()*0.005)*0.15;
+    if(egg.arrow){
+        var arrowBaseY=(egg.arrow.userData&&typeof egg.arrow.userData.baseY==='number')?egg.arrow.userData.baseY:PLAYER_ARROW_DEFAULT_Y;
+        egg.arrow.position.set(0,arrowBaseY+Math.sin(Date.now()*0.005)*0.15,0);
+    }
     // ---- FINAL: Honda headbutt tilt (MUST be last to override everything) ----
     if(egg._hondaDash>0&&!egg._blankaRoll&&egg._dashDirX!==undefined){
         var _hdT=egg._hondaDashTotal||60;

@@ -235,7 +235,7 @@ function updateCamera(){
         camera.lookAt(_specCamX-Math.sin(_moonCamYaw)*_lookDist,_specCamY-Math.sin(_moonCamPitch)*_lookDist*0.5,_specCamZ-Math.cos(_moonCamYaw)*_lookDist);
         sun.position.set(_specCamX+RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,_specCamZ+RENDER_CONFIG.sunPos.z);
         sun.target.position.set(_specCamX,0,_specCamZ);
-        _sunMesh.position.set(_specCamX+180,240,_specCamZ+120);
+        _sunMesh.position.set(_specCamX+RENDER_CONFIG.sunPos.x*3,RENDER_CONFIG.sunPos.y*3,_specCamZ+RENDER_CONFIG.sunPos.z*3);
         _sunGlow.position.copy(_sunMesh.position);
         return;
     }
@@ -255,7 +255,7 @@ function updateCamera(){
         camera.lookAt(_fpEyeX+Math.sin(_fpYaw)*12,_fpEyeY+0.05,_fpEyeZ+Math.cos(_fpYaw)*12);
         sun.position.set(p.x+RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,p.z+RENDER_CONFIG.sunPos.z);
         sun.target.position.set(p.x,0,p.z);
-        _sunMesh.position.set(p.x+180,240,p.z+120);
+        _sunMesh.position.set(p.x+RENDER_CONFIG.sunPos.x*3,RENDER_CONFIG.sunPos.y*3,p.z+RENDER_CONFIG.sunPos.z*3);
         _sunGlow.position.copy(_sunMesh.position);
         return;
     } else if(playerEgg.mesh&&!playerEgg.mesh.visible){
@@ -348,7 +348,7 @@ function updateCamera(){
         camera.lookAt(p.x,p.y+0.3,p.z);
         sun.position.set(p.x+RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,p.z+RENDER_CONFIG.sunPos.z);
         sun.target.position.set(p.x,0,p.z);
-        _sunMesh.position.set(p.x+180,240,p.z+120);
+        _sunMesh.position.set(p.x+RENDER_CONFIG.sunPos.x*3,RENDER_CONFIG.sunPos.y*3,p.z+RENDER_CONFIG.sunPos.z*3);
         _sunGlow.position.copy(_sunMesh.position);
         return;
     }
@@ -374,7 +374,7 @@ function updateCamera(){
     // Show spectator button on moon
     if(_specBtn){_specBtn.style.display=(currentCityStyle===5&&gameState==='city')?'inline-block':'none';}
     // Sun mesh follows directional light direction (far away visual)
-    _sunMesh.position.set(p.x+180,240,p.z+120);
+    _sunMesh.position.set(p.x+RENDER_CONFIG.sunPos.x*3,RENDER_CONFIG.sunPos.y*3,p.z+RENDER_CONFIG.sunPos.z*3);
     _sunGlow.position.copy(_sunMesh.position);
 
     // Building occlusion — fade buildings between camera and player
@@ -435,6 +435,14 @@ function updateCamera(){
 
             const targetOp=shouldFade?0.01:1.0;
             for(const m of bld.meshes){
+                if(!m.userData._sharedFadeBase)m.userData._sharedFadeBase=m.material;
+                if(shouldFade&&m.material===m.userData._sharedFadeBase){
+                    m.material=m.userData._sharedFadeBase.clone();
+                    m.userData._usesFadeClone=true;
+                }
+                // Shared PBR materials stay immutable for every visible building. A private
+                // clone only exists while this particular building crosses the camera ray.
+                if(!shouldFade&&!m.userData._usesFadeClone)continue;
                 const mat=m.material;
                 if(!mat)continue;
                 if(!mat.hasOwnProperty('_origOpacity')){mat._origOpacity=mat.opacity||1;mat._origTransparent=mat.transparent||false;mat._origDepthWrite=mat.depthWrite!==undefined?mat.depthWrite:true;}
@@ -444,8 +452,13 @@ function updateCamera(){
                 mat.depthWrite=mat.opacity>0.95;
                 mat.needsUpdate=true;
                 m.renderOrder=shouldFade?10:0;
+                if(!shouldFade&&m.userData._usesFadeClone&&mat.opacity>0.985){
+                    var oldFadeMat=m.material;
+                    m.material=m.userData._sharedFadeBase;
+                    m.userData._usesFadeClone=false;m.renderOrder=0;
+                    if(oldFadeMat&&oldFadeMat.dispose)oldFadeMat.dispose();
+                }
             }
         }
     }
 }
-

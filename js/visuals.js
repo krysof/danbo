@@ -54,6 +54,8 @@ var _visualSoftTex=_visualCreateSoftCircleTexture();
 var _visualFlareTex=_visualCreateFlareTexture();
 var _visualSurfaceTextures={};
 var _visualSurfaceTextureSets={};
+var _visualSurfaceMaterials={};
+var _visualGeometryCache={roundedRect:{},roundedBox:{},gable:{}};
 
 function _visualSeededRandom(seed){
     var s=seed>>>0;
@@ -179,6 +181,9 @@ function _visualSurfaceTextureSet(kind){
 function _visualSurfaceTexture(kind){return _visualSurfaceTextureSet(kind).map;}
 function _visualSurfaceMaterial(kind,color,opts){
     opts=opts||{};
+    var optKey=Object.keys(opts).sort().map(function(k){var v=opts[k];return k+'='+(v&&v.isVector2?(v.x+','+v.y):String(v));}).join(';');
+    var materialKey=kind+'|'+String(color)+'|'+optKey+'|'+((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced');
+    if(_visualSurfaceMaterials[materialKey])return _visualSurfaceMaterials[materialKey];
     var set=_visualSurfaceTextureSet(kind);
     var base={map:set.map,roughnessMap:set.roughnessMap,roughness:kind==='roof'?0.62:(kind==='facade'?0.76:0.94),metalness:0,envMapIntensity:kind==='roof'?0.46:(kind==='facade'?0.18:0.24)};
     if(set.normalMap){var ns=kind==='grass'?0.46:(kind==='roof'?0.68:(kind==='path'?0.40:(kind==='stone'?0.30:0.34)));base.normalMap=set.normalMap;base.normalScale=new THREE.Vector2(ns,ns);}
@@ -205,19 +210,24 @@ function _visualSurfaceMaterial(kind,color,opts){
         };
         mat.customProgramCacheKey=function(){return 'danbo-pbr-blend-'+kind+'-'+blend;};
     }
+    _visualSurfaceMaterials[materialKey]=mat;
     return mat;
 }
 function _visualRoundedRectGeometry(w,d,r){
     r=Math.max(0.1,Math.min(r===undefined?1.1:r,w*0.48,d*0.48));
+    var cacheKey=[w,d,r].map(function(v){return Number(v).toFixed(3);}).join('|');
+    if(_visualGeometryCache.roundedRect[cacheKey])return _visualGeometryCache.roundedRect[cacheKey];
     var x=-w/2,z=-d/2,s=new THREE.Shape();
     s.moveTo(x+r,z);s.lineTo(x+w-r,z);s.quadraticCurveTo(x+w,z,x+w,z+r);
     s.lineTo(x+w,z+d-r);s.quadraticCurveTo(x+w,z+d,x+w-r,z+d);
     s.lineTo(x+r,z+d);s.quadraticCurveTo(x,z+d,x,z+d-r);
     s.lineTo(x,z+r);s.quadraticCurveTo(x,z,x+r,z);
-    return new THREE.ShapeGeometry(s,4);
+    var geo=new THREE.ShapeGeometry(s,4);_visualGeometryCache.roundedRect[cacheKey]=geo;return geo;
 }
 function _visualRoundedBoxGeometry(w,h,d,r){
     r=Math.max(0.12,Math.min(r===undefined?0.48:r,w*0.22,h*0.22));
+    var cacheKey=[w,h,d,r,(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high)?1:0].map(function(v){return Number(v).toFixed(3);}).join('|');
+    if(_visualGeometryCache.roundedBox[cacheKey])return _visualGeometryCache.roundedBox[cacheKey];
     var x=-w/2,y=-h/2,s=new THREE.Shape();
     s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.quadraticCurveTo(x+w,y,x+w,y+r);
     s.lineTo(x+w,y+h-r);s.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
@@ -227,9 +237,11 @@ function _visualRoundedBoxGeometry(w,h,d,r){
     var bevel=Math.min(high?0.26:0.16,d*0.085,r*0.40);
     var geo=new THREE.ExtrudeGeometry(s,{depth:Math.max(0.1,d-bevel*2),steps:1,curveSegments:high?6:3,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:high?4:2});
     geo.center();geo.computeVertexNormals();
-    return geo;
+    _visualGeometryCache.roundedBox[cacheKey]=geo;return geo;
 }
 function _visualGableRoofGeometry(w,d,h){
+    var cacheKey=[w,d,h].map(function(v){return Number(v).toFixed(3);}).join('|');
+    if(_visualGeometryCache.gable[cacheKey])return _visualGeometryCache.gable[cacheKey];
     var hw=w/2,hd=d/2;
     // Duplicated vertices keep the two roof planes and gable ends crisply faceted while
     // still carrying useful UVs for the authored roof-tile normal/roughness maps.
@@ -252,7 +264,7 @@ function _visualGableRoofGeometry(w,d,h){
     geo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
     geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
     geo.setIndex(idx);geo.computeVertexNormals();geo.computeBoundingSphere();
-    return geo;
+    _visualGeometryCache.gable[cacheKey]=geo;return geo;
 }
 
 function _visualColorToCss(hex){
@@ -379,17 +391,18 @@ function _visualAddHopeGroundPatches(){
 }
 
 function _visualAddPuffyClouds(){
-    var clusters=13,per=5,count=clusters*per;
-    var geo=new THREE.SphereGeometry(1,10,7);
-    var mat=typeof softPBR==='function'?softPBR(0xFFFFFF,{roughness:1,transparent:true,opacity:0.88,depthWrite:false,fog:true}):toon(0xFFFFFF,{transparent:true,opacity:0.88,depthWrite:false});
+    var low=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
+    var clusters=13,per=low?5:7,count=clusters*per;
+    var geo=new THREE.SphereGeometry(1,low?12:22,low?8:15);
+    var mat=new THREE.MeshStandardMaterial({color:0xFBFDFF,roughness:1,metalness:0,emissive:0xD9E9F4,emissiveIntensity:0.22,transparent:true,opacity:0.92,depthWrite:false,fog:true});
     var mesh=new THREE.InstancedMesh(geo,mat,count),d=new THREE.Object3D(),n=0;
     for(var c=0;c<clusters;c++){
         var a=c/clusters*Math.PI*2+0.2,rad=125+(c%4)*22,cy=45+(c%5)*7;
         for(var j=0;j<per;j++){
-            var size=4.5+(j%3)*1.8;
-            d.position.set(Math.cos(a)*rad+(j-2)*4.2,cy+Math.sin(j*1.7)*2.2,Math.sin(a)*rad+(j%2)*3.2);
-            d.scale.set(size*(1.25+(j%2)*0.18),size*(0.58+(j%3)*0.08),size);
-            d.rotation.set(0,a,0);d.updateMatrix();mesh.setMatrixAt(n++,d.matrix);
+            var center=(per-1)*0.5,size=4.4+(j%3)*1.65;
+            d.position.set(Math.cos(a)*rad+(j-center)*3.55,cy+Math.sin(j*1.43)*2.35,Math.sin(a)*rad+((j%3)-1)*3.0);
+            d.scale.set(size*(1.03+(j%2)*0.14),size*(0.66+(j%3)*0.08),size*(0.88+(j%2)*0.10));
+            d.rotation.set(0,a+(j-center)*0.06,(j%2?1:-1)*0.035);d.updateMatrix();mesh.setMatrixAt(n++,d.matrix);
         }
     }
     mesh.name='hope-puffy-clouds';mesh.frustumCulled=false;

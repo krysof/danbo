@@ -1,14 +1,14 @@
 // characters.js — DANBO World
 const CHARACTERS = [
     // SF2 select screen layout: top row L→R, bottom row L→R
-    {name:'\u7ECF\u5178\u86CB\u5B9D',type:'egg',color:0xFFFDF2,accent:0xEF4A5B,icon:'\uD83E\uDD5A',portrait:'#FFFDF2',sf2:'Ryu',country:'Japan',flag:'\uD83C\uDDEF\uD83C\uDDF5',mapX:360,mapY:52},
-    {name:'\u91CE\u725B',type:'bull',color:0xFFD1A0,accent:0xFF8A55,icon:'\uD83D\uDC03',portrait:'#FFD1A0',sf2:'E.Honda',country:'Japan',flag:'\uD83C\uDDEF\uD83C\uDDF5',mapX:360,mapY:52},
-    {name:'\u732B\u4ED4',type:'cat',color:0x72E889,accent:0x65C7FF,icon:'\uD83D\uDC31',portrait:'#72E889',sf2:'Blanka',country:'Brazil',flag:'\uD83C\uDDE7\uD83C\uDDF7',mapX:95,mapY:155},
-    {name:'\u9E21\u516C',type:'rooster',color:0xBFEA7C,accent:0xFF7BA3,icon:'\uD83D\uDC13',portrait:'#BFEA7C',sf2:'Guile',country:'USA',flag:'\uD83C\uDDFA\uD83C\uDDF8',mapX:70,mapY:55},
-    {name:'\u72D7\u4ED4',type:'dog',color:0xFF7E86,accent:0xFFE066,icon:'\uD83D\uDC36',portrait:'#FF7E86',sf2:'Ken',country:'USA',flag:'\uD83C\uDDFA\uD83C\uDDF8',mapX:70,mapY:55},
-    {name:'\u9A6C\u9A9D',type:'monkey',color:0x72A8FF,accent:0xFFD66B,icon:'\uD83D\uDC35',portrait:'#72A8FF',sf2:'Chun-Li',country:'China',flag:'\uD83C\uDDE8\uD83C\uDDF3',mapX:310,mapY:55},
-    {name:'\u5927\u718A',type:'bear',color:0xCFA06A,accent:0xF7C95A,icon:'\uD83D\uDC3B',portrait:'#CFA06A',sf2:'Zangief',country:'Russia',flag:'\uD83C\uDDF7\uD83C\uDDFA',mapX:290,mapY:18},
-    {name:'\u66F1\u7534',type:'cockroach',color:0xC9A64F,accent:0xFFFFFF,icon:'\uD83E\uDEB3',portrait:'#C9A64F',sf2:'Dhalsim',country:'India',flag:'\uD83C\uDDEE\uD83C\uDDF3',mapX:278,mapY:88},
+    {name:'花朵蛋',type:'egg',color:0xFFFDF2,accent:0xEF4A5B,icon:'\uD83C\uDF3C',portrait:'#FFFDF2',mapX:200,mapY:110},
+    {name:'森林蛋',type:'bull',color:0xBFE8A0,accent:0x8FD16A,icon:'\uD83C\uDF32',portrait:'#BFE8A0',mapX:110,mapY:55},
+    {name:'水晶蛋',type:'cat',color:0xD6F5FF,accent:0x9FE6F5,icon:'\uD83D\uDC8E',portrait:'#D6F5FF',mapX:300,mapY:52},
+    {name:'天使蛋',type:'rooster',color:0xBFEA7C,accent:0xFF7BA3,icon:'\uD83D\uDC7C',portrait:'#BFEA7C',mapX:200,mapY:34},
+    {name:'糖心蛋',type:'dog',color:0xFF7E86,accent:0xFFE066,icon:'\uD83C\uDF6C',portrait:'#FF7E86',mapX:335,mapY:120},
+    {name:'星愿蛋',type:'monkey',color:0x72A8FF,accent:0xFFD66B,icon:'\u2B50',portrait:'#72A8FF',mapX:95,mapY:165},
+    {name:'岩石蛋',type:'bear',color:0xCFA06A,accent:0xF7C95A,icon:'\uD83E\uDEA8',portrait:'#CFA06A',mapX:55,mapY:105},
+    {name:'风行蛋',type:'cockroach',color:0xFFA040,accent:0xFF7A1A,icon:'\uD83C\uDF2A\uFE0F',portrait:'#FFA040',mapX:320,mapY:175},
 ];
 let selectedChar = 0;
 // Apply localized character names
@@ -58,7 +58,7 @@ function _drawCuteRoundPortrait(ctx,ch,W,H){
     var rx=54,ry=64;
     if(ch.type==='cat'||ch.type==='bull'){rx=62;ry=58;}
     else if(ch.type==='bear'){rx=68;ry=68;}
-    else if(ch.type==='cockroach'){rx=44;ry=70;}
+    else if(ch.type==='cockroach'){rx=60;ry=60;} // Wind Egg: round
     else if(ch.type==='monkey'){rx=50;ry=66;}
 
     function ear(x,y,r,col){ctx.fillStyle=col||ch.portrait;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
@@ -66,9 +66,8 @@ function _drawCuteRoundPortrait(ctx,ch,W,H){
     else if(ch.type==='cat'){[-1,1].forEach(function(s){ctx.fillStyle=ch.portrait;ctx.beginPath();ctx.moveTo(cx+s*30,cy-64);ctx.lineTo(cx+s*52,cy-30);ctx.lineTo(cx+s*16,cy-38);ctx.closePath();ctx.fill();});}
     else if(ch.type==='bear'){[-1,1].forEach(function(s){ear(cx+s*42,cy-58,16,ch.portrait);});}
     else if(ch.type==='monkey'){[-1,1].forEach(function(s){ear(cx+s*50,cy-22,17,'#FFD5AF');});}
-    else if(ch.type==='bull'){[-1,1].forEach(function(s){ctx.fillStyle='#FFF0C8';ctx.beginPath();ctx.moveTo(cx+s*33,cy-48);ctx.quadraticCurveTo(cx+s*68,cy-58,cx+s*58,cy-78);ctx.quadraticCurveTo(cx+s*50,cy-57,cx+s*25,cy-42);ctx.closePath();ctx.fill();});}
+    else if(ch.type==='bull'){ctx.strokeStyle='#5AA84A';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx,cy-50);ctx.lineTo(cx,cy-70);ctx.stroke();[-1,1].forEach(function(s){ctx.fillStyle='#6FBF5A';ctx.beginPath();ctx.ellipse(cx+s*11,cy-72,13,6,s*0.6,0,Math.PI*2);ctx.fill();});}
     else if(ch.type==='rooster'){ctx.fillStyle='#FF6F7D';for(var ri=0;ri<3;ri++){ctx.beginPath();ctx.arc(cx-10+ri*10,cy-70+Math.abs(ri-1)*4,10,0,Math.PI*2);ctx.fill();}}
-    else if(ch.type==='cockroach'){[-1,1].forEach(function(s){ctx.strokeStyle='#7A552A';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx+s*12,cy-58);ctx.quadraticCurveTo(cx+s*42,cy-92,cx+s*55,cy-74);ctx.stroke();});}
 
     ctx.beginPath();ctx.ellipse(cx,cy+ry*0.82,rx*0.84,12,0,0,Math.PI*2);
     ctx.fillStyle='rgba(126,96,135,0.14)';ctx.fill();
@@ -85,6 +84,17 @@ function _drawCuteRoundPortrait(ctx,ch,W,H){
     ctx.strokeStyle='rgba(255,255,255,0.86)';ctx.lineWidth=4;ctx.stroke();
     ctx.beginPath();ctx.ellipse(cx-18,cy-30,rx*0.25,ry*0.16,-0.35,0,Math.PI*2);
     ctx.fillStyle='rgba(255,255,255,0.28)';ctx.fill();
+
+    if(ch.type==='bear'){
+        // Rock Egg: a few subtle stony chunks on the body
+        var _rp=[[cx-rx*0.5,cy-6,10],[cx+rx*0.46,cy+16,12],[cx-rx*0.16,cy+36,9]];
+        _rp.forEach(function(p){
+            ctx.fillStyle='#9A928A';ctx.beginPath();
+            ctx.moveTo(p[0]-p[2],p[1]);ctx.lineTo(p[0]-p[2]*0.4,p[1]-p[2]);ctx.lineTo(p[0]+p[2]*0.6,p[1]-p[2]*0.7);
+            ctx.lineTo(p[0]+p[2],p[1]+p[2]*0.4);ctx.lineTo(p[0],p[1]+p[2]);ctx.closePath();ctx.fill();
+            ctx.strokeStyle='rgba(90,84,78,0.5)';ctx.lineWidth=1;ctx.stroke();
+        });
+    }
 
     if(ch.type==='egg'){
         ctx.strokeStyle='#FFFBEF';ctx.lineWidth=3;ctx.beginPath();
