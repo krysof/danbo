@@ -311,7 +311,7 @@ function MoveSpin_update(egg, inputFn){
         if(!t._tatsuHitCD) t._tatsuHitCD=0;
         if(t._tatsuHitCD>0){t._tatsuHitCD--;return false;}
         var d=dist||1;
-        _moveApplyKnockback(t,dx/d,dz/d,dist,COMBAT.spin.force,COMBAT.spin.vy,{squash:COMBAT.spin.squash,throwTimer:COMBAT.spin.throwTimer,bounces:COMBAT.spin.bounces,stunDmg:COMBAT.spin.stunDmg});
+        _moveApplyKnockback(t,dx/d,dz/d,dist,COMBAT.spin.force,COMBAT.spin.vy,{squash:COMBAT.spin.squash,throwTimer:COMBAT.spin.throwTimer,bounces:COMBAT.spin.bounces,stunDmg:MOVE_PARAMS.egg.tatsumaki.stunDmg});
         t._tatsuHitCD=12;
         return false; // hit multiple
     });

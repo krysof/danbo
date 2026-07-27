@@ -10,8 +10,7 @@ var _visualQualityMemory=Number(navigator.deviceMemory||4);
 var _visualQualityCores=Number(navigator.hardwareConcurrency||4);
 var _visualQualityMode=_visualQualityPref;
 if(['low','balanced','high'].indexOf(_visualQualityMode)<0){
-    if(_visualQualityMobile)_visualQualityMode=(_visualQualityMemory<=4||_visualQualityCores<=4)?'low':'balanced';
-    else _visualQualityMode=(_visualQualityMemory>=6&&_visualQualityCores>=6)?'high':'balanced';
+    _visualQualityMode=(!_visualQualityMobile&&_visualQualityMemory>=6&&_visualQualityCores>=6)?'high':'balanced';
 }
 window.DANBO_VISUAL_QUALITY={
     requested:_visualQualityPref,
@@ -89,25 +88,18 @@ sun.shadow.normalBias=0.025;
 sun.shadow.radius=_visualQualityMode==='high'?4.8:3.0;
 scene.add(sun); scene.add(sun.target);
 scene.add(new THREE.HemisphereLight(RENDER_CONFIG.hemiSkyColor,RENDER_CONFIG.hemiGroundColor,RENDER_CONFIG.hemiIntensity));
-const rimLight = new THREE.DirectionalLight(0xCFEAFF,0.24);
+const rimLight = new THREE.DirectionalLight(0xD8F4FF,0.28);
 rimLight.position.set(-50,45,-60);
 scene.add(rimLight);
-const softFillLight = new THREE.DirectionalLight(0xFFE2CF,0.18);
+const softFillLight = new THREE.DirectionalLight(0xFFD9C7,0.24);
 softFillLight.position.set(35,24,55);
 scene.add(softFillLight);
-// A clean solar disc plus a soft radial corona. The glow is texture-shaped rather
-// than a translucent sphere, so it reads as sunlight without a hard plastic edge.
-var _sunMesh=new THREE.Mesh(new THREE.SphereGeometry(8,32,20),new THREE.MeshBasicMaterial({color:0xFFF1A8,fog:false,toneMapped:false}));
+// Sun visual mesh (visible in ground cities)
+var _sunMesh=new THREE.Mesh(new THREE.SphereGeometry(8,16,12),new THREE.MeshBasicMaterial({color:0xFFEE44,fog:false}));
 _sunMesh.position.copy(sun.position).multiplyScalar(3);
 scene.add(_sunMesh);
-var _sunGlowCanvas=document.createElement('canvas');_sunGlowCanvas.width=_sunGlowCanvas.height=128;
-var _sunGlowCtx=_sunGlowCanvas.getContext('2d'),_sunGlowGrad=_sunGlowCtx.createRadialGradient(64,64,6,64,64,64);
-_sunGlowGrad.addColorStop(0,'rgba(255,246,190,.82)');_sunGlowGrad.addColorStop(.20,'rgba(255,222,132,.38)');
-_sunGlowGrad.addColorStop(.52,'rgba(255,196,92,.13)');_sunGlowGrad.addColorStop(1,'rgba(255,184,78,0)');
-_sunGlowCtx.fillStyle=_sunGlowGrad;_sunGlowCtx.fillRect(0,0,128,128);
-var _sunGlowTex=new THREE.CanvasTexture(_sunGlowCanvas);_sunGlowTex.colorSpace=THREE.SRGBColorSpace;
-var _sunGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:_sunGlowTex,color:0xFFF0C0,transparent:true,opacity:0.72,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending,toneMapped:false}));
-_sunGlow.scale.set(52,52,1);_sunGlow.renderOrder=990;
+// Sun glow
+var _sunGlow=new THREE.Mesh(new THREE.SphereGeometry(12,16,12),new THREE.MeshBasicMaterial({color:0xFFFF88,transparent:true,opacity:0.25,fog:false}));
 _sunGlow.position.copy(_sunMesh.position);
 scene.add(_sunGlow);
 

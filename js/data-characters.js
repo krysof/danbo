@@ -23,7 +23,7 @@ var COMBAT={
     // Shoryuken/uppercut hit
     shoryuken:{force:0.6, vy:0.4, squash:0.3, throwTimer:50, bounces:2, stunDmg:15, kenFireDuration:90},
     // Tatsumaki/spin hit
-    spin:{force:0.6, vy:0.35, squash:0.3, throwTimer:50, bounces:2, stunDmg:15},
+    spin:{force:0.6, vy:0.35, squash:0.3, throwTimer:50, bounces:2},
     // Rapid hit (hyakuretsu)
     rapidHit:{force:0.5, vy:0.25, squash:0.3, throwTimer:45, bounces:2, stunDmg:10},
     // Blanka roll hit
@@ -60,239 +60,220 @@ var COMBAT={
 
 // ---- Character definitions ----
 var CHAR_DEFS=[
-    {name:'egg',color:0xF5F5F0,accent:0xCC2222,icon:'\uD83E\uDD5A',mapX:200,mapY:110,
+    {name:'egg',sf2:'Ryu',color:0xF5F5F0,accent:0xCC2222,icon:'\uD83E\uDD5A',country:'Japan',flag:'\uD83C\uDDEF\uD83C\uDDF5',mapX:360,mapY:52,
      bodyShape:'normal',portraitRx:55,portraitRy:70,miniRx:0.32,miniRy:0.38},
-    {name:'bull',color:0xBFE8A0,accent:0x8FD16A,icon:'\uD83D\uDC03',mapX:110,mapY:55,
+    {name:'bull',sf2:'E.Honda',color:0x4A3728,accent:0x2244AA,icon:'\uD83D\uDC03',country:'Japan',flag:'\uD83C\uDDEF\uD83C\uDDF5',mapX:360,mapY:52,
      bodyShape:'round',portraitRx:65,portraitRy:60,miniRx:0.38,miniRy:0.34},
-    {name:'cat',color:0xD6F5FF,accent:0x9FE6F5,icon:'\uD83D\uDC31',mapX:300,mapY:52,
+    {name:'cat',sf2:'Blanka',color:0x33AA33,accent:0xFF8800,icon:'\uD83D\uDC31',country:'Brazil',flag:'\uD83C\uDDE7\uD83C\uDDF7',mapX:95,mapY:155,
      bodyShape:'round',portraitRx:65,portraitRy:60,miniRx:0.38,miniRy:0.34},
-    {name:'rooster',color:0x556B2F,accent:0xFFDD44,icon:'\uD83D\uDC13',mapX:200,mapY:34,
+    {name:'rooster',sf2:'Guile',color:0x556B2F,accent:0xFFDD44,icon:'\uD83D\uDC13',country:'USA',flag:'\uD83C\uDDFA\uD83C\uDDF8',mapX:70,mapY:55,
      bodyShape:'normal',portraitRx:55,portraitRy:70,miniRx:0.32,miniRy:0.38},
-    {name:'dog',color:0xCC2222,accent:0xFFDD44,icon:'\uD83D\uDC36',mapX:335,mapY:120,
+    {name:'dog',sf2:'Ken',color:0xCC2222,accent:0xFFDD44,icon:'\uD83D\uDC36',country:'USA',flag:'\uD83C\uDDFA\uD83C\uDDF8',mapX:70,mapY:55,
      bodyShape:'normal',portraitRx:55,portraitRy:70,miniRx:0.32,miniRy:0.38},
-    {name:'monkey',color:0x2255CC,accent:0xFFFFFF,icon:'\uD83D\uDC35',mapX:95,mapY:165,
+    {name:'monkey',sf2:'Chun-Li',color:0x2255CC,accent:0xFFFFFF,icon:'\uD83D\uDC35',country:'China',flag:'\uD83C\uDDE8\uD83C\uDDF3',mapX:310,mapY:55,
      bodyShape:'slim',portraitRx:42,portraitRy:75,miniRx:0.25,miniRy:0.42},
-    {name:'bear',color:0x8B6B4A,accent:0x8B4513,icon:'\uD83D\uDC3B',mapX:55,mapY:105,
+    {name:'bear',sf2:'Zangief',color:0x8B6B4A,accent:0x8B4513,icon:'\uD83D\uDC3B',country:'Russia',flag:'\uD83C\uDDF7\uD83C\uDDFA',mapX:290,mapY:18,
      bodyShape:'big',portraitRx:72,portraitRy:72,miniRx:0.42,miniRy:0.40},
-    {name:'cockroach',color:0xFFA040,accent:0xFF7A1A,icon:'\uD83E\uDEB3',mapX:320,mapY:175,
+    {name:'cockroach',sf2:'Dhalsim',color:0x8B6914,accent:0xFFFFFF,icon:'\uD83E\uDEB3',country:'India',flag:'\uD83C\uDDEE\uD83C\uDDF3',mapX:278,mapY:88,
      bodyShape:'thin',portraitRx:30,portraitRy:78,miniRx:0.20,miniRy:0.42}
 ];
 
 // ---- Special move parameters per character ----
 var MOVE_PARAMS={
     // ================================================================
-    // 花朵蛋 (egg) — 微弱蛋拳(→→+R) / 花朵蛋拳(↓↑+R) / 百花拳击(←→+T)
+    // Ryu (egg) — 波动拳, 升龙拳, 旋风腿
     // ================================================================
     egg:{
-        // 微弱蛋拳：一发轻柔的蛋能量弹，威力很小、不点燃
-        weakPunch:{
+        hadouken:{
             trigger:'ffR',input:'→→+R',        // forward-forward + punch
-            name:'微弱蛋拳',type:'projectile',shout:'微弱蛋拳！',
-            text:{zhs:'微弱蛋拳！',zht:'微弱蛋拳！',ja:'ふんわりエッグパンチ！',en:'Tiny Egg Punch!'},
-            speed:0.3,life:80,color:0xFFE1B0,ringColor:0xFFF3D6,
-            burns:false,          // gentle — no fire
-            damage:4,stunDmg:6,   // weak damage & stun
-            cd:22                 // cooldown frames
+            name:'HADOUKEN!',type:'projectile',shout:'HADOUKEN!',
+            text:{zhs:'波动拳！',zht:'波動拳！',ja:'波動拳！',en:'HADOUKEN!'},
+            speed:0.35,life:120,color:0xFF4422,ringColor:0xFF8866,
+            burns:true,           // hit causes fire
+            damage:10,stunDmg:15, // damage & stun
+            cd:25                 // cooldown frames
         },
-        // 花朵蛋拳：向上升腾、绽放花朵的上升重击
         shoryuken:{
             trigger:'bfR',input:'↓↑+R',        // down-up + punch
-            name:'花朵蛋拳',type:'shoryuken',shout:'花朵蛋拳！',
-            text:{zhs:'花朵蛋拳！',zht:'花朵蛋拳！',ja:'フラワーエッグアッパー！',en:'Flower Egg Uppercut!'},
+            name:'SHORYUKEN!',type:'shoryuken',shout:'SHORYUKEN!',
+            text:{zhs:'升龙拳！',zht:'昇龍拳！',ja:'昇龍拳！',en:'SHORYUKEN!'},
             jumpMul:1.6,fwdSpeed:0.15,duration:65,
             damage:20,stunDmg:15,
             cd:30
         },
-        // 百花拳击：旋转散花的连环击
         tatsumaki:{
             trigger:'bfT',input:'←→+T',        // back-forward + kick
-            name:'百花拳击',type:'tatsumaki',shout:'百花拳击！',
-            text:{zhs:'百花拳击！',zht:'百花拳擊！',ja:'ひゃっかエッグスピン！',en:'Hundred Flowers Spin!'},
+            name:'Tatsumaki Senpukyaku!',type:'tatsumaki',shout:'Tatsumaki Senpukyaku!',
+            text:{zhs:'龙卷旋风脚！',zht:'龍卷旋風腳！',ja:'竇巻旋風脚！',en:'Tatsumaki!'},
             duration:94,hitForce:0.5,hitVy:0.3,
             damage:12,stunDmg:15,hitCD:12,
             cd:40
         }
     },
     // ================================================================
-    // 糖心蛋 (dog) — 甜蜜蛋拳(→→+R) / 糖心攻击(↓↑+R) / 爱心糖果拳(←→+T)
+    // Ken (dog) — 波动拳, 升龙拳(火), 旋风腿
     // ================================================================
     dog:{
-        // 甜蜜蛋拳：甜蜜能量弹
         hadouken:{
             trigger:'ffR',input:'→→+R',
-            name:'甜蜜蛋拳',type:'projectile',shout:'甜蜜蛋拳！',
-            text:{zhs:'甜蜜蛋拳！',zht:'甜蜜蛋拳！',ja:'スイートエッグパンチ！',en:'Sweet Egg Punch!'},
+            name:'Hadouken!',type:'projectile',shout:'Hadouken!',
+            text:{zhs:'波动拳！',zht:'波動拳！',ja:'波動拳！',en:'Hadouken!'},
             speed:0.35,life:120,color:0x4488FF,ringColor:0x88AAFF,
             burns:false,
             damage:10,stunDmg:15,
             cd:25
         },
-        // 糖心攻击：上升重击，命中点燃
         shoryuken:{
             trigger:'bfR',input:'↓↑+R',
-            name:'糖心攻击',type:'shoryuken',shout:'糖心攻击！',
-            text:{zhs:'糖心攻击！',zht:'糖心攻擊！',ja:'キャンディハートアタック！',en:'Candy Heart Strike!'},
+            name:'Shoryuken!',type:'shoryuken',shout:'Shoryuken!',
+            text:{zhs:'升龙拳！',zht:'昇龍拳！',ja:'昇龍拳！',en:'Shoryuken!'},
             jumpMul:1.7,fwdSpeed:0.35,duration:75,
-            fire:true,            // this uppercut sets target on fire
+            fire:true,            // Ken shoryuken sets target on fire
             damage:22,stunDmg:15,
             cd:30
         },
-        // 爱心糖果拳：旋转连击
         tatsumaki:{
             trigger:'bfT',input:'←→+T',
-            name:'爱心糖果拳',type:'tatsumaki',shout:'爱心糖果拳！',
-            text:{zhs:'爱心糖果拳！',zht:'愛心糖果拳！',ja:'ラブキャンディパンチ！',en:'Love Candy Punch!'},
+            name:'Tatsumaki Senpukyaku!',type:'tatsumaki',shout:'Tatsumaki Senpukyaku!',
+            text:{zhs:'龙卷旋风脚！',zht:'龍卷旋風腳！',ja:'竇巻旋風脚！',en:'Tatsumaki!'},
             duration:94,hitForce:0.5,hitVy:0.3,
             damage:12,stunDmg:15,hitCD:12,
             cd:40
         }
     },
     // ================================================================
-    // 森林蛋 (bull) — 叶片蛋拳(R) / 森林摇摆(←→+R)
+    // Honda/Buffalo (bull) — 百裂掌, 头锤
     // ================================================================
     bull:{
-        // 叶片蛋拳：连打的叶片乱拳（原百裂掌）
         hyakuretsu:{
-            trigger:'alwaysR',input:'R (always)',   // normal punch = leaf flurry
-            name:'叶片蛋拳',type:'hyakuretsu',shout:'叶片蛋拳！',
-            text:{zhs:'叶片蛋拳！',zht:'葉片蛋拳！',ja:'リーフエッグパンチ！',en:'Leaf Egg Punch!'},
+            trigger:'alwaysR',input:'R (always)',   // normal punch = hyakuretsu
+            name:'Hohoho!',type:'hyakuretsu',shout:'Hohoho!',
+            text:{zhs:'嗬嗬嗬！',zht:'嗬嗬嗬！',ja:'ホホホ！',en:'Hohoho!'},
             cd:4,range:2.5,hitForce:0.5,hitVy:0.25,
             damage:8,stunDmg:10
         },
-        // 森林摇摆：稳沉的冲撞（原头槌冲撞）
         headbutt:{
             trigger:'bfR',input:'←→+R',        // back-forward + punch
-            name:'森林摇摆',type:'dash',shout:'森林摇摆！',
-            text:{zhs:'森林摇摆！',zht:'森林搖擺！',ja:'フォレストスウェイ！',en:'Forest Sway!'},
+            name:'Dosukoi!',type:'dash',shout:'Dosukoi!',
+            text:{zhs:'误会！',zht:'誤會！',ja:'どすこい！',en:'Dosukoi!'},
             speed:2,duration:60,cd:70,
             damage:15,stunDmg:20
         }
     },
     // ================================================================
-    // 水晶蛋 (cat) — 冰晶蛋拳(R) / 冰冻水晶(←→+R)
+    // Blanka (cat) — 电击, 滚动攻击
     // ================================================================
     cat:{
-        // 冰晶蛋拳：近身冰晶脉冲
         electric:{
-            trigger:'alwaysR',input:'R (always)',   // normal punch = crystal zap
-            name:'冰晶蛋拳',type:'electric',shout:'冰晶蛋拳！',
-            text:{zhs:'冰晶蛋拳！',zht:'冰晶蛋拳！',ja:'クリスタルエッグパンチ！',en:'Crystal Egg Punch!'},
+            trigger:'alwaysR',input:'R (always)',   // normal punch = electric
+            name:'ELECTRIC!',type:'electric',shout:'ELECTRIC!',
+            text:{zhs:'嗷嗷嗷！',zht:'嗷嗷嗷！',ja:'ガウガウ！',en:'GRAAAH!'},
             duration:60,range:2.5,
             damage:8,stunDmg:15,
-            electrocuteDuration:90 // frames target is frozen
+            electrocuteDuration:90 // frames target is electrocuted
         },
-        // 冰冻水晶：滚动冲撞
         roll:{
             trigger:'bfR',input:'←→+R',        // back-forward + punch
-            name:'冰冻水晶',type:'roll',shout:'冰冻水晶！',
-            text:{zhs:'冰冻水晶！',zht:'冰凍水晶！',ja:'フローズンクリスタル！',en:'Frozen Crystal!'},
+            name:'GRAAAH!',type:'roll',shout:'GRAAAH!',
+            text:{zhs:'嗷嗷嗷！',zht:'嗷嗷嗷！',ja:'ガウガウ！',en:'GRAAAH!'},
             speed:3,duration:60,cd:35,
             damage:15,stunDmg:20
         }
     },
     // ================================================================
-    // 天使蛋 (rooster) — 温暖蛋拳(→→+R) / 天使一击(←→+T)
+    // Guile (rooster) — 音速手刀, 闪光飞踢
     // ================================================================
     rooster:{
-        // 温暖蛋拳：一道温暖的能量刀弹
         sonicBoom:{
             trigger:'ffR',input:'→→+R',        // forward-forward + punch
-            name:'温暖蛋拳',type:'projectile',shout:'温暖蛋拳！',
-            text:{zhs:'温暖蛋拳！',zht:'溫暖蛋拳！',ja:'ウォームエッグパンチ！',en:'Warm Egg Punch!'},
+            name:'Sonic Boom!',type:'projectile',shout:'Sonic Boom!',
+            text:{zhs:'音速手刀！',zht:'音速手刀！',ja:'ソニックブーム！',en:'Sonic Boom!'},
             speed:0.5,life:100,color:0xFFDD44,ringColor:0xFFFF88,
             damage:10,stunDmg:15,
             cd:20
         },
-        // 天使一击：腾空后翻踢
         somersault:{
             trigger:'bfT',input:'←→+T',        // back-forward + kick
-            name:'天使一击',type:'somersault',shout:'天使一击！',
-            text:{zhs:'天使一击！',zht:'天使一擊！',ja:'エンジェルストライク！',en:'Angel Strike!'},
+            name:'Somersault Kick!',type:'somersault',shout:'Somersault Kick!',
+            text:{zhs:'闪光飞踢！',zht:'閃光飛踢！',ja:'サマーソルト！',en:'Somersault!'},
             jumpMul:1.6,duration:65,arcSpeed:0.2,arcLife:30,
             damage:18,stunDmg:20,
             cd:35
         }
     },
     // ================================================================
-    // 星愿蛋 (monkey) — 心愿蛋拳(→→+R) / 星星攻击(T) / 希望光芒(←→+T)
+    // Chun-Li (monkey) — 气功拳, 百裂脚, 回旋鸟踢
     // ================================================================
     monkey:{
-        // 心愿蛋拳：星光能量弹
         kikouken:{
             trigger:'ffR',input:'→→+R',        // forward-forward + punch
-            name:'心愿蛋拳',type:'projectile',shout:'心愿蛋拳！',
-            text:{zhs:'心愿蛋拳！',zht:'心願蛋拳！',ja:'ウィッシュエッグパンチ！',en:'Wish Egg Punch!'},
+            name:'Kikouken!',type:'projectile',shout:'Kikouken!',
+            text:{zhs:'气功拳！',zht:'氣功拳！',ja:'気功拳！',en:'Kikouken!'},
             speed:0.5,life:100,color:0x88BBFF,ringColor:0x88FF88,
             damage:10,stunDmg:15,
             cd:20
         },
-        // 星星攻击：连续踢击
         hyakuretsuKick:{
-            trigger:'alwaysT',input:'T (always)',   // normal kick = rapid kicks
-            name:'星星攻击',type:'hyakuretsuKick',shout:'星星攻击！',
-            text:{zhs:'星星攻击！',zht:'星星攻擊！',ja:'スターアタック！',en:'Star Strike!'},
+            trigger:'alwaysT',input:'T (always)',   // normal kick = hyakuretsu kick
+            name:'Hyakuretsu Kick!',type:'hyakuretsuKick',shout:'Hyakuretsu Kick!',
+            text:{zhs:'百裂脚！',zht:'百裂腳！',ja:'百裂脚！',en:'Lightning Kick!'},
             cd:4,range:2.5,hitForce:0.5,hitVy:0.25,
             damage:8,stunDmg:10
         },
-        // 希望光芒：旋转升空踢
         spinningBird:{
             trigger:'bfT',input:'←→+T',        // back-forward + kick
-            name:'希望光芒',type:'spinningBird',shout:'希望光芒！',
-            text:{zhs:'希望光芒！',zht:'希望光芒！',ja:'ホープレイ！',en:'Ray of Hope!'},
+            name:'Spinning Bird Kick!',type:'spinningBird',shout:'Spinning Bird Kick!',
+            text:{zhs:'回旋鸟踢！',zht:'回旋鳥踢！',ja:'スピニングバード！',en:'Spinning Bird!'},
             jumpMul:1.2,duration:60,
             damage:15,stunDmg:15,
             cd:35
         }
     },
     // ================================================================
-    // 岩石蛋 (bear) — 碎石蛋拳(R+T) / 巨石蛋腿(→←→+F)
+    // Zangief/Bear (bear) — 回旋双臂, 螺旋打桩
     // ================================================================
     bear:{
-        // 碎石蛋拳：双臂横扫的碎石重击
         lariat:{
             trigger:'RT',input:'R+T (hold)',   // punch + kick held together
-            name:'碎石蛋拳',type:'lariat',shout:'碎石蛋拳！',
-            text:{zhs:'碎石蛋拳！',zht:'碎石蛋拳！',ja:'ロックエッグパンチ！',en:'Rubble Egg Punch!'},
+            name:'Double Lariat!',type:'lariat',shout:'Double Lariat!',
+            text:{zhs:'双回旋臂！',zht:'雙回旋臂！',ja:'ダブルラリアット！',en:'Double Lariat!'},
             duration:60,hitForce:0.5,hitVy:0.3,
             damage:12,stunDmg:15,hitCD:12,
             cd:40
         },
-        // 巨石蛋腿：擒抱后高高举起再重砸
         piledriver:{
             trigger:'fbfF',input:'→←→+F',       // forward-back-forward + grab
-            name:'巨石蛋腿',type:'piledriver',shout:'巨石蛋腿！',
-            text:{zhs:'巨石蛋腿！',zht:'巨石蛋腿！',ja:'ボルダーエッグスラム！',en:'Boulder Egg Slam!'},
+            name:'Piledriver!',type:'piledriver',shout:'Piledriver!',
+            text:{zhs:'螺旋打桩！',zht:'螺旋打樁！',ja:'パイルドライバー！',en:'Piledriver!'},
             range:5.0,riseFrames:40,pauseFrames:8,slamFrames:12,maxHeight:15,
             damage:35,stunDmg:50, // devastating
             cd:80
         }
     },
     // ================================================================
-    // 风行蛋 (cockroach) — 旋风拳(→→+R) / 风行一击(←→+R) / 狂风呼啸(被动:攻击范围加长)
+    // Dhalsim (cockroach) — 瑜伽火球, 瑜伽火焰, 长手长脚(被动)
     // ================================================================
     cockroach:{
-        // 旋风拳：缓慢飞行的旋风能量弹
         yogaFire:{
             trigger:'ffR',input:'→→+R',        // forward-forward + punch
-            name:'旋风拳',type:'projectile',shout:'旋风拳！',
-            text:{zhs:'旋风拳！',zht:'旋風拳！',ja:'トルネードパンチ！',en:'Whirlwind Punch!'},
+            name:'Yoga Fire!',type:'projectile',shout:'Yoga Fire!',
+            text:{zhs:'瑜伽火球！',zht:'瑜伽火球！',ja:'ヨガファイヤー！',en:'Yoga Fire!'},
             speed:0.2,life:180,color:0xFF6600,ringColor:0xFFAA00,
             burns:true,
             damage:10,stunDmg:15,
             cd:30
         },
-        // 风行一击：近身范围爆发
         yogaFlame:{
             trigger:'bfR',input:'←→+R',        // back-forward + punch
-            name:'风行一击',type:'yogaFlame',shout:'风行一击！',
-            text:{zhs:'风行一击！',zht:'風行一擊！',ja:'ウィンドストライク！',en:'Wind Strike!'},
+            name:'Yoga Flame!',type:'yogaFlame',shout:'Yoga Flame!',
+            text:{zhs:'瑜伽火焰！',zht:'瑜伽火焰！',ja:'ヨガフレイム！',en:'Yoga Flame!'},
             duration:60,range:4,
             damage:15,stunDmg:20,
-            fireDuration:120,     // 2 seconds effect
+            fireDuration:120,     // 2 seconds on fire
             fireStun:90,          // 1.5 seconds frozen
             cd:40
         },
-        // 狂风呼啸（被动）：攻击范围加长
+        // Passive: extended attack range
         extendedRange:2.5,
         // Slower attack speed
         punchCD:32,kickCD:36,punchAnim:28,kickAnim:28,

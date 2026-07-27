@@ -74,13 +74,6 @@ function _cityMixHex(a,b,t){
     var r=Math.round(ar+(br-ar)*t),g=Math.round(ag+(bg-ag)*t),bl=Math.round(ab+(bb-ab)*t);
     return (r<<16)|(g<<8)|bl;
 }
-var _cityPBRCache={};
-function _citySharedPBR(key,color,opts){
-    var q=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced';
-    var cacheKey=q+'|'+key+'|'+(color>>>0).toString(16);
-    if(!_cityPBRCache[cacheKey])_cityPBRCache[cacheKey]=softPBR(color,opts||{});
-    return _cityPBRCache[cacheKey];
-}
 function _cityCanvasSign(text,bg,fg){
     var c=document.createElement('canvas');c.width=256;c.height=80;
     var ctx=c.getContext('2d');
@@ -190,109 +183,39 @@ function _decorateDefaultBuilding(b,bMeshes,col,st,i){
 function _decorateHopePremiumBuilding(b,bMeshes,col,i){
     var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
     var near=Math.abs(b.x)<72&&Math.abs(b.z)<72;
-    var archetype=i%5;
-    var stone=_citySharedPBR('trim-stone',0xDED6C8,{roughness:0.82,envMapIntensity:0.18});
-    var stoneDark=_citySharedPBR('trim-stone-dark',0xAA9C87,{roughness:0.88,envMapIntensity:0.14});
-    var glass=_citySharedPBR('window-glass',0x286E91,{roughness:0.10,metalness:0.03,clearcoat:0.68,clearcoatRoughness:0.13,envMapIntensity:0.72,emissive:0x061A24,emissiveIntensity:0.04});
-    var shutter=_citySharedPBR('shutter',_cityMixHex(col,0x153A56,0.58),{roughness:0.66,clearcoat:0.08,envMapIntensity:0.24});
-    var planter=_citySharedPBR('planter',0x806044,{roughness:0.88});
-    var leaf=_citySharedPBR('leaf',0x2F6D35,{roughness:0.90});
-    var flowerColor=[0xFFD04E,0xFF7DAA,0xF7F0D8,0x8FD7FF][i%4];
-    var flower=_citySharedPBR('flower-'+(i%4),flowerColor,{roughness:0.70,emissive:0x2A1505,emissiveIntensity:0.025});
+    var stone=softPBR(0xDED6C8,{roughness:0.58,envMapIntensity:0.30});
+    var stoneDark=softPBR(0xAA9C87,{roughness:0.74,envMapIntensity:0.22});
+    var glass=softPBR(0x286E91,{roughness:0.06,metalness:0.08,clearcoat:1,clearcoatRoughness:0.04,envMapIntensity:1.15,emissive:0x061A24,emissiveIntensity:0.06});
+    var shutter=softPBR(_cityMixHex(col,0x153A56,0.58),{roughness:0.50,clearcoat:0.16,envMapIntensity:0.36});
+    var planter=softPBR(0x806044,{roughness:0.82});
+    var leaf=softPBR(0x2F6D35,{roughness:0.86});
+    var flower=softPBR([0xFFD04E,0xFF7DAA,0xF7F0D8,0x8FD7FF][i%4],{roughness:0.62,emissive:0x2A1505,emissiveIntensity:0.04});
     function add(mesh){mesh.castShadow=true;mesh.receiveShadow=true;cityGroup.add(mesh);bMeshes.push(mesh);return mesh;}
 
-    // A substantial mineral/stone ground course visually anchors tall buildings.
-    var lowerColor=archetype%2?_cityMixHex(col,0xB8A98F,0.56):0xC8BBA5;
-    var lowerMat=_citySharedPBR('hope-ground-course-'+archetype,lowerColor,{roughness:0.88,envMapIntensity:0.13});
-    var lower=new THREE.Mesh(_visualRoundedBoxGeometry(b.w+0.20,1.34,b.d+0.20,0.20),lowerMat);
-    lower.name='hope-building-ground-course';lower.position.set(b.x,0.67,b.z);add(lower);
-
-    // Slender corner pilasters with fine masonry joints replace the old oversized block
-    // corners. They catch the key light without making the facade look like stacked toys.
-    if(high&&near){
-        var qDummy=new THREE.Object3D(),qCorners=[[-1,-1],[-1,1],[1,-1],[1,1]];
-        var qPillars=new THREE.InstancedMesh(new THREE.BoxGeometry(0.34,b.h+0.10,0.34),stone,4);
-        var qCaps=new THREE.InstancedMesh(new THREE.BoxGeometry(0.46,0.26,0.46),stoneDark,8);
-        qPillars.name='hope-corner-pilasters';qCaps.name='hope-pilaster-caps';
-        qCorners.forEach(function(qc,qci){
-            var qx=b.x+qc[0]*(b.w/2+0.02),qz=b.z+qc[1]*(b.d/2+0.02);
-            qDummy.position.set(qx,(b.h+0.10)/2,qz);qDummy.scale.set(1,1,1);qDummy.updateMatrix();qPillars.setMatrixAt(qci,qDummy.matrix);
-            qDummy.position.set(qx,0.15,qz);qDummy.updateMatrix();qCaps.setMatrixAt(qci*2,qDummy.matrix);
-            qDummy.position.set(qx,b.h-0.15,qz);qDummy.updateMatrix();qCaps.setMatrixAt(qci*2+1,qDummy.matrix);
-        });
-        qPillars.instanceMatrix.needsUpdate=true;qCaps.instanceMatrix.needsUpdate=true;add(qPillars);add(qCaps);
-        var qJointRows=Math.max(1,Math.floor((b.h-0.8)/1.45)),qJoints=new THREE.InstancedMesh(new THREE.BoxGeometry(0.38,0.035,0.38),stoneDark,qJointRows*4),qji=0;
-        qJoints.name='hope-pilaster-masonry-joints';
-        for(var qjr=0;qjr<qJointRows;qjr++){
-            var qjy=0.72+qjr*1.45;
-            qCorners.forEach(function(qc){
-                qDummy.position.set(b.x+qc[0]*(b.w/2+0.02),qjy,b.z+qc[1]*(b.d/2+0.02));qDummy.updateMatrix();qJoints.setMatrixAt(qji++,qDummy.matrix);
-            });
-        }
-        qJoints.instanceMatrix.needsUpdate=true;add(qJoints);
-    }else{
-        [-1,1].forEach(function(sx){[-1,1].forEach(function(sz){
-            var q=new THREE.Mesh(_visualRoundedBoxGeometry(0.42,b.h+0.12,0.42,0.08),stone);
-            q.position.set(b.x+sx*(b.w/2+0.02),(b.h+0.12)/2,b.z+sz*(b.d/2+0.02));add(q);
-        });});
-    }
+    // Full-height masonry quoins give the original box real architectural edges.
+    [-1,1].forEach(function(sx){[-1,1].forEach(function(sz){
+        var q=new THREE.Mesh(_visualRoundedBoxGeometry(0.44,b.h+0.12,0.44,0.10),stone);
+        q.position.set(b.x+sx*(b.w/2+0.02),(b.h+0.12)/2,b.z+sz*(b.d/2+0.02));add(q);
+    });});
     if(near){
-        var beltStep=archetype===0?4.4:(archetype===3?3.6:4.0);
-        for(var fy=3.05+(archetype%2)*0.38;fy<b.h-0.8;fy+=beltStep){
+        for(var fy=3;fy<b.h-0.8;fy+=3){
             var belt=new THREE.Mesh(_visualRoundedBoxGeometry(b.w+0.30,0.12,b.d+0.30,0.05),stoneDark);
             belt.position.set(b.x,fy,b.z);add(belt);
         }
     }
 
-    // Distinct facade archetypes break the repeated-box skyline. Bays start above the
-    // entrance and physically intersect the wall, so their windows and caps never float.
-    if(high&&near&&b.h>8){
-        var bayMat=_citySharedPBR('hope-bay-'+archetype,_cityMixHex(col,archetype===2?0xF0CDAA:0xFFF2DD,0.22),{roughness:0.84,envMapIntensity:0.16});
-        function addBay(off,w){
-            var bayBottom=3.15,bayH=Math.max(3.2,b.h-bayBottom-0.42),bayD=0.46;
-            var bay=new THREE.Mesh(_visualRoundedBoxGeometry(w,bayH,bayD,0.16),bayMat);
-            bay.name='hope-facade-bay-'+archetype;bay.position.set(b.x+off,bayBottom+bayH/2,b.z+b.d/2+bayD*0.22);add(bay);
-            var bayBase=new THREE.Mesh(_visualRoundedBoxGeometry(w+0.18,0.18,0.68,0.07),stoneDark);
-            bayBase.position.set(b.x+off,bayBottom+0.08,b.z+b.d/2+0.25);add(bayBase);
-            var bayCap=new THREE.Mesh(_visualRoundedBoxGeometry(w+0.22,0.20,0.72,0.08),stone);
-            bayCap.position.set(b.x+off,bayBottom+bayH-0.05,b.z+b.d/2+0.25);add(bayCap);
-            for(var by=4.35;by<b.h-1.0;by+=3.35){
-                var bf=new THREE.Mesh(_visualRoundedBoxGeometry(Math.min(0.92,w*0.52),1.18,0.16,0.09),stone);
-                bf.position.set(b.x+off,by,b.z+b.d/2+0.48);add(bf);
-                var bw=new THREE.Mesh(_visualRoundedBoxGeometry(Math.min(0.66,w*0.36),0.88,0.09,0.055),glass);
-                bw.position.set(b.x+off,by,b.z+b.d/2+0.58);add(bw);
-            }
-        }
-        if(archetype===0)addBay(0,Math.min(2.8,b.w*0.34));
-        else if(archetype===1&&b.w>7){addBay(-b.w*0.23,Math.min(1.9,b.w*0.22));addBay(b.w*0.23,Math.min(1.9,b.w*0.22));}
-        else if(archetype===2)addBay((i%2?-1:1)*b.w*0.23,Math.min(2.3,b.w*0.28));
-        else if(archetype===3&&b.w>7.5){
-            var turretX=b.x+(i%2?-1:1)*(b.w/2-0.62),turretZ=b.z+b.d/2+0.04;
-            var turret=new THREE.Mesh(new THREE.CylinderGeometry(0.74,0.84,b.h+0.25,18),bayMat);
-            turret.name='hope-corner-turret';turret.position.set(turretX,(b.h+0.25)/2,turretZ);add(turret);
-            var turretRoof=new THREE.Mesh(new THREE.ConeGeometry(1.02,1.18,18),_citySharedPBR('hope-turret-roof',0x9E4B37,{roughness:0.62,envMapIntensity:0.34}));
-            turretRoof.position.set(turretX,b.h+0.63,turretZ);add(turretRoof);
-        }
-    }
-
     // The old buildings only had front/back windows. Side elevations now use the same
     // inset glass, stone frames and deep reveals, so the model survives orbit cameras.
-    if(high&&near){
-        var sideFrames=[],sideWindows=[],sideDummy=new THREE.Object3D();
+    if(high&&near&&i<20){
         for(var wy=2;wy<b.h-1;wy+=BUILDING_CONFIG.windowSpacingY){
             for(var wz=-b.d/2+1.5;wz<b.d/2-1;wz+=BUILDING_CONFIG.windowSpacingX){
                 [-1,1].forEach(function(side){
-                    sideDummy.position.set(b.x+side*(b.w/2+0.07),wy,b.z+wz);sideDummy.rotation.set(0,Math.PI/2,0);sideDummy.updateMatrix();sideFrames.push(sideDummy.matrix.clone());
-                    sideDummy.position.set(b.x+side*(b.w/2+0.18),wy,b.z+wz);sideDummy.updateMatrix();sideWindows.push(sideDummy.matrix.clone());
+                    var fr=new THREE.Mesh(_visualRoundedBoxGeometry(1.18,1.35,0.18,0.17),stone);
+                    fr.position.set(b.x+side*(b.w/2+0.07),wy,b.z+wz);fr.rotation.y=Math.PI/2;add(fr);
+                    var win=new THREE.Mesh(_visualRoundedBoxGeometry(0.76,0.91,0.10,0.11),glass);
+                    win.position.set(b.x+side*(b.w/2+0.18),wy,b.z+wz);win.rotation.y=Math.PI/2;add(win);
                 });
             }
-        }
-        if(sideFrames.length){
-            var sideFrameMesh=new THREE.InstancedMesh(_visualRoundedBoxGeometry(1.18,1.35,0.18,0.17),stone,sideFrames.length);
-            var sideWindowMesh=new THREE.InstancedMesh(_visualRoundedBoxGeometry(0.76,0.91,0.10,0.11),glass,sideWindows.length);
-            for(var sf=0;sf<sideFrames.length;sf++){sideFrameMesh.setMatrixAt(sf,sideFrames[sf]);sideWindowMesh.setMatrixAt(sf,sideWindows[sf]);}
-            sideFrameMesh.instanceMatrix.needsUpdate=true;sideWindowMesh.instanceMatrix.needsUpdate=true;
-            add(sideFrameMesh);add(sideWindowMesh);
         }
     }
 
@@ -321,18 +244,9 @@ function _decorateHopePremiumBuilding(b,bMeshes,col,i){
         var bars=Math.max(4,Math.floor(Math.min(4.4,b.w-1.4)/0.55));
         for(var ri=0;ri<bars;ri++){var rx=(ri-(bars-1)/2)*0.55;var rail=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.72,7),stoneDark);rail.position.set(b.x+rx,5.56,b.z+b.d/2+1.02);add(rail);}
     }
-    var pipeM=_citySharedPBR('drain-pipe',0x756E63,{roughness:0.58,metalness:0.20});
+    var pipeM=softPBR(0x756E63,{roughness:0.42,metalness:0.28});
     var pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,b.h-0.4,10),pipeM);
     pipe.position.set(b.x+b.w/2-0.45,b.h/2,b.z+b.d/2+0.19);add(pipe);
-
-    // Roofline variation: grounded chimneys and caps interrupt the identical gable rhythm.
-    if(near&&i%3!==1){
-        var chimneyMat=_citySharedPBR('hope-chimney',_cityMixHex(col,0x6E4336,0.58),{roughness:0.91,envMapIntensity:0.10});
-        var chimney=new THREE.Mesh(_visualRoundedBoxGeometry(0.48,1.20,0.48,0.08),chimneyMat);
-        chimney.position.set(b.x+(i%2?-1:1)*b.w*0.23,b.h+0.72,b.z-b.d*0.12);add(chimney);
-        var chimneyCap=new THREE.Mesh(_visualRoundedBoxGeometry(0.62,0.16,0.62,0.06),stoneDark);
-        chimneyCap.position.set(chimney.position.x,b.h+1.32,chimney.position.z);add(chimneyCap);
-    }
 }
 
 function _buildHopeCinematicPlaza(){
@@ -534,11 +448,9 @@ function buildCity() {
         // Sakura/Snow: skip ALL default buildings — custom layout built below
         if(currentCityStyle===6||currentCityStyle===7)return;
         const col = bColors[i%bColors.length];
-        var _hopeFacadeColor=currentCityStyle===0?_cityMixHex(col,0xF7E7D2,0.10):col;
-        const bodyMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('facade',_hopeFacadeColor,{roughness:0.84,bumpScale:0.020,envMapIntensity:0.18}):toon(col);
+        const bodyMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('facade',col,{roughness:0.78}):toon(col);
         var useRoundedBody=currentCityStyle===0&&typeof _visualRoundedBoxGeometry==='function'&&!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
-        const bm = new THREE.Mesh(useRoundedBody?_visualRoundedBoxGeometry(b.w,b.h,b.d,0.34):new THREE.BoxGeometry(b.w,b.h,b.d,2,2,2), bodyMat);
-        if(currentCityStyle===0)bm.name='hope-building-body';
+        const bm = new THREE.Mesh(useRoundedBody?_visualRoundedBoxGeometry(b.w,b.h,b.d,0.52):new THREE.BoxGeometry(b.w,b.h,b.d,2,2,2), bodyMat);
         bm.position.set(b.x, b.h/2, b.z); bm.castShadow=true; bm.receiveShadow=true;
         cityGroup.add(bm);
         const bMeshes = [bm]; // collect all meshes for this building
@@ -546,8 +458,7 @@ function buildCity() {
             var _baseMat=_visualSurfaceMaterial('stone',_cityMixHex(col,0xD8D0C4,0.72),{roughness:0.86,normalScale:new THREE.Vector2(0.30,0.30)});
             var _baseGeo=_visualRoundedBoxGeometry(b.w+0.52,0.48,b.d+0.52,0.18);
             var _foundation=new THREE.Mesh(_baseGeo,_baseMat);_foundation.position.set(b.x,0.24,b.z);_foundation.castShadow=true;_foundation.receiveShadow=true;cityGroup.add(_foundation);bMeshes.push(_foundation);
-            var _corniceColor=_cityMixHex(col,0xFFF7EA,0.62);
-            var _corniceMat=_citySharedPBR('cornice',_corniceColor,{roughness:0.72,envMapIntensity:0.18});
+            var _corniceMat=softPBR(_cityMixHex(col,0xFFF7EA,0.62),{roughness:0.48,envMapIntensity:0.34});
             var _cornice=new THREE.Mesh(_visualRoundedBoxGeometry(b.w+0.38,0.30,b.d+0.38,0.12),_corniceMat);
             _cornice.position.set(b.x,b.h-0.15,b.z);_cornice.castShadow=true;cityGroup.add(_cornice);bMeshes.push(_cornice);
         }
@@ -567,25 +478,17 @@ function buildCity() {
             var engawa=new THREE.Mesh(new THREE.BoxGeometry(b.w+1.5,0.15,b.d+1.5),toon(0xBB9966));
             engawa.position.set(b.x,0.08,b.z);cityGroup.add(engawa);bMeshes.push(engawa);
         } else if(currentCityStyle===0&&typeof _visualGableRoofGeometry==='function'){
-        var _hopeRoofPalette=[0xA94C35,0xB96343,0x8E5143,0xC06B45,0x955746];
-        var _hopeRoofColor=_cityMixHex(st.roof,_hopeRoofPalette[i%_hopeRoofPalette.length],0.44);
-        var roofMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('roof',_hopeRoofColor,{roughness:0.60,envMapIntensity:0.42}):toon(st.roof);
+        var roofMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('roof',st.roof,{roughness:0.58}):toon(st.roof);
         var _roofW=b.w+1.45,_roofD=b.d+1.45,_roofH=BUILDING_CONFIG.roofHeight;
-        var _roofTurn=i%3===1;
-        const roof = new THREE.Mesh(_roofTurn?_visualGableRoofGeometry(_roofD,_roofW,_roofH):_visualGableRoofGeometry(_roofW,_roofD,_roofH),roofMat);
-        roof.name='hope-gable-roof-'+(_roofTurn?'cross':'longitudinal');
+        const roof = new THREE.Mesh(_visualGableRoofGeometry(_roofW,_roofD,_roofH),roofMat);
         roof.position.set(b.x,b.h,b.z);roof.castShadow=true;roof.receiveShadow=true;
-        if(_roofTurn)roof.rotation.y=Math.PI/2;
         cityGroup.add(roof); bMeshes.push(roof);
-        var _ridgeMat=_citySharedPBR('roof-ridge-'+(i%5),_cityMixHex(_hopeRoofColor,0x33251F,0.28),{roughness:0.66,clearcoat:0.06,clearcoatRoughness:0.68});
-        var _ridge=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,(_roofTurn?_roofW:_roofD)+0.12,12),_ridgeMat);
-        _ridge.position.set(b.x,b.h+_roofH+0.05,b.z);
-        if(_roofTurn)_ridge.rotation.z=Math.PI/2;else _ridge.rotation.x=Math.PI/2;
-        _ridge.castShadow=true;cityGroup.add(_ridge);bMeshes.push(_ridge);
+        var _ridgeMat=softPBR(_cityMixHex(st.roof,0x33251F,0.28),{roughness:0.48,clearcoat:0.14,clearcoatRoughness:0.54});
+        var _ridge=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,_roofD+0.12,12),_ridgeMat);
+        _ridge.position.set(b.x,b.h+_roofH+0.05,b.z);_ridge.rotation.x=Math.PI/2;_ridge.castShadow=true;cityGroup.add(_ridge);bMeshes.push(_ridge);
         [-1,1].forEach(function(side){
-            var _eave=new THREE.Mesh(_roofTurn?_visualRoundedBoxGeometry(_roofW+0.10,0.22,0.22,0.06):_visualRoundedBoxGeometry(0.22,0.22,_roofD+0.10,0.06),_corniceMat);
-            _eave.position.set(_roofTurn?b.x:b.x+side*_roofW/2,b.h+0.05,_roofTurn?b.z+side*_roofD/2:b.z);
-            _eave.castShadow=true;cityGroup.add(_eave);bMeshes.push(_eave);
+            var _eave=new THREE.Mesh(_visualRoundedBoxGeometry(0.22,0.22,_roofD+0.10,0.06),_corniceMat);
+            _eave.position.set(b.x+side*_roofW/2,b.h+0.05,b.z);_eave.castShadow=true;cityGroup.add(_eave);bMeshes.push(_eave);
         });
         } else {
         var roofMat=toon(st.roof);
@@ -594,57 +497,21 @@ function buildCity() {
         cityGroup.add(roof); bMeshes.push(roof);
         }
         // Windows — warm shouji for Sakura City, blue glass for others
-        const winM = currentCityStyle===6?toon(0xFFEECC,{emissive:0xFFDD88,emissiveIntensity:0.3}):(currentCityStyle===0&&typeof softPBR==='function'?_citySharedPBR('window-main',0x3F8DAA,{pastelAmount:0.02,roughness:0.11,metalness:0.03,clearcoat:0.68,clearcoatRoughness:0.13,ior:1.46,envMapIntensity:0.72,emissive:0x071923,emissiveIntensity:0.025}):toon(0xAADDFF, {emissive:0x4488AA, emissiveIntensity:0.2}));
-        var _windowFrameMat=currentCityStyle===0?_citySharedPBR('window-frame',0xE6E0D5,{pastelAmount:0.02,roughness:0.72,envMapIntensity:0.16}):null;
-        var _warmWindowMat=currentCityStyle===0?_citySharedPBR('window-warm',0xE9B66D,{pastelAmount:0.01,roughness:0.16,metalness:0.02,clearcoat:0.54,clearcoatRoughness:0.18,envMapIntensity:0.48,emissive:0xD88035,emissiveIntensity:0.22}):null;
-        var _hopeLow=currentCityStyle===0&&window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
-        var _patternX=[1.0,1.18,0.88,1.08,1.28][i%5],_patternY=[1.0,1.10,0.92,1.06,1.16][i%5];
-        var _winStepY=BUILDING_CONFIG.windowSpacingY*(_hopeLow?1.45:_patternY);
-        var _winStepX=BUILDING_CONFIG.windowSpacingX*(_hopeLow?1.35:_patternX);
-        var _winGeo=currentCityStyle===0&&typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(BUILDING_CONFIG.windowSize.w*0.78,BUILDING_CONFIG.windowSize.h*0.76,BUILDING_CONFIG.windowSize.d,0.065):new THREE.BoxGeometry(BUILDING_CONFIG.windowSize.w,BUILDING_CONFIG.windowSize.h,BUILDING_CONFIG.windowSize.d);
-        if(currentCityStyle===0){
-            var _frontBackWindows=[],_frontBackWarmWindows=[],_frontBackFrames=[],_frontSills=[],_winDummy=new THREE.Object3D(),_patternIndex=0;
-            for(let wy=2;wy<b.h-1;wy+=_winStepY){for(let wx=-b.w/2+1.5;wx<b.w/2-1;wx+=_winStepX){
-                if(!_hopeLow){
-                    _winDummy.position.set(b.x+wx,wy,b.z+b.d/2+0.07);_winDummy.updateMatrix();_frontBackFrames.push(_winDummy.matrix.clone());
-                    _winDummy.position.set(b.x+wx,wy,b.z-b.d/2-0.07);_winDummy.updateMatrix();_frontBackFrames.push(_winDummy.matrix.clone());
-                    _winDummy.position.set(b.x+wx,wy-0.56,b.z+b.d/2+0.25);_winDummy.updateMatrix();_frontSills.push(_winDummy.matrix.clone());
+        const winM = currentCityStyle===6?toon(0xFFEECC,{emissive:0xFFDD88,emissiveIntensity:0.3}):(currentCityStyle===0&&typeof softPBR==='function'?softPBR(0x3F8DAA,{pastelAmount:0.02,roughness:0.07,metalness:0.09,clearcoat:0.96,clearcoatRoughness:0.07,ior:1.46,envMapIntensity:1.05,emissive:0x071923,emissiveIntensity:0.035}):toon(0xAADDFF, {emissive:0x4488AA, emissiveIntensity:0.2}));
+        var _windowFrameMat=currentCityStyle===0?softPBR(0xE6E0D5,{pastelAmount:0.02,roughness:0.40,envMapIntensity:0.30}):null;
+        for(let wy=2; wy<b.h-1; wy+=BUILDING_CONFIG.windowSpacingY){
+            for(let wx=-b.w/2+1.5; wx<b.w/2-1; wx+=BUILDING_CONFIG.windowSpacingX){
+                var _winGeo=currentCityStyle===0&&typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(BUILDING_CONFIG.windowSize.w*0.78,BUILDING_CONFIG.windowSize.h*0.76,BUILDING_CONFIG.windowSize.d,0.13):new THREE.BoxGeometry(BUILDING_CONFIG.windowSize.w,BUILDING_CONFIG.windowSize.h,BUILDING_CONFIG.windowSize.d);
+                if(currentCityStyle===0){
+                    var _frameGeo=_visualRoundedBoxGeometry(BUILDING_CONFIG.windowSize.w*1.18,BUILDING_CONFIG.windowSize.h*1.14,BUILDING_CONFIG.windowSize.d*1.55,0.20);
+                    var _frontFrame=new THREE.Mesh(_frameGeo,_windowFrameMat);_frontFrame.position.set(b.x+wx,wy,b.z+b.d/2+0.07);_frontFrame.castShadow=true;cityGroup.add(_frontFrame);bMeshes.push(_frontFrame);
+                    var _backFrame=new THREE.Mesh(_frameGeo,_windowFrameMat);_backFrame.position.set(b.x+wx,wy,b.z-b.d/2-0.07);_backFrame.castShadow=true;cityGroup.add(_backFrame);bMeshes.push(_backFrame);
                 }
-                var _isWarm=!_hopeLow&&((i*11+_patternIndex*5)%13<2);
-                _winDummy.position.set(b.x+wx,wy,b.z+b.d/2+0.17);_winDummy.updateMatrix();(_isWarm?_frontBackWarmWindows:_frontBackWindows).push(_winDummy.matrix.clone());
-                _winDummy.position.set(b.x+wx,wy,b.z-b.d/2-0.17);_winDummy.updateMatrix();((!_isWarm&&((i+_patternIndex)%5===0))?_frontBackWarmWindows:_frontBackWindows).push(_winDummy.matrix.clone());
-                _patternIndex++;
-            }}
-            if(_frontBackFrames.length){
-                var _frameGeo=_visualRoundedBoxGeometry(BUILDING_CONFIG.windowSize.w*1.14,BUILDING_CONFIG.windowSize.h*1.10,BUILDING_CONFIG.windowSize.d*1.42,0.09);
-                var _frameInstances=new THREE.InstancedMesh(_frameGeo,_windowFrameMat,_frontBackFrames.length);
-                for(var _fbi=0;_fbi<_frontBackFrames.length;_fbi++)_frameInstances.setMatrixAt(_fbi,_frontBackFrames[_fbi]);
-                _frameInstances.instanceMatrix.needsUpdate=true;
-                _frameInstances.castShadow=true;cityGroup.add(_frameInstances);bMeshes.push(_frameInstances);
+                const win=new THREE.Mesh(_winGeo, winM);
+                win.position.set(b.x+wx, wy, b.z+b.d/2+(currentCityStyle===0?0.17:0.05)); cityGroup.add(win); bMeshes.push(win);
+                const win2=new THREE.Mesh(_winGeo, winM);
+                win2.position.set(b.x+wx, wy, b.z-b.d/2-(currentCityStyle===0?0.17:0.05)); cityGroup.add(win2); bMeshes.push(win2);
             }
-            if(_frontSills.length){
-                var _sillGeo=_visualRoundedBoxGeometry(BUILDING_CONFIG.windowSize.w*1.24,0.12,0.34,0.045);
-                var _sillInstances=new THREE.InstancedMesh(_sillGeo,_windowFrameMat,_frontSills.length);
-                for(var _fsi=0;_fsi<_frontSills.length;_fsi++)_sillInstances.setMatrixAt(_fsi,_frontSills[_fsi]);
-                _sillInstances.instanceMatrix.needsUpdate=true;_sillInstances.castShadow=true;cityGroup.add(_sillInstances);bMeshes.push(_sillInstances);
-            }
-            if(_frontBackWindows.length){
-                var _windowInstances=new THREE.InstancedMesh(_winGeo,winM,_frontBackWindows.length);
-                for(var _wii=0;_wii<_frontBackWindows.length;_wii++)_windowInstances.setMatrixAt(_wii,_frontBackWindows[_wii]);
-                _windowInstances.instanceMatrix.needsUpdate=true;
-                cityGroup.add(_windowInstances);bMeshes.push(_windowInstances);
-            }
-            if(_frontBackWarmWindows.length){
-                var _warmWindowInstances=new THREE.InstancedMesh(_winGeo,_warmWindowMat,_frontBackWarmWindows.length);
-                _warmWindowInstances.name='hope-warm-window-panes';
-                for(var _wwi=0;_wwi<_frontBackWarmWindows.length;_wwi++)_warmWindowInstances.setMatrixAt(_wwi,_frontBackWarmWindows[_wwi]);
-                _warmWindowInstances.instanceMatrix.needsUpdate=true;cityGroup.add(_warmWindowInstances);bMeshes.push(_warmWindowInstances);
-            }
-        }else{
-            for(let wy=2;wy<b.h-1;wy+=_winStepY){for(let wx=-b.w/2+1.5;wx<b.w/2-1;wx+=_winStepX){
-                const win=new THREE.Mesh(_winGeo,winM);win.position.set(b.x+wx,wy,b.z+b.d/2+0.05);cityGroup.add(win);bMeshes.push(win);
-                const win2=new THREE.Mesh(_winGeo,winM);win2.position.set(b.x+wx,wy,b.z-b.d/2-0.05);cityGroup.add(win2);bMeshes.push(win2);
-            }}
         }
         // Door
         var doorMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('facade',0x885533,{roughness:0.88}):toon(0x885533);
@@ -658,7 +525,7 @@ function buildCity() {
         if(currentCityStyle===0)_decorateHopePremiumBuilding(b,bMeshes,col,i);
         else _decorateDefaultBuilding(b,bMeshes,col,st,i);
 
-        cityColliders.push({x:b.x, z:b.z, hw:b.w/2+(currentCityStyle===0?0.85:0.5), hd:b.d/2+(currentCityStyle===0?1.05:0.5), h:b.h, roofR:Math.max(b.w,b.d)*BUILDING_CONFIG.roofHeightMul, roofH:BUILDING_CONFIG.roofHeight});
+        cityColliders.push({x:b.x, z:b.z, hw:b.w/2+0.5, hd:b.d/2+0.5, h:b.h, roofR:Math.max(b.w,b.d)*BUILDING_CONFIG.roofHeightMul, roofH:BUILDING_CONFIG.roofHeight});
         cityBuildingMeshes.push({meshes:bMeshes, x:b.x, z:b.z, hw:b.w/2, hd:b.d/2, h:b.h});
     });
 
@@ -737,9 +604,8 @@ function buildCity() {
                 _branch.rotation.z=Math.cos(_hba)*0.68;_branch.rotation.x=-Math.sin(_hba)*0.68;_branch.castShadow=true;tg.add(_branch);
             }
         }
-        var _leafColor=_hopeTree?_cityMixHex(st.tree,0x315C32,0.18):st.tree;
+        var _leafColor=_hopeTree?_cityMixHex(st.tree,0x173E28,0.34):st.tree;
         var _crownMat=_hopeTree&&typeof softPBR==='function'?softPBR(_leafColor,{roughness:0.86,clearcoat:0.05,clearcoatRoughness:0.80,envMapIntensity:0.20}):toon(st.tree);
-        var _crownLightMat=_hopeTree&&typeof softPBR==='function'?_citySharedPBR('tree-sunlit',_cityMixHex(_leafColor,0x83B862,0.22),{roughness:0.90,envMapIntensity:0.14}):_crownMat;
         var _crownR=_hopeTree?2.15:TREE_CONFIG.crownRadius;
         var _crownGeo=new THREE.IcosahedronGeometry(_crownR,_treeHigh?2:1);
         if(_treeHigh){
@@ -757,48 +623,24 @@ function buildCity() {
         if(_treeHigh){
             for(var _lobe=0;_lobe<3;_lobe++){
                 var _la=_lobe/3*Math.PI*2+i*0.71;
-                var _lc=new THREE.Mesh(new THREE.IcosahedronGeometry(1.12,1),_lobe===1?_crownLightMat:_crownMat);
-                _lc.position.set(Math.cos(_la)*1.68,_trunkH+0.88+(_lobe%2)*0.58,Math.sin(_la)*1.68);_lc.scale.set(1.20,0.80,1.04);_lc.castShadow=true;tg.add(_lc);
+                var _lc=new THREE.Mesh(new THREE.IcosahedronGeometry(1.12,1),_crownMat);
+                _lc.position.set(Math.cos(_la)*1.55,_trunkH+0.70+(_lobe%2)*0.55,Math.sin(_la)*1.55);_lc.scale.set(1.15,0.78,1.0);_lc.castShadow=true;tg.add(_lc);
             }
         }
         }
-        // Four guaranteed size tiers keep nearby trees from reading as duplicated props.
-        // The index-based roll distributes saplings and landmarks in every city instead
-        // of relying on a random draw that can accidentally produce a uniform grove.
-        var _treeSizeRoll=((i*37+currentCityStyle*19)%100)/100;
-        var _treeScale,_treeTier;
-        if(currentCityStyle===6){
-            if(_treeSizeRoll<0.18){_treeTier='sapling';_treeScale=0.66+Math.random()*0.16;}
-            else if(_treeSizeRoll<0.42){_treeTier='young';_treeScale=0.84+Math.random()*0.14;}
-            else if(_treeSizeRoll<0.80){_treeTier='medium';_treeScale=1.00+Math.random()*0.18;}
-            else{_treeTier='landmark';_treeScale=1.22+Math.random()*0.26;}
-        }else{
-            if(_treeSizeRoll<0.18){_treeTier='sapling';_treeScale=0.50+Math.random()*0.16;}
-            else if(_treeSizeRoll<0.42){_treeTier='young';_treeScale=0.72+Math.random()*0.18;}
-            else if(_treeSizeRoll<0.80){_treeTier='medium';_treeScale=0.96+Math.random()*0.24;}
-            else{_treeTier='landmark';_treeScale=1.32+Math.random()*0.34;}
-        }
-        // Saplings are slightly slender, while mature trees grow broader crowns.
-        var _treeWidthVar=(_treeTier==='sapling'?0.78:(_treeTier==='young'?0.88:(_treeTier==='landmark'?1.04:0.94)))+Math.random()*0.18;
-        var _treeDepthVar=(_treeTier==='sapling'?0.82:(_treeTier==='young'?0.90:(_treeTier==='landmark'?1.02:0.94)))+Math.random()*0.16;
-        var _treeHeightVar=(_treeTier==='sapling'?0.94:(_treeTier==='young'?0.96:0.98))+Math.random()*0.16;
-        tg.scale.set(_treeScale*_treeWidthVar,_treeScale*_treeHeightVar,_treeScale*_treeDepthVar);
-        tg.rotation.y=Math.random()*Math.PI*2;
-        tg.userData.treeScale=_treeScale;tg.userData.treeSizeTier=_treeTier;
-        tg.userData.treeScale3D={x:tg.scale.x,y:tg.scale.y,z:tg.scale.z};
         cityGroup.add(tg);
-        cityProps.push({group:tg, x:tx, z:tz, radius:TREE_CONFIG.collisionRadius*_treeScale*Math.max(_treeWidthVar,_treeDepthVar), type:'tree', grabbed:false, origY:tg.position.y, throwVx:0, throwVy:0, throwVz:0, throwTimer:0, weight:TREE_CONFIG.weight});
+        cityProps.push({group:tg, x:tx, z:tz, radius:TREE_CONFIG.collisionRadius, type:'tree', grabbed:false, origY:0, throwVx:0, throwVy:0, throwVz:0, throwTimer:0, weight:TREE_CONFIG.weight});
     }
 
 // ---- Grand Roman Wishing Fountain (Trevi-style) — skip for Sakura City ----
     if(currentCityStyle!==6&&currentCityStyle!==7){
-    var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xC3C6C5,{roughness:0.91,bumpScale:0.055,envMapIntensity:0.14}):toon(0xCCBBAA);
-    var stoneD=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x9DA3A3,{roughness:0.94,bumpScale:0.060,envMapIntensity:0.10}):toon(0xAA9988);
-    var marbleM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xE3E7E5,{roughness:0.72,bumpScale:0.030,envMapIntensity:0.18}):toon(0xEEE8DD);
+    var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xC9C0B5,{roughness:0.84,bumpScale:0.085}):toon(0xCCBBAA);
+    var stoneD=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xADA69E,{roughness:0.90,bumpScale:0.10}):toon(0xAA9988);
+    var marbleM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xE8E5DE,{roughness:0.40,bumpScale:0.045,envMapIntensity:0.42}):toon(0xEEE8DD);
     var _waterSet=currentCityStyle===0&&typeof _visualSurfaceTextureSet==='function'?_visualSurfaceTextureSet('water'):null;
     if(_waterSet)window._danboWaterBump=_waterSet.bumpMap;
-    var waterM=currentCityStyle===0?(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?new THREE.MeshPhongMaterial({color:0x5FB8C7,shininess:52,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.035,transparent:true,opacity:0.60,depthWrite:false}):new THREE.MeshPhysicalMaterial({color:0x5FB8C7,roughness:0.14,metalness:0.0,clearcoat:0.55,clearcoatRoughness:0.18,envMapIntensity:0.55,ior:1.333,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.055,transparent:true,opacity:0.58,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});
-    var goldM=currentCityStyle===0&&typeof softPBR==='function'?softPBR(0xE8B84C,{roughness:0.48,metalness:0.18,emissive:0x5A3100,emissiveIntensity:0.05}):toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.3});
+    var waterM=currentCityStyle===0?(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?new THREE.MeshPhongMaterial({color:0x258FB5,shininess:110,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.055,transparent:true,opacity:0.72,depthWrite:false}):new THREE.MeshPhysicalMaterial({color:0x208CB2,roughness:0.045,metalness:0.0,clearcoat:1.0,clearcoatRoughness:0.055,envMapIntensity:1.18,ior:1.333,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.095,transparent:true,opacity:0.76,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});
+    var goldM=currentCityStyle===0&&typeof softPBR==='function'?softPBR(0xFFD84B,{roughness:0.28,metalness:0.28,emissive:0x7A4300,emissiveIntensity:0.16}):toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.3});
     if(currentCityStyle===0){
         // Broad cut-stone terraces replace the former floating donut silhouette.
         [[10.15,9.70,0.18],[9.45,9.05,0.34],[8.75,8.35,0.50]].forEach(function(ti,idx){
@@ -808,13 +650,13 @@ function buildCity() {
     }
     // Outer pool — large circular basin
     var poolOuter=new THREE.Mesh(new THREE.TorusGeometry(7,0.8,currentCityStyle===0?16:8,currentCityStyle===0?64:24),stoneM);
-    poolOuter.name=currentCityStyle===0?'hope-fountain-outer-basin':'';poolOuter.position.y=0.4;poolOuter.rotation.x=Math.PI/2;cityGroup.add(poolOuter);
+    poolOuter.position.y=0.4;poolOuter.rotation.x=Math.PI/2;cityGroup.add(poolOuter);
     // Pool floor
-    var poolFloor=new THREE.Mesh(new THREE.CylinderGeometry(6.5,6.5,0.15,currentCityStyle===0?40:24),currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x6C9FA6,{roughness:0.88,bumpScale:0.045,envMapIntensity:0.10}):toon(0x88BBCC));
+    var poolFloor=new THREE.Mesh(new THREE.CylinderGeometry(6.5,6.5,0.15,currentCityStyle===0?40:24),currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x88BBCC,{roughness:0.72,bumpScale:0.06}):toon(0x88BBCC));
     poolFloor.position.y=0.08;cityGroup.add(poolFloor);
     // Water surface
     var poolWater=new THREE.Mesh(new THREE.CylinderGeometry(6.2,6.2,0.2,currentCityStyle===0?64:24),waterM);
-    poolWater.name=currentCityStyle===0?'hope-fountain-main-water':'';poolWater.position.y=0.6;cityGroup.add(poolWater);
+    poolWater.position.y=0.6;cityGroup.add(poolWater);
     window._fountainPoolWater=poolWater;
     var innerWaterRef=null;
     // Steps around the pool (3 tiers)
@@ -825,7 +667,7 @@ function buildCity() {
     }
     // Inner raised basin (second tier)
     var innerRim=new THREE.Mesh(new THREE.TorusGeometry(3.5,0.5,currentCityStyle===0?16:8,currentCityStyle===0?48:16),marbleM);
-    innerRim.name=currentCityStyle===0?'hope-fountain-inner-basin':'';innerRim.position.y=1.2;innerRim.rotation.x=Math.PI/2;cityGroup.add(innerRim);
+    innerRim.position.y=1.2;innerRim.rotation.x=Math.PI/2;cityGroup.add(innerRim);
     var innerFloor=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.2,0.8,currentCityStyle===0?48:16),stoneM);
     innerFloor.position.y=0.8;cityGroup.add(innerFloor);
     var innerWater=new THREE.Mesh(new THREE.CylinderGeometry(3,3,0.15,currentCityStyle===0?48:16),waterM);
@@ -841,21 +683,14 @@ function buildCity() {
             new THREE.Vector2(1.06,5.24),new THREE.Vector2(0.92,5.43)
         ];
         var _column=new THREE.Mesh(new THREE.LatheGeometry(_columnProfile,window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high?48:24),marbleM);
-        _column.name='hope-fountain-sculpted-column';_column.position.y=1.28;_column.castShadow=true;_column.receiveShadow=true;cityGroup.add(_column);
+        _column.position.y=1.28;_column.castShadow=true;_column.receiveShadow=true;cityGroup.add(_column);
         for(var fi=0;fi<12;fi++){
             var fa=fi/12*Math.PI*2;
             var groove=new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.045,3.56,8),stoneD);
             groove.position.set(Math.cos(fa)*0.585,3.84,Math.sin(fa)*0.585);groove.castShadow=true;cityGroup.add(groove);
         }
         var _bowlProfile=[new THREE.Vector2(0.30,0),new THREE.Vector2(0.40,0.08),new THREE.Vector2(0.58,0.17),new THREE.Vector2(0.82,0.27),new THREE.Vector2(0.86,0.38),new THREE.Vector2(0.66,0.48),new THREE.Vector2(0.34,0.56)];
-        var _topBowl=new THREE.Mesh(new THREE.LatheGeometry(_bowlProfile,40),marbleM);_topBowl.name='hope-fountain-upper-bowl';_topBowl.position.y=6.66;_topBowl.castShadow=true;cityGroup.add(_topBowl);
-        // A second sculpted spill tray strengthens the silhouette and gives the
-        // falling water a believable stone edge instead of a bare shaft.
-        var _spillProfile=[new THREE.Vector2(0.42,0),new THREE.Vector2(0.72,0.10),new THREE.Vector2(1.16,0.20),new THREE.Vector2(1.48,0.30),new THREE.Vector2(1.54,0.42),new THREE.Vector2(1.35,0.52),new THREE.Vector2(0.78,0.59)];
-        var _spillBowl=new THREE.Mesh(new THREE.LatheGeometry(_spillProfile,48),marbleM);
-        _spillBowl.name='hope-fountain-middle-spill-bowl';_spillBowl.position.y=5.62;_spillBowl.castShadow=true;_spillBowl.receiveShadow=true;cityGroup.add(_spillBowl);
-        var _spillShadow=new THREE.Mesh(new THREE.TorusGeometry(1.43,0.055,10,56),stoneD);
-        _spillShadow.name='hope-fountain-carved-lip';_spillShadow.rotation.x=Math.PI/2;_spillShadow.position.y=5.98;cityGroup.add(_spillShadow);
+        var _topBowl=new THREE.Mesh(new THREE.LatheGeometry(_bowlProfile,40),marbleM);_topBowl.position.y=6.66;_topBowl.castShadow=true;cityGroup.add(_topBowl);
         var _finialStem=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.34,0.72,20),marbleM);_finialStem.position.y=7.72;_finialStem.castShadow=true;cityGroup.add(_finialStem);
         var statueHead=new THREE.Mesh(new THREE.SphereGeometry(0.29,20,14),marbleM);statueHead.position.y=8.18;statueHead.castShadow=true;cityGroup.add(statueHead);
         var shell=new THREE.Mesh(new THREE.SphereGeometry(0.48,20,10,0,Math.PI*2,0,Math.PI/2),goldM);shell.position.y=8.36;shell.rotation.x=Math.PI;cityGroup.add(shell);
@@ -879,28 +714,18 @@ function buildCity() {
         shell.position.y=8.2;shell.rotation.x=Math.PI;cityGroup.add(shell);
     }
     if(currentCityStyle===0){
-        var _foamMat=new THREE.MeshBasicMaterial({color:0xE7FBFF,transparent:true,opacity:0.30,depthWrite:false,blending:THREE.NormalBlending});
+        var _foamMat=new THREE.MeshBasicMaterial({color:0xE7FBFF,transparent:true,opacity:0.58,depthWrite:false,blending:THREE.AdditiveBlending});
         var _foamOuter=new THREE.Mesh(new THREE.TorusGeometry(6.12,0.075,8,72),_foamMat);_foamOuter.rotation.x=Math.PI/2;_foamOuter.position.y=0.73;cityGroup.add(_foamOuter);
         var _foamInner=new THREE.Mesh(new THREE.TorusGeometry(2.94,0.060,8,56),_foamMat);_foamInner.rotation.x=Math.PI/2;_foamInner.position.y=1.45;cityGroup.add(_foamInner);
-        window._fountainRipples=[];
-        var _rippleMat=new THREE.MeshBasicMaterial({color:0xDDFBFF,transparent:true,opacity:0.18,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
-        var _rippleCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?6:12;
-        for(var _rpi=0;_rpi<_rippleCount;_rpi++){
-            var _rpa=_rpi/_rippleCount*Math.PI*2,_rr=_rpi%3===0?4.75:2.72;
-            var _ripple=new THREE.Mesh(new THREE.TorusGeometry(0.23+(_rpi%2)*0.08,0.018,6,24),_rippleMat.clone());
-            _ripple.name='hope-fountain-water-ripple';_ripple.rotation.x=Math.PI/2;
-            _ripple.position.set(Math.cos(_rpa)*_rr,_rr>3?0.725:1.465,Math.sin(_rpa)*_rr);
-            _ripple.userData._phase=_rpi/_rippleCount;cityGroup.add(_ripple);window._fountainRipples.push(_ripple);
-        }
-        var _fallMat=new THREE.MeshPhysicalMaterial({color:0xB8EFF4,roughness:0.10,clearcoat:0.45,clearcoatRoughness:0.18,transparent:true,opacity:0.34,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
+        var _fallMat=new THREE.MeshPhysicalMaterial({color:0xBCEFFF,roughness:0.04,clearcoat:1,transparent:true,opacity:0.42,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
         var _arcCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?4:8;
         for(var _wai=0;_wai<_arcCount;_wai++){
             var _waa=_wai/_arcCount*Math.PI*2;
             var _curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(Math.cos(_waa)*0.26,8.22,Math.sin(_waa)*0.26),new THREE.Vector3(Math.cos(_waa)*2.1,9.55,Math.sin(_waa)*2.1),new THREE.Vector3(Math.cos(_waa)*2.72,1.54,Math.sin(_waa)*2.72));
-            var _arc=new THREE.Mesh(new THREE.TubeGeometry(_curve,24,0.032,7,false),_fallMat);_arc.name='hope-fountain-water-arc';_arc.renderOrder=3;cityGroup.add(_arc);
+            var _arc=new THREE.Mesh(new THREE.TubeGeometry(_curve,24,0.045,7,false),_fallMat);_arc.renderOrder=3;cityGroup.add(_arc);
         }
         var _curtain=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.93,5.05,40,1,true),_fallMat.clone());
-        _curtain.material.opacity=0.10;_curtain.position.y=4.10;_curtain.renderOrder=2;cityGroup.add(_curtain);
+        _curtain.material.opacity=0.18;_curtain.position.y=4.10;_curtain.renderOrder=2;cityGroup.add(_curtain);
     }
     // 4 lion head spouts around inner basin
     for(var li=0;li<4;li++){
@@ -909,7 +734,6 @@ function buildCity() {
         // Sculpted spout replaces the old box while keeping the same position and gameplay.
         if(currentCityStyle===0){
             var _spoutG=new THREE.Group();_spoutG.position.set(lx2,1.58,lz2);_spoutG.lookAt(0,1.48,0);
-            _spoutG.name='hope-fountain-lion-spout';
             var lionMane=new THREE.Mesh(new THREE.SphereGeometry(0.39,18,12),stoneM);lionMane.scale.set(1.0,1.08,0.62);lionMane.castShadow=true;_spoutG.add(lionMane);
             var lionHead=new THREE.Mesh(new THREE.SphereGeometry(0.25,16,10),marbleM);lionHead.position.z=0.25;lionHead.scale.set(0.90,0.76,1.12);lionHead.castShadow=true;_spoutG.add(lionHead);
             var _muzzle=new THREE.Mesh(new THREE.CylinderGeometry(0.105,0.15,0.28,14),stoneD);_muzzle.rotation.x=Math.PI/2;_muzzle.position.set(0,-0.06,0.48);_spoutG.add(_muzzle);
@@ -920,22 +744,12 @@ function buildCity() {
             var lionMane=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,4),stoneM);
             lionMane.position.set(lx2,1.6,lz2);cityGroup.add(lionMane);
         }
-        // Curved water jet from each lion mouth, landing with its own ripple.
+        // Water jet from lion mouth (static blue cylinder)
         var jetDir={x:-Math.cos(la),z:-Math.sin(la)};
-        var jet;
-        if(currentCityStyle===0){
-            var _jetCurve=new THREE.QuadraticBezierCurve3(
-                new THREE.Vector3(lx2+jetDir.x*0.42,1.50,lz2+jetDir.z*0.42),
-                new THREE.Vector3(lx2+jetDir.x*1.14,1.74,lz2+jetDir.z*1.14),
-                new THREE.Vector3(lx2+jetDir.x*1.82,0.74,lz2+jetDir.z*1.82)
-            );
-            jet=new THREE.Mesh(new THREE.TubeGeometry(_jetCurve,20,0.040,7,false),_fallMat);
-            jet.name='hope-fountain-spout-water';jet.renderOrder=3;
-        }else{
-            jet=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.04,1.5,6),waterM);
-            jet.position.set(lx2+jetDir.x*0.8,1.3,lz2+jetDir.z*0.8);
-            jet.rotation.z=Math.PI/2*Math.sign(jetDir.x||0.1);jet.rotation.x=Math.atan2(jetDir.z,jetDir.x);
-        }
+        var jet=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.04,1.5,6),waterM);
+        jet.position.set(lx2+jetDir.x*0.8,1.3,lz2+jetDir.z*0.8);
+        jet.rotation.z=Math.PI/2*Math.sign(jetDir.x||0.1);
+        jet.rotation.x=Math.atan2(jetDir.z,jetDir.x);
         cityGroup.add(jet);
     }
     // 8 small decorative columns around outer rim
@@ -962,11 +776,10 @@ function buildCity() {
 
     // ---- Fountain water particle system ----
     var _fwParticles=[];
-    var _fwMat=new THREE.MeshBasicMaterial({color:0xB9EEFF,transparent:true,opacity:currentCityStyle===0?0.30:0.6,depthWrite:false,blending:THREE.NormalBlending});
+    var _fwMat=new THREE.MeshBasicMaterial({color:0xB9EEFF,transparent:true,opacity:currentCityStyle===0?0.42:0.6,depthWrite:false,blending:currentCityStyle===0?THREE.AdditiveBlending:THREE.NormalBlending});
     // Central jet particles (spray from top shell)
-    var _fountainLow=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
-    for(var fpi=0;fpi<(currentCityStyle===0?(_fountainLow?24:52):120);fpi++){
-        var fp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.055:0.25,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fwMat);
+    for(var fpi=0;fpi<(currentCityStyle===0?80:120);fpi++){
+        var fp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.10:0.25,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fwMat);
         fp.visible=false;
         cityGroup.add(fp);
         _fwParticles.push({mesh:fp,type:'jet',life:Math.floor(Math.random()*80),maxLife:70+Math.random()*40,
@@ -978,8 +791,8 @@ function buildCity() {
         var lla=lli/4*Math.PI*2;
         var llx=Math.cos(lla)*3.3,llz=Math.sin(lla)*3.3;
         var jdx=-Math.cos(lla)*0.1,jdz=-Math.sin(lla)*0.1;
-        for(var lpi=0;lpi<(currentCityStyle===0?(_fountainLow?4:8):20);lpi++){
-            var lp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.050:0.18,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fwMat);
+        for(var lpi=0;lpi<(currentCityStyle===0?12:20);lpi++){
+            var lp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.075:0.18,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fwMat);
             lp.visible=false;
             cityGroup.add(lp);
             _fwParticles.push({mesh:lp,type:'lion',life:Math.floor(Math.random()*40),maxLife:40+Math.random()*20,
@@ -991,9 +804,9 @@ function buildCity() {
     window._fountainParticles=_fwParticles;
     window._fountainSplashParticles=[];
     // Splash particle pool
-    var _fsMat=new THREE.MeshBasicMaterial({color:0xC8F5FF,transparent:true,opacity:currentCityStyle===0?0.28:0.7,depthWrite:false,blending:THREE.NormalBlending});
-    for(var fsi=0;fsi<(currentCityStyle===0?(_fountainLow?12:24):40);fsi++){
-        var fsp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.080:0.3,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fsMat);
+    var _fsMat=new THREE.MeshBasicMaterial({color:0xC8F5FF,transparent:true,opacity:currentCityStyle===0?0.46:0.7,depthWrite:false,blending:currentCityStyle===0?THREE.AdditiveBlending:THREE.NormalBlending});
+    for(var fsi=0;fsi<40;fsi++){
+        var fsp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.13:0.3,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fsMat);
         fsp.visible=false;
         cityGroup.add(fsp);
         window._fountainSplashParticles.push({mesh:fsp,life:0,maxLife:0,vx:0,vy:0,vz:0});
@@ -1001,7 +814,7 @@ function buildCity() {
 
     // ---- Streams & Canals (water city style 0) ----
     if(currentCityStyle===0){
-        var streamMat=waterM;
+        var streamMat=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?new THREE.MeshPhongMaterial({color:0x238DAF,shininess:96,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.05,transparent:true,opacity:0.66,depthWrite:false}):new THREE.MeshPhysicalMaterial({color:0x238DAF,roughness:0.055,clearcoat:1,clearcoatRoughness:0.07,envMapIntensity:1.06,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.085,transparent:true,opacity:0.68,depthWrite:false});
         var bankMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xB8AA91,{roughness:0.82,bumpScale:0.12}):toon(0xB8AA91);
         // 4 canals radiating from central fountain to city edges
         var canalDirs=[{dx:1,dz:0},{dx:-1,dz:0},{dx:0,dz:1},{dx:0,dz:-1}];
@@ -1331,62 +1144,31 @@ function buildCity() {
             vx:0,vy:0,vz:0,state:'perch',stateTimer:100+Math.floor(Math.random()*200),
             flapPhase:Math.random()*Math.PI*2,spawnY:cy2,hopPhase:0});
     }
-    // Rabbits (8) — compact, rounded woodland proportions.
-    // A rabbit should read much smaller than a deer even though both remain easy to spot and grab.
-    var _animalLow=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
-    var _animalSeg=_animalLow?10:18;
-    var _rabbitFur=softPBR(0xE9D8C8,{pastelAmount:0.05,roughness:0.88,envMapIntensity:0.12});
-    var _rabbitCream=softPBR(0xFFF6E8,{pastelAmount:0.01,roughness:0.82,envMapIntensity:0.10});
-    var _rabbitPink=softPBR(0xF3AFC0,{pastelAmount:0.02,roughness:0.78,envMapIntensity:0.10});
-    var _rabbitEye=softPBR(0x392F43,{pastelAmount:0,roughness:0.28,clearcoat:0.42,clearcoatRoughness:0.18,envMapIntensity:0.36});
-    var _rabbitBodyGeo=new THREE.SphereGeometry(0.30,_animalSeg,_animalLow?8:14);
-    var _rabbitHeadGeo=new THREE.SphereGeometry(0.24,_animalSeg,_animalLow?8:14);
-    var _rabbitEarGeo=THREE.CapsuleGeometry?new THREE.CapsuleGeometry(0.055,0.25,_animalLow?3:6,_animalSeg):new THREE.CylinderGeometry(0.055,0.07,0.36,_animalSeg);
-    var _rabbitInnerEarGeo=THREE.CapsuleGeometry?new THREE.CapsuleGeometry(0.027,0.20,_animalLow?3:5,_animalSeg):new THREE.CylinderGeometry(0.027,0.04,0.28,_animalSeg);
-    var _rabbitSmallGeo=new THREE.SphereGeometry(1,_animalSeg,_animalLow?7:12);
+    // Rabbits (8) — hop around on ground, bigger and near center
     for(var _ri2=0;_ri2<8;_ri2++){
         var rg=new THREE.Group();
-        rg.scale.setScalar(1.1);
-        var rbody=new THREE.Mesh(_rabbitBodyGeo,_rabbitFur);
-        rbody.scale.set(0.84,0.82,1.08);rbody.position.y=0.30;rg.add(rbody);
-        var rhead=new THREE.Mesh(_rabbitHeadGeo,_rabbitFur);
-        rhead.scale.set(1.02,0.94,0.94);rhead.position.set(0,0.57,0.17);rg.add(rhead);
-        // Long but softly rounded ears, with visible pink insets.
-        var _rEars=[];
+        rg.scale.set(2,2,2); // 2x bigger for visibility
+        var rbody=new THREE.Mesh(new THREE.SphereGeometry(0.25,8,6),toon(0xEEDDCC));
+        rbody.scale.set(0.8,0.7,1);rbody.position.y=0.2;rg.add(rbody);
+        var rhead=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,4),toon(0xEEDDCC));
+        rhead.position.set(0,0.38,0.15);rg.add(rhead);
+        // Ears
         [-1,1].forEach(function(s){
-            var rearGroup=new THREE.Group();
-            rearGroup.position.set(s*0.105,0.82,0.11);rearGroup.rotation.z=s*0.12;rg.add(rearGroup);
-            var rear=new THREE.Mesh(_rabbitEarGeo,_rabbitFur);
-            rearGroup.add(rear);
-            var rearIn=new THREE.Mesh(_rabbitInnerEarGeo,_rabbitPink);
-            rearIn.position.set(0,0.005,0.048);rearIn.scale.set(0.82,0.92,0.42);rearGroup.add(rearIn);
-            _rEars.push(rearGroup);
+            var rear=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.05,0.25,4),toon(0xEEDDCC));
+            rear.position.set(s*0.08,0.55,0.1);rear.rotation.z=s*0.15;rg.add(rear);
+            var rearIn=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.03,0.2,4),toon(0xFFBBCC));
+            rearIn.position.set(s*0.08,0.55,0.12);rearIn.rotation.z=s*0.15;rg.add(rearIn);
         });
-        // Oversized glossy eyes with highlights.
+        // Eyes + nose
         [-1,1].forEach(function(s){
-            var reye=new THREE.Mesh(_rabbitSmallGeo,_rabbitEye);
-            reye.scale.set(0.052,0.071,0.030);reye.position.set(s*0.085,0.60,0.383);rg.add(reye);
-            var rshine=new THREE.Mesh(_rabbitSmallGeo,_rabbitCream);
-            rshine.scale.setScalar(0.015);rshine.position.set(s*0.074,0.623,0.411);rg.add(rshine);
+            var reye=new THREE.Mesh(new THREE.SphereGeometry(0.03,4,3),toon(0x332222));
+            reye.position.set(s*0.07,0.4,0.27);rg.add(reye);
         });
-        // Puffy muzzle, tiny nose and rosy cheeks give a friendly cartoon expression.
-        [-1,1].forEach(function(s){
-            var rmuzzle=new THREE.Mesh(_rabbitSmallGeo,_rabbitCream);
-            rmuzzle.scale.set(0.063,0.050,0.040);rmuzzle.position.set(s*0.043,0.525,0.397);rg.add(rmuzzle);
-            var rcheek=new THREE.Mesh(_rabbitSmallGeo,_rabbitPink);
-            rcheek.scale.set(0.045,0.025,0.015);rcheek.position.set(s*0.142,0.525,0.360);rg.add(rcheek);
-        });
-        var rnose=new THREE.Mesh(_rabbitSmallGeo,_rabbitPink);
-        rnose.scale.set(0.030,0.022,0.020);rnose.position.set(0,0.548,0.438);rg.add(rnose);
-        // Rounded hind paws keep the silhouette grounded and toy-like.
-        [-1,1].forEach(function(s){
-            var rpaw=new THREE.Mesh(_rabbitSmallGeo,_rabbitCream);
-            rpaw.scale.set(0.11,0.055,0.15);rpaw.position.set(s*0.17,0.075,0.16);rg.add(rpaw);
-        });
+        var rnose=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,3),toon(0xFFAAAA));
+        rnose.position.set(0,0.35,0.3);rg.add(rnose);
         // Tail puff
-        var rtail=new THREE.Mesh(_rabbitSmallGeo,_rabbitCream);
-        rtail.scale.setScalar(0.095);rtail.position.set(0,0.31,-0.30);rg.add(rtail);
-        rg.userData.animalParts={body:rbody,head:rhead,ears:_rEars,nose:rnose,tail:rtail,bodyBaseScale:new THREE.Vector3(0.84,0.82,1.08),headBaseY:0.57,tailBaseY:0.31};
+        var rtail=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,4),toon(0xFFFFFF));
+        rtail.position.set(0,0.2,-0.25);rg.add(rtail);
         var rx3=(Math.random()-0.5)*60+(_ri2<3?(Math.random()-0.5)*20:0),rz3=(Math.random()-0.5)*60+(_ri2<3?(Math.random()-0.5)*20:0);
         rg.position.set(rx3,0,rz3);
         cityGroup.add(rg);
@@ -1394,91 +1176,58 @@ function buildCity() {
             vx:0,vy:0,vz:0,state:'idle',stateTimer:60+Math.floor(Math.random()*120),
             hopPhase:0,moveDir:Math.random()*Math.PI*2};
         window._cityAnimals.push(_rAnimal);
-        var _rProp={group:rg,x:rx3,z:rz3,radius:0.58,type:'rabbit',grabbed:false,origY:0,throwVx:0,throwVy:0,throwVz:0,throwTimer:0,weight:0.35,_animal:_rAnimal};
+        var _rProp={group:rg,x:rx3,z:rz3,radius:0.8,type:'rabbit',grabbed:false,origY:0,throwVx:0,throwVy:0,throwVz:0,throwTimer:0,weight:0.5,_animal:_rAnimal};
         _rAnimal._propRef=_rProp;
         cityProps.push(_rProp);
     }
-    // Deer (6) — visibly taller than the rabbits, with an animated-film fawn silhouette.
-    var _deerFur=softPBR(0xB97845,{pastelAmount:0.08,roughness:0.84,envMapIntensity:0.14});
-    var _deerLight=softPBR(0xF5D5AE,{pastelAmount:0.04,roughness:0.86,envMapIntensity:0.10});
-    var _deerInner=softPBR(0xE89A91,{pastelAmount:0.02,roughness:0.80,envMapIntensity:0.10});
-    var _deerEye=softPBR(0x30283A,{pastelAmount:0,roughness:0.26,clearcoat:0.45,clearcoatRoughness:0.16,envMapIntensity:0.38});
-    var _deerAntler=softPBR(0x76513A,{pastelAmount:0.02,roughness:0.88,envMapIntensity:0.08});
-    var _deerHoof=softPBR(0x3D3435,{pastelAmount:0,roughness:0.90,envMapIntensity:0.06});
-    var _deerSmallGeo=new THREE.SphereGeometry(1,_animalSeg,_animalLow?7:12);
+    // Deer (6) — graceful walking, bigger
     for(var _di2=0;_di2<6;_di2++){
         var dg=new THREE.Group();
-        dg.scale.setScalar(1.65);
-        var dbody=new THREE.Mesh(new THREE.SphereGeometry(0.4,_animalSeg,_animalLow?8:14),_deerFur);
-        dbody.scale.set(0.72,0.62,1.15);dbody.position.y=0.72;dg.add(dbody);
+        dg.scale.set(1.8,1.8,1.8);
+        var dbody=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,6),toon(0xCC9966));
+        dbody.scale.set(0.7,0.6,1.2);dbody.position.y=0.7;dg.add(dbody);
         // White belly
-        var dbelly=new THREE.Mesh(_deerSmallGeo,_deerLight);
-        dbelly.scale.set(0.20,0.17,0.31);dbelly.position.set(0,0.68,0.38);dg.add(dbelly);
-        // A short rounded neck and larger head make the deer elegant but approachable.
-        var dneck=new THREE.Mesh(new THREE.CapsuleGeometry(0.13,0.28,_animalLow?3:6,_animalSeg),_deerFur);
-        dneck.position.set(0,0.96,0.23);dneck.rotation.x=-0.28;dg.add(dneck);
-        var dhead=new THREE.Mesh(new THREE.SphereGeometry(0.23,_animalSeg,_animalLow?8:14),_deerFur);
-        dhead.scale.set(0.96,1.00,0.92);dhead.position.set(0,1.18,0.43);dg.add(dhead);
-        var dmuzzle=new THREE.Mesh(_deerSmallGeo,_deerLight);
-        dmuzzle.scale.set(0.125,0.085,0.14);dmuzzle.position.set(0,1.09,0.62);dg.add(dmuzzle);
-        // Broad ears with warm inner ear panels.
-        var _dEars=[];
+        var dbelly=new THREE.Mesh(new THREE.SphereGeometry(0.3,6,4),toon(0xFFEEDD));
+        dbelly.scale.set(0.6,0.4,1);dbelly.position.set(0,0.6,0);dg.add(dbelly);
+        // Head
+        var dhead=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,4),toon(0xCC9966));
+        dhead.position.set(0,1.0,0.4);dg.add(dhead);
+        // Ears
         [-1,1].forEach(function(s){
-            var dearGroup=new THREE.Group();
-            dearGroup.position.set(s*0.19,1.32,0.39);dearGroup.rotation.z=-s*0.42;dg.add(dearGroup);
-            var dear=new THREE.Mesh(new THREE.SphereGeometry(0.10,_animalSeg,_animalLow?7:12),_deerFur);
-            dear.scale.set(1.05,0.42,0.50);dearGroup.add(dear);
-            var dearIn=new THREE.Mesh(_deerSmallGeo,_deerInner);
-            dearIn.scale.set(0.066,0.025,0.027);dearIn.position.set(s*0.015,0.005,0.055);dearGroup.add(dearIn);
-            _dEars.push(dearGroup);
+            var dear=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.15,4),toon(0xCC9966));
+            dear.position.set(s*0.12,1.15,0.35);dear.rotation.z=s*0.4;dg.add(dear);
         });
-        // Large glossy eyes, highlights and blush.
+        // Eyes
         [-1,1].forEach(function(s){
-            var deye=new THREE.Mesh(_deerSmallGeo,_deerEye);
-            deye.scale.set(0.058,0.078,0.033);deye.position.set(s*0.095,1.205,0.628);dg.add(deye);
-            var dshine=new THREE.Mesh(_deerSmallGeo,_deerLight);
-            dshine.scale.setScalar(0.016);dshine.position.set(s*0.082,1.232,0.658);dg.add(dshine);
-            var dcheek=new THREE.Mesh(_deerSmallGeo,_deerInner);
-            dcheek.scale.set(0.052,0.026,0.016);dcheek.position.set(s*0.155,1.105,0.590);dg.add(dcheek);
+            var deye=new THREE.Mesh(new THREE.SphereGeometry(0.04,4,3),toon(0x332222));
+            deye.position.set(s*0.08,1.02,0.55);dg.add(deye);
         });
         // Nose
-        var dnose=new THREE.Mesh(_deerSmallGeo,_deerEye);
-        dnose.scale.set(0.040,0.028,0.026);dnose.position.set(0,1.08,0.746);dg.add(dnose);
-        // Small rounded antlers keep the species readable without overpowering the face.
+        var dnose=new THREE.Mesh(new THREE.SphereGeometry(0.03,4,3),toon(0x333333));
+        dnose.position.set(0,0.95,0.58);dg.add(dnose);
+        // Antlers (small)
         [-1,1].forEach(function(s){
-            var antler=new THREE.Mesh(new THREE.CapsuleGeometry(0.025,0.20,_animalLow?2:4,8),_deerAntler);
-            antler.position.set(s*0.095,1.45,0.38);antler.rotation.z=-s*0.20;dg.add(antler);
-            var antlerTip=new THREE.Mesh(new THREE.CapsuleGeometry(0.020,0.10,_animalLow?2:4,8),_deerAntler);
-            antlerTip.position.set(s*0.17,1.52,0.38);antlerTip.rotation.z=-s*0.78;dg.add(antlerTip);
+            var antler=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.03,0.3,4),toon(0x886644));
+            antler.position.set(s*0.1,1.25,0.35);antler.rotation.z=s*0.3;dg.add(antler);
+            var antlerTip=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.02,0.15,4),toon(0x886644));
+            antlerTip.position.set(s*0.18,1.35,0.35);antlerTip.rotation.z=s*0.8;dg.add(antlerTip);
         });
-        // Four tapered legs use hip pivots so the diagonal gait reads naturally.
-        var _dLegs=[];
-        [
-            {x:-0.12,z:0.25,name:'front-left',diagonal:1},
-            {x:0.12,z:0.25,name:'front-right',diagonal:-1},
-            {x:-0.12,z:-0.25,name:'back-left',diagonal:-1},
-            {x:0.12,z:-0.25,name:'back-right',diagonal:1}
-        ].forEach(function(lp){
-            var dlegPivot=new THREE.Group();dlegPivot.position.set(lp.x,0.58,lp.z);dg.add(dlegPivot);
-            dlegPivot.userData.legName=lp.name;
-            dlegPivot.userData.diagonalPhase=lp.diagonal;
-            dlegPivot.userData.baseY=0.58;
-            var dleg=new THREE.Mesh(new THREE.CylinderGeometry(0.034,0.050,0.52,8),_deerFur);
-            dleg.position.y=-0.26;dlegPivot.add(dleg);
-            var dhoof=new THREE.Mesh(new THREE.SphereGeometry(0.052,8,_animalLow?5:7),_deerHoof);
-            dhoof.scale.set(0.86,0.58,1.15);dhoof.position.set(0,-0.525,0.018);dlegPivot.add(dhoof);
-            _dLegs.push(dlegPivot);
+        // Legs (4)
+        [{x:-0.12,z:0.25},{x:0.12,z:0.25},{x:-0.12,z:-0.25},{x:0.12,z:-0.25}].forEach(function(lp){
+            var dleg=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.035,0.55,4),toon(0xBB8855));
+            dleg.position.set(lp.x,0.28,lp.z);dg.add(dleg);
+            var dhoof=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.04,0.06,4),toon(0x444444));
+            dhoof.position.set(lp.x,0.03,lp.z);dg.add(dhoof);
         });
         // Tail
-        var dtail=new THREE.Mesh(_deerSmallGeo,_deerLight);
-        dtail.scale.set(0.07,0.095,0.07);dtail.position.set(0,0.79,-0.49);dg.add(dtail);
-        // Ordered fawn spots avoid noisy random placement and strengthen the animated-film pattern.
-        [[-0.18,0.82,-0.12],[0.18,0.82,-0.12],[-0.16,0.72,0.05],[0.16,0.72,0.05],[-0.13,0.89,0.13],[0.13,0.89,0.13]].forEach(function(sp){
-            var dspot=new THREE.Mesh(_deerSmallGeo,_deerLight);
-            dspot.scale.set(0.045,0.034,0.022);dspot.position.set(sp[0],sp[1],sp[2]);
+        var dtail=new THREE.Mesh(new THREE.SphereGeometry(0.06,4,3),toon(0xFFFFFF));
+        dtail.position.set(0,0.75,-0.5);dg.add(dtail);
+        // White spots
+        for(var _dsi=0;_dsi<5;_dsi++){
+            var dspot=new THREE.Mesh(new THREE.SphereGeometry(0.04,4,3),toon(0xFFEEDD));
+            dspot.position.set((Math.random()-0.5)*0.3,0.6+Math.random()*0.3,(Math.random()-0.5)*0.4);
             dg.add(dspot);
-        });
-        dg.userData.animalParts={head:dhead,ears:_dEars,legs:_dLegs,tail:dtail,headBaseY:1.18};
+        }
         var dx3=(Math.random()-0.5)*80,dz3=(Math.random()-0.5)*80;
         dg.position.set(dx3,0,dz3);
         cityGroup.add(dg);
@@ -1486,7 +1235,7 @@ function buildCity() {
             vx:0,vy:0,vz:0,state:'walk',stateTimer:120+Math.floor(Math.random()*180),
             walkPhase:0,moveDir:Math.random()*Math.PI*2};
         window._cityAnimals.push(_dAnimal);
-        var _dProp={group:dg,x:dx3,z:dz3,radius:1.1,type:'deer',grabbed:false,origY:0,throwVx:0,throwVy:0,throwVz:0,throwTimer:0,weight:1.0,_animal:_dAnimal};
+        var _dProp={group:dg,x:dx3,z:dz3,radius:1.2,type:'deer',grabbed:false,origY:0,throwVx:0,throwVy:0,throwVz:0,throwTimer:0,weight:1.0,_animal:_dAnimal};
         _dAnimal._propRef=_dProp;
         cityProps.push(_dProp);
     }

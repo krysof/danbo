@@ -98,16 +98,14 @@ document.getElementById('confirm-btn').addEventListener('click',()=>{
     _selectConfirmed=true;
     playMenuConfirm();
     stopSelectBGM();
+    // Airplane animation: fly from character's country outward
     var _selCh=CHARACTERS[selectedChar];
-    var _enterSelectedCharacter=function(){
+    _startPlaneAnim(_selCh.mapX,_selCh.mapY,0,0,function(){
         showScreen(null);
         spawnCityNPCs();
         enterCity();
         _selectConfirmed=false;_startTriggered=false; // reset for next time
-    };
-    // Prefer the cinematic hero launch; retain the old plane path only as a WebGL fallback.
-    if(typeof window._startSelect3DTransition==='function')window._startSelect3DTransition(_enterSelectedCharacter);
-    else _startPlaneAnim(_selCh.mapX,_selCh.mapY,0,0,_enterSelectedCharacter);
+    });
 });
 
 // ---- Mobile menu navigation via joystick ----

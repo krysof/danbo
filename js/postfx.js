@@ -11,7 +11,7 @@ var _postFXSize=new THREE.Vector2(1,1);
 var _postFXFrame=0;
 
 var _postFXMood=[
-    {bloom:0.095,sat:1.018,contrast:1.045,exposure:0.995,vignette:0.16,warm:0.010,threshold:0.82},
+    {bloom:0.16,sat:1.025,contrast:1.055,exposure:1.015,vignette:0.18,warm:0.012,threshold:0.74},
     {bloom:0.18,sat:1.00,contrast:0.94,exposure:1.06,vignette:0.12,warm:0.075,threshold:0.68},
     {bloom:0.20,sat:0.98,contrast:0.93,exposure:1.08,vignette:0.10,warm:-0.015,threshold:0.68},
     {bloom:0.26,sat:1.02,contrast:0.96,exposure:1.04,vignette:0.18,warm:0.070,threshold:0.63},
@@ -180,9 +180,8 @@ function _updatePostFXMood(){
     u.uVignette.value=m.vignette;
     u.uWarmth.value=m.warm;
     u.uThreshold.value=m.threshold;
-    u.uAO.value=q==='low'?0.0:(q==='balanced'?0.095:0.17);
-    // Depth of field is deliberately minimal: geometry, materials and light carry the image.
-    u.uDOF.value=q==='low'?0.0:(q==='balanced'?0.025:0.055);
+    u.uAO.value=q==='low'?0.0:(q==='balanced'?0.085:0.15);
+    u.uDOF.value=q==='low'?0.0:(q==='balanced'?0.10:0.22);
     if(typeof playerEgg!=='undefined'&&playerEgg&&playerEgg.mesh){
         var dx=camera.position.x-playerEgg.mesh.position.x,dy=camera.position.y-playerEgg.mesh.position.y,dz=camera.position.z-playerEgg.mesh.position.z;
         var focus=Math.sqrt(dx*dx+dy*dy+dz*dz);

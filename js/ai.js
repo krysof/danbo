@@ -474,12 +474,12 @@ function updateCityNPC(egg){if(egg.heldBy)return;
             if(egg._npcHadouCD>0)egg._npcHadouCD--;
             if(egg._npcSpecialCD>0)egg._npcSpecialCD--;
 
-            // 花朵蛋: 微弱蛋拳 / 花朵蛋拳 / 百花拳击
+            // Ryu: hadouken(fire), shoryuken, tatsumaki
             if(_nCT==='egg'){
                 if(cd2>3&&cd2<25&&Math.random()<0.06&&(!egg._npcHadouCD||egg._npcHadouCD<=0)){
                     egg._npcHadouCD=50;var _nhDir=Math.atan2(cdx2,cdz2);
-                    MoveProjectile_execute(egg,_nhDir,{speed:MOVE_PARAMS.egg.weakPunch.speed,life:MOVE_PARAMS.egg.weakPunch.life,color:MOVE_PARAMS.egg.weakPunch.color,ringColor:MOVE_PARAMS.egg.weakPunch.ringColor,burns:MOVE_PARAMS.egg.weakPunch.burns,isPlayer:false,type:'normal'});
-                    _shoutMove(egg,MOVE_PARAMS.egg.weakPunch);
+                    MoveProjectile_execute(egg,_nhDir,{speed:0.3,life:MOVE_PARAMS.egg.hadouken.life,color:MOVE_PARAMS.egg.hadouken.color,ringColor:MOVE_PARAMS.egg.hadouken.ringColor,burns:MOVE_PARAMS.egg.hadouken.burns,isPlayer:false,type:'normal'});
+                    _shoutMove(egg,MOVE_PARAMS.egg.hadouken);
                 }
                 if(cd2<2.5&&egg.onGround&&Math.random()<0.024&&!egg._npcShoryuActive&&(!egg._npcSpecialCD||egg._npcSpecialCD<=0)){
                     egg._npcSpecialCD=60;egg._npcShoryuActive=true;
