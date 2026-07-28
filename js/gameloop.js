@@ -229,6 +229,14 @@ function updateCity(){
         var wt2=Date.now()*0.003;
         window._fountainInnerWater.position.y=1.35+Math.sin(wt2+1)*0.02;
     }
+    if(window._fountainRipples){
+        var _rt=Date.now()*0.00032;
+        for(var _ri=0;_ri<window._fountainRipples.length;_ri++){
+            var _rp=window._fountainRipples[_ri],_phase=(_rt+(_rp.userData._phase||0))%1;
+            _rp.scale.setScalar(0.72+_phase*1.18);
+            _rp.material.opacity=0.24*(1-_phase);
+        }
+    }
     if(window._danboWaterBump){
         var _waterTime=Date.now()*0.000018;
         window._danboWaterBump.offset.set(_waterTime%1,(_waterTime*0.63)%1);
@@ -551,7 +559,7 @@ function updateCity(){
     // ---- Hidden-area discovery (+5 EXP, first time only) ----
     if(typeof Explorer!=='undefined'){
         if(currentCityStyle===5)Explorer.discoverHidden('moon_city','\u6708\u9762\u90FD\u5E02');
-        else if(currentCityStyle<=4&&py>40)Explorer.discoverHidden('cloud_world','\u4E91\u4E2D\u754C');
+        else if(currentCityStyle<=4&&py>40)Explorer.discoverHidden('cloud_world','云栖蛋境');
     }
     // ---- House-door proximity prompt ----
     if(typeof _interiorDoorScan==='function')_interiorDoorScan(px,pz);
@@ -805,10 +813,14 @@ function updateCity(){
                 if(Math.abs(a.z)>_bound2){a.vz*=-1;a.z=Math.sign(a.z)*(_bound2-1);}
                 a.group.position.set(a.x,a.y,a.z);
             } else if(a.type==='rabbit'){
+                var _rParts=a.group.userData&&a.group.userData.animalParts;
                 if(a.state==='idle'){
                     // Ear twitch + nose wiggle
-                    if(a.group.children[2])a.group.children[2].rotation.z=0.15+Math.sin(Date.now()*0.008)*0.05;
-                    if(a.group.children[8])a.group.children[8].position.z=0.3+Math.sin(Date.now()*0.015)*0.02;
+                    if(_rParts&&_rParts.ears)for(var _rei=0;_rei<_rParts.ears.length;_rei++){
+                        var _rear=_rParts.ears[_rei],_rs=_rei===0?-1:1;
+                        _rear.rotation.z=_rs*(0.12+Math.sin(Date.now()*0.008+_rei)*0.045);
+                    }
+                    if(_rParts&&_rParts.nose)_rParts.nose.position.z=0.438+Math.sin(Date.now()*0.015)*0.008;
                     if(a.stateTimer<=0){a.state='hop';a.stateTimer=20+Math.floor(Math.random()*40);
                         a.moveDir+=((Math.random()-0.5)*1.5);a.vx=Math.sin(a.moveDir)*0.08;a.vz=Math.cos(a.moveDir)*0.08;}
                 } else if(a.state==='hop'){
@@ -817,48 +829,61 @@ function updateCity(){
                     a.group.rotation.y=a.moveDir;
                     // Body stretch during hop
                     var _hpct=Math.sin(a.hopPhase);
-                    if(a.group.children[0])a.group.children[0].scale.set(0.8,0.7-_hpct*0.15,1+_hpct*0.2);
+                    if(_rParts&&_rParts.body)_rParts.body.scale.set(0.84,0.82-_hpct*0.10,1.08+_hpct*0.12);
                     // Head bob
-                    if(a.group.children[1])a.group.children[1].position.y=0.38+_hpct*0.08;
+                    if(_rParts&&_rParts.head)_rParts.head.position.y=_rParts.headBaseY+_hpct*0.055;
                     // Ears bounce back
-                    if(a.group.children[2])a.group.children[2].rotation.x=-_hpct*0.3;
-                    if(a.group.children[3])a.group.children[3].rotation.x=-_hpct*0.3;
+                    if(_rParts&&_rParts.ears)for(var _rbi=0;_rbi<_rParts.ears.length;_rbi++)_rParts.ears[_rbi].rotation.x=-_hpct*0.24;
                     // Tail bounce
-                    if(a.group.children[9])a.group.children[9].position.y=0.2+Math.abs(_hpct)*0.1;
+                    if(_rParts&&_rParts.tail)_rParts.tail.position.y=_rParts.tailBaseY+Math.abs(_hpct)*0.06;
                     if(a.stateTimer<=0){a.state='idle';a.stateTimer=60+Math.floor(Math.random()*120);a.y=0;
-                        if(a.group.children[0])a.group.children[0].scale.set(0.8,0.7,1);}
+                        if(_rParts&&_rParts.body)_rParts.body.scale.copy(_rParts.bodyBaseScale);}
                 }
                 if(Math.abs(a.x)>_bound2){a.moveDir+=Math.PI;a.x=Math.sign(a.x)*(_bound2-1);}
                 if(Math.abs(a.z)>_bound2){a.moveDir+=Math.PI;a.z=Math.sign(a.z)*(_bound2-1);}
                 a.group.position.set(a.x,a.y,a.z);
             } else if(a.type==='deer'){
+                var _dParts=a.group.userData&&a.group.userData.animalParts;
                 if(a.state==='walk'){
                     a.walkPhase+=0.08;a.x+=Math.sin(a.moveDir)*0.03;a.z+=Math.cos(a.moveDir)*0.03;
                     a.group.rotation.y=a.moveDir;
                     // Head bob
-                    if(a.group.children[2])a.group.children[2].position.y=1.0+Math.sin(a.walkPhase)*0.05;
+                    if(_dParts&&_dParts.head)_dParts.head.position.y=_dParts.headBaseY+Math.sin(a.walkPhase)*0.035;
                     // Body sway
                     a.group.rotation.z=Math.sin(a.walkPhase)*0.02;
-                    // Leg animation — 4 legs alternate (children 12-19, pairs of leg+hoof)
+                    // Explicit diagonal gait: front-left + back-right move together;
+                    // front-right + back-left use the exact opposite phase.
                     var _dWalk=a.walkPhase;
+                    var _dStride=Math.sin(_dWalk)*0.32;
+                    var _dLiftWave=Math.cos(_dWalk);
                     for(var _dli=0;_dli<4;_dli++){
-                        var _legIdx=12+_dli*2; // leg mesh index
-                        var _legPhase=_dWalk+_dli*Math.PI/2;
-                        if(a.group.children[_legIdx]){
-                            a.group.children[_legIdx].rotation.x=Math.sin(_legPhase)*0.3;
-                            // Hoof follows
-                            if(a.group.children[_legIdx+1])a.group.children[_legIdx+1].rotation.x=Math.sin(_legPhase)*0.3;
-                        }
+                        var _dLeg=_dParts&&_dParts.legs&&_dParts.legs[_dli];
+                        if(!_dLeg)continue;
+                        var _dDiagonal=_dLeg.userData.diagonalPhase||(_dli===0||_dli===3?1:-1);
+                        _dLeg.rotation.x=_dStride*_dDiagonal;
+                        // Lift only the diagonal pair currently swinging forward.
+                        var _dLegBaseY=_dLeg.userData.baseY===undefined?0.58:_dLeg.userData.baseY;
+                        _dLeg.position.y=_dLegBaseY+Math.max(0,_dLiftWave*_dDiagonal)*0.032;
                     }
                     // Tail wag
-                    if(a.group.children[20])a.group.children[20].position.x=Math.sin(_dWalk*2)*0.03;
+                    if(_dParts&&_dParts.tail)_dParts.tail.position.x=Math.sin(_dWalk*2)*0.025;
                     if(a.stateTimer<=0){a.state='idle';a.stateTimer=90+Math.floor(Math.random()*150);
                         a.group.rotation.z=0;}
                 } else if(a.state==='idle'){
+                    // Settle every leg back to a neutral standing pose.
+                    if(_dParts&&_dParts.legs)for(var _dsi=0;_dsi<_dParts.legs.length;_dsi++){
+                        var _dIdleLeg=_dParts.legs[_dsi];
+                        var _dIdleBase=_dIdleLeg.userData.baseY===undefined?0.58:_dIdleLeg.userData.baseY;
+                        _dIdleLeg.rotation.x*=0.78;
+                        _dIdleLeg.position.y+=(_dIdleBase-_dIdleLeg.position.y)*0.28;
+                    }
                     // Ears twitch
-                    if(a.group.children[3])a.group.children[3].rotation.z=0.4+Math.sin(Date.now()*0.006)*0.1;
+                    if(_dParts&&_dParts.ears)for(var _dei=0;_dei<_dParts.ears.length;_dei++){
+                        var _des=_dei===0?-1:1;
+                        _dParts.ears[_dei].rotation.z=_des*(0.42+Math.sin(Date.now()*0.006+_dei)*0.07);
+                    }
                     // Tail gentle sway
-                    if(a.group.children[20])a.group.children[20].position.x=Math.sin(Date.now()*0.003)*0.02;
+                    if(_dParts&&_dParts.tail)_dParts.tail.position.x=Math.sin(Date.now()*0.003)*0.018;
                     // Look around
                     if(Math.random()<0.01)a.group.rotation.y+=(Math.random()-0.5)*0.3;
                     if(a.stateTimer<=0){a.state='walk';a.stateTimer=120+Math.floor(Math.random()*180);
@@ -2326,7 +2351,7 @@ function _showBabylonPrompt(dir){
     if(_portalConfirmOpen)return;
     _babylonPromptDir=dir||1;
     var babelName={zhs:'\u5DF4\u522B\u5854',zht:'\u5DF4\u5225\u5854',ja:'\u30D0\u30D9\u30EB\u306E\u5854',en:'Tower of Babel'};
-    var upDesc={zhs:'\u4E58\u5750\u7535\u68AF\u524D\u5F80\u4E91\u4E2D\u754C\uFF1F',zht:'\u4E58\u5750\u96FB\u68AF\u524D\u5F80\u96F2\u4E2D\u754C\uFF1F',ja:'\u30A8\u30EC\u30D9\u30FC\u30BF\u30FC\u3067\u96F2\u4E2D\u754C\u3078\uFF1F',en:'Take elevator to Cloud Realm?'};
+    var upDesc={zhs:'\u4E58\u5750\u7535\u68AF\u524D\u5F80云栖蛋境\uFF1F',zht:'\u4E58\u5750\u96FB\u68AF\u524D\u5F80雲棲蛋境\uFF1F',ja:'\u30A8\u30EC\u30D9\u30FC\u30BF\u30FC\u3067\u30AF\u30E9\u30A6\u30C9\u30A8\u30C3\u30B0\u3078\uFF1F',en:'Take elevator to Cloud Egg?'};
     var downDesc={zhs:'\u4E58\u5750\u7535\u68AF\u8FD4\u56DE\u5730\u9762\uFF1F',zht:'\u4E58\u5750\u96FB\u68AF\u8FD4\u56DE\u5730\u9762\uFF1F',ja:'\u30A8\u30EC\u30D9\u30FC\u30BF\u30FC\u3067\u5730\u4E0A\u3078\uFF1F',en:'Take elevator back down?'};
     var dTxt=dir===-1?downDesc:upDesc;
     showPortalConfirm({name:babelName[_langCode]||babelName.en,desc:dTxt[_langCode]||dTxt.en,raceIndex:-1,_hiddenType:'babel',_babelDir:dir||1});
@@ -2356,12 +2381,12 @@ addEventListener('keydown',function(e){
 // ============================================================
 var _areaNameTimer=null;
 var _areaNames={
-    zhs:['\u5E0C\u671B\u4E4B\u57CE \u2014 \u6E56\u5149\u6C34\u8272','\u6C99\u6F20\u57CE \u2014 \u9EC4\u91D1\u4E4B\u7802','\u51B0\u96EA\u57CE \u2014 \u6C38\u51BB\u4E4B\u5730','\u7194\u5CA9\u57CE \u2014 \u706B\u7130\u4E4B\u5FC3','\u7CD6\u679C\u57CE \u2014 \u68A6\u5E7B\u4E50\u56ED','\u6708\u9762\u90FD\u5E02 \u2014 \u5BD2\u5BC2\u4E4B\u6D77'],
-    zht:['\u5E0C\u671B\u4E4B\u57CE \u2014 \u6E56\u5149\u6C34\u8272','\u6C99\u6F20\u57CE \u2014 \u9EC3\u91D1\u4E4B\u7802','\u51B0\u96EA\u57CE \u2014 \u6C38\u51CD\u4E4B\u5730','\u7194\u5CA9\u57CE \u2014 \u706B\u7130\u4E4B\u5FC3','\u7CD6\u679C\u57CE \u2014 \u5922\u5E7B\u6A02\u5712','\u6708\u9762\u90FD\u5E02 \u2014 \u5BD2\u5BC2\u4E4B\u6D77'],
-    ja:['\u5E0C\u671B\u306E\u8857 \u2014 \u6E56\u5149\u6C34\u8272','\u7802\u6F20\u30B7\u30C6\u30A3 \u2014 \u9EC4\u91D1\u306E\u7802','\u6C37\u96EA\u30B7\u30C6\u30A3 \u2014 \u6C38\u51CD\u306E\u5730','\u6EB6\u5CA9\u30B7\u30C6\u30A3 \u2014 \u708E\u306E\u5FC3\u81D3','\u30AD\u30E3\u30F3\u30C7\u30A3\u30B7\u30C6\u30A3 \u2014 \u5922\u306E\u697D\u5712','\u30EB\u30CA\u30FC\u30BE\u30FC\u30F3 \u2014 \u9759\u5BC2\u306E\u6D77'],
-    en:['City of Hope \u2014 Shimmering Waters','Desert City \u2014 Golden Sands','Ice City \u2014 Frozen Lands','Lava City \u2014 Heart of Flame','Candy City \u2014 Dreamland','Lunar Zone \u2014 Sea of Silence']
+    zhs:['\u5E0C\u671B\u4E4B\u57CE \u2014 \u6E56\u5149\u6C34\u8272','金沙蛋域 \u2014 \u9EC4\u91D1\u4E4B\u7802','冰晶蛋城 \u2014 \u6C38\u51BB\u4E4B\u5730','炎晶蛋城 \u2014 \u706B\u7130\u4E4B\u5FC3','甜梦蛋城 \u2014 \u68A6\u5E7B\u4E50\u56ED','月面蛋都 \u2014 \u5BD2\u5BC2\u4E4B\u6D77'],
+    zht:['\u5E0C\u671B\u4E4B\u57CE \u2014 \u6E56\u5149\u6C34\u8272','金沙蛋域 \u2014 \u9EC3\u91D1\u4E4B\u7802','冰晶蛋城 \u2014 \u6C38\u51CD\u4E4B\u5730','炎晶蛋城 \u2014 \u706B\u7130\u4E4B\u5FC3','甜夢蛋城 \u2014 \u5922\u5E7B\u6A02\u5712','月面蛋都 \u2014 \u5BD2\u5BC2\u4E4B\u6D77'],
+    ja:['\u5E0C\u671B\u306E\u8857 \u2014 \u6E56\u5149\u6C34\u8272','\u30B4\u30FC\u30EB\u30C9\u30B5\u30F3\u30C9\u30A8\u30C3\u30B0 \u2014 \u9EC4\u91D1\u306E\u7802','\u30A2\u30A4\u30B9\u30AF\u30EA\u30B9\u30BF\u30EB\u30A8\u30C3\u30B0 \u2014 \u6C38\u51CD\u306E\u5730','\u30D5\u30EC\u30A4\u30E0\u30AF\u30EA\u30B9\u30BF\u30EB\u30A8\u30C3\u30B0 \u2014 \u708E\u306E\u5FC3\u81D3','\u30B9\u30A4\u30FC\u30C8\u30C9\u30EA\u30FC\u30E0\u30A8\u30C3\u30B0 \u2014 \u5922\u306E\u697D\u5712','\u30EB\u30CA\u30FC\u30A8\u30C3\u30B0 \u2014 \u9759\u5BC2\u306E\u6D77'],
+    en:['City of Hope \u2014 Shimmering Waters','Gold Sand Egg \u2014 Golden Sands','Ice Crystal Egg \u2014 Frozen Lands','Flame Crystal Egg \u2014 Heart of Flame','Sweet Dream Egg \u2014 Dreamland','Lunar Egg \u2014 Sea of Silence']
 };
-var _areaNameCloud={zhs:'\u4E91\u4E2D\u754C \u2014 \u5929\u7A7A\u4E4B\u57CE',zht:'\u96F2\u4E2D\u754C \u2014 \u5929\u7A7A\u4E4B\u57CE',ja:'\u96F2\u4E2D\u754C \u2014 \u5929\u7A7A\u306E\u57CE',en:'Cloud Realm \u2014 City in the Sky'};
+var _areaNameCloud={zhs:'云栖蛋境 \u2014 \u5929\u7A7A\u4E4B\u57CE',zht:'雲棲蛋境 \u2014 \u5929\u7A7A\u4E4B\u57CE',ja:'\u30AF\u30E9\u30A6\u30C9\u30A8\u30C3\u30B0 \u2014 \u5929\u7A7A\u306E\u57CE',en:'Cloud Egg \u2014 City in the Sky'};
 function _showAreaName(name){
     if(!name)return;
     var overlay=document.getElementById('area-name-overlay');
@@ -2424,6 +2449,10 @@ function enterCity(spawnX,spawnZ){
     if(currentCityStyle===5){
         if(sx===0&&sz===5){sx=50;sz=0;}
         sy=0.5;
+    } else if(currentCityStyle===0&&sx===0&&sz===0){
+        // Begin in front of the landmark rather than dropping the hero onto its roof.
+        // The first playable frame now presents character, fountain and skyline together.
+        sx=3.0;sz=17.0;sy=0.55;
     } else if(sx===0&&sz===0){
         sy=15; // above fountain, land on pillar top
     }

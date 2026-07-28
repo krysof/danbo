@@ -25,9 +25,9 @@ var CITY_CONFIG={
 
 // ---- City style themes ----
 var CITY_THEME_DATA=[
-    {id:0,nameKey:'city0',ground:0x7ADDA5,path:0xFFE8B8,sky:0x9FDBFF,
-     bColors:[0xFF9FC6,0x82D0FF,0xFFE88A,0xB9EA95,0xFFC6A6,0xCDB8FF,0xFFB8DE,0x9BEAE2],
-     roof:0xFF85AD,tree:0x70D878,fog:0xDFF7FF},
+    {id:0,nameKey:'city0',ground:0x5F9C68,path:0xD8C49C,sky:0x80BFE8,
+     bColors:[0x5D8D67,0x6F9EAD,0xD6A64F,0xA85E72,0xC77656,0x7B6FA6,0xC57A98,0x4F9288],
+     roof:0xB85A4D,tree:0x467C42,fog:0xC4DFED},
     {id:1,nameKey:'city1',ground:0xDDCC88,path:0xCCBB77,sky:0xFFCC66,
      bColors:[0xDDAA66,0xCC9955,0xEEBB77,0xBB8844,0xDDCC88,0xCCAA55,0xEECC99,0xBB9966],
      roof:0xAA6633,tree:0x88AA44,fog:0xFFEECC},
@@ -78,7 +78,7 @@ var CLOUD_CONFIG={
 var CAMERA_CONFIG={
     zoomMin:0.04, zoomMax:1000,
     followSmooth:0.08, minHeight:3,
-    yOffset:10, zOffset:14,
+    yOffset:6.4, zOffset:12.8,
     shakeMultX:2, shakeMultY:1.5, shakeMultZ:2
 };
 
@@ -86,14 +86,14 @@ var CAMERA_CONFIG={
 var RENDER_CONFIG={
     fogNear:80, fogFar:400,
     fogColor:0x87CEEB,
-    sunColor:0xFFF2D6, sunIntensity:1.68,
-    sunPos:{x:60,y:80,z:40},
-    shadowMapSize:4096, shadowBias:-0.001,
-    shadowRange:120, shadowNear:1, shadowFar:300,
-    ambientIntensity:0.44,
-    hemiSkyColor:0xDDF4FF, hemiGroundColor:0x73866A, hemiIntensity:0.66,
+    sunColor:0xFFF0D1, sunIntensity:2.02,
+    sunPos:{x:72,y:58,z:-82},
+    shadowMapSize:4096, shadowBias:-0.00055,
+    shadowRange:74, shadowNear:1, shadowFar:240,
+    ambientIntensity:0.25,
+    hemiSkyColor:0xDDF4FF, hemiGroundColor:0x66785F, hemiIntensity:0.52,
     pixelRatioMin:1.0, pixelRatioMax:2.0,
-    toneExposure:1.09
+    toneExposure:0.97
 };
 
 // ---- Portal (race entrance) parameters ----

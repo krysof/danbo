@@ -79,10 +79,10 @@
             id:key,
             key:key,
             name:ch.name||key,
-            displayName:ch.sf2||ch.name||key,
+            displayName:ch.name||key,
             icon:ch.icon||'',
-            country:ch.country||'',
-            flag:ch.flag||'',
+            country:'',
+            flag:'',
             style:{
                 color:ch.color||0,
                 accent:ch.accent||0,

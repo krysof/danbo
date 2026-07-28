@@ -384,14 +384,21 @@ function _updateChestHud(){
     if(currentCityStyle<=4)l2+='   \u2601\uFE0F '+Explorer.cityCount('cloud')+'/'+CHEST_CLOUD_TOTAL;
     el.innerHTML=l1+'<br>'+l2;
 }
-function _floatToast(text,color,topFrom,topTo,life){
+function _floatToast(text,color,topFrom,topTo,life,hold){
     var t=document.createElement('div');t.textContent=text;
+    var fadeMs=(hold&&hold>0)?(life||800):800;
     t.style.cssText='position:fixed;left:50%;top:'+topFrom+';transform:translateX(-50%);z-index:61;'+
         'font:bold 18px system-ui,Segoe UI,sans-serif;color:'+color+';text-shadow:0 2px 6px rgba(0,0,0,0.85);'+
-        'pointer-events:none;transition:top 0.8s ease-out,opacity 0.8s ease-out;opacity:1;';
+        'pointer-events:none;transition:top '+(fadeMs/1000)+'s ease-out,opacity '+(fadeMs/1000)+'s ease-out;opacity:1;';
     document.body.appendChild(t);
-    requestAnimationFrame(function(){t.style.top=topTo;t.style.opacity='0';});
-    setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},life||900);
+    if(hold&&hold>0){
+        // Stay fully visible for `hold` ms, then fade + drift out.
+        setTimeout(function(){t.style.top=topTo;t.style.opacity='0';},hold);
+        setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},hold+fadeMs+50);
+    } else {
+        requestAnimationFrame(function(){t.style.top=topTo;t.style.opacity='0';});
+        setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},life||900);
+    }
 }
 function _showExpGain(n){ _floatToast('+'+n+' \u2728 EXP','#9FE8FF','18%','12%',850); }
 function _showDailyBonus(){ _floatToast('\u2728 \u4ECA\u65E5\u63A2\u7D22\u5956\u52B1\uFF01\u53CC\u500D\u79EF\u5206','#FFE066','26%','21%',1400); }
@@ -399,7 +406,8 @@ function _showHiddenArea(label){ _floatToast('\uD83D\uDD0D \u53D1\u73B0\u9690\u8
 function _showChestReward(amount,tier){
     var col=tier==='legendary'?'#FFD23F':(tier==='rare'?'#7FD0FF':'#FFE066');
     var label=tier==='legendary'?'\uD83D\uDC51 \u4F20\u8BF4\u5B9D\u7BB1':(tier==='rare'?'\uD83D\uDC8E \u7A00\u6709\u5B9D\u7BB1':'\uD83E\uDDF0');
-    _floatToast(label+'  +'+amount+' \u2B50',col,'58%','49%',1000);
+    // Chest rewards alone get a 3 s reading hold, followed by a 1 s fade/upward drift.
+    _floatToast(label+'  +'+amount+' \u2B50',col,'58%','49%',1000,3000);
 }
 function _showLevelUp(lv){
     var w=document.createElement('div');
@@ -477,7 +485,7 @@ var REWARD_NAMES={
 function _rn(id){return REWARD_NAMES[id]||id;}
 function _areaDisplayName(area){
     if(area==='all')return '\uD83C\uDF08 \u5168\u5730\u56FE\u63A2\u7D22\u5B8C\u6210\uFF01';
-    if(area==='cloud')return '\u2601\uFE0F \u4E91\u4E2D\u754C \u63A2\u7D22 100%\uFF01';
+    if(area==='cloud')return '\u2601\uFE0F 云栖蛋境 \u63A2\u7D22 100%\uFF01';
     var idx=parseInt(area.replace('city',''),10);
     var nm=(typeof CITY_STYLES!=='undefined'&&CITY_STYLES[idx])?CITY_STYLES[idx].name:area;
     return nm+' \u63A2\u7D22 100%\uFF01';
@@ -602,6 +610,7 @@ function clearCity(){
     window._fountainParticles=null;
     window._fountainSplashParticles=null;
     window._fountainPoolWater=null;
+    window._fountainRipples=null;
     window._sakuraPetals=null;
     window._sakuraCanalWater=null;
     window._sakuraStreamAnimals=null;
@@ -668,31 +677,31 @@ function applyCityTheme(){
         _updateSkyDome(st.sky,horizon,groundTint);
     }
     if(typeof R!=='undefined'){
-        R.toneMappingExposure=currentCityStyle===0?1.025:(currentCityStyle===5?1.06:(currentCityStyle===7?1.08:(RENDER_CONFIG.toneExposure||1.06)));
+        R.toneMappingExposure=currentCityStyle===0?1.05:(currentCityStyle===5?1.06:(currentCityStyle===7?1.08:(RENDER_CONFIG.toneExposure||1.06)));
     }
     // Fog / aerial perspective — always keep a little depth haze for richer scenery
     if(st.fog){scene.fog=new THREE.Fog(st.fog,60,180);}
     else if(currentCityStyle===5){scene.fog=new THREE.Fog(0x070712,260,900);}
     else if(currentCityStyle===7){scene.fog=new THREE.Fog(0x91A7C9,130,850);}
-    else if(currentCityStyle===0){scene.fog=new THREE.Fog(0xA8C8D1,185,520);}
+    else if(currentCityStyle===0){scene.fog=new THREE.Fog(0xB3D3DC,210,560);}
     else{scene.fog=new THREE.Fog(_mixHex(st.sky,st.ground||st.path||0xFFFFFF,0.22),140,430);}
     if(typeof rimLight!=='undefined'){
         rimLight.visible=currentCityStyle!==5;
         if(currentCityStyle===7){rimLight.color.setHex(0xE3EFFF);rimLight.intensity=0.28;}
         else if(currentCityStyle===3){rimLight.color.setHex(0xFFC2A6);rimLight.intensity=0.18;}
         else if(currentCityStyle===2){rimLight.color.setHex(0xE5F6FF);rimLight.intensity=0.24;}
-        else if(currentCityStyle===0){rimLight.color.setHex(0xD8F6FF);rimLight.intensity=0.36;}
+        else if(currentCityStyle===0){rimLight.color.setHex(0xD8F0FF);rimLight.intensity=0.27;}
         else{rimLight.color.setHex(0xD0F0FF);rimLight.intensity=0.22;}
     }
     if(typeof softFillLight!=='undefined'){
         softFillLight.visible=currentCityStyle!==5;
-        if(currentCityStyle===0){softFillLight.color.setHex(0xFFD8C2);softFillLight.intensity=0.24;}
+        if(currentCityStyle===0){softFillLight.color.setHex(0xFFE1C9);softFillLight.intensity=0.16;}
         else if(currentCityStyle===3){softFillLight.color.setHex(0xFF8A55);softFillLight.intensity=0.18;}
         else{softFillLight.color.setHex(0xFFE3D4);softFillLight.intensity=0.14;}
     }
     // Sun visibility — only in ground cities, not on moon
     var isMoon=(currentCityStyle===5);
-    if(currentCityStyle===0){RENDER_CONFIG.sunPos.x=38;RENDER_CONFIG.sunPos.y=45;RENDER_CONFIG.sunPos.z=-100;}
+    if(currentCityStyle===0){RENDER_CONFIG.sunPos.x=48;RENDER_CONFIG.sunPos.y=68;RENDER_CONFIG.sunPos.z=-105;}
     else{RENDER_CONFIG.sunPos.x=60;RENDER_CONFIG.sunPos.y=80;RENDER_CONFIG.sunPos.z=40;}
     _sunMesh.visible=!isMoon;
     _sunGlow.visible=!isMoon;
@@ -711,12 +720,13 @@ function applyCityTheme(){
                 if(c.isHemisphereLight){c.color.setHex(0xD7E6FF);c.groundColor.setHex(0xAFC0D8);c.intensity=0.92;}
             });
         } else if(currentCityStyle===0){
-            sun.intensity=2.12;
-            sun.color.setHex(0xFFD08F);
+            sun.intensity=2.42;
+            sun.color.setHex(0xFFE0B0);
+            sun.shadow.radius=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high)?3.6:2.6;
             _sunMesh.visible=true;_sunGlow.visible=true;
             scene.children.forEach(function(c){
-                if(c.isAmbientLight){c.color.setHex(0xFFF1DE);c.intensity=0.36;}
-                if(c.isHemisphereLight){c.color.setHex(0xD9EDFF);c.groundColor.setHex(0x665E45);c.intensity=0.60;}
+                if(c.isAmbientLight){c.color.setHex(0xFFF4E5);c.intensity=0.32;}
+                if(c.isHemisphereLight){c.color.setHex(0xDDEFFF);c.groundColor.setHex(0x776F5C);c.intensity=0.58;}
             });
         } else {
             sun.intensity=RENDER_CONFIG.sunIntensity;
@@ -1048,7 +1058,10 @@ function spawnCityNPCs() {
             // Avoid fountain area (center, radius 10)
             do{
                 nx2=(Math.random()-0.5)*80;nz2=10+(Math.random())*60;
-            }while(DANBO_WASM.len2D(nx2,nz2)<12);
+            }while(
+                DANBO_WASM.len2D(nx2,nz2)<12 ||
+                (currentCityStyle===0 && DANBO_WASM.len2D(nx2-3,nz2-17)<8)
+            );
         }
         const col=AI_COLORS[i%AI_COLORS.length];
         // Weighted character selection: more Zangief
@@ -1071,27 +1084,34 @@ function spawnCityNPCs() {
 var cityCloudPlatforms=[]; // {group, x, z, y, hw, hd}
 var _cloudWorldPipe=null; // moon pipe in cloud world
 function _makeCloud(cx,cy,cz,minParts,maxParts,minS,maxS){
-    var cg2=new THREE.SphereGeometry(1,8,6);
-    var cm2=toon(0xffffff,{transparent:true,opacity:0.85});
+    var _cloudHigh=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
+    var cg2=new THREE.SphereGeometry(1,_cloudHigh?22:12,_cloudHigh?15:8);
+    // Matte PBR lobes receive warm sunlight and cool sky fill. Overlapping rounded
+    // volumes replace the old six-segment, straight "pixel sausage" platforms.
+    var cm2=new THREE.MeshStandardMaterial({color:0xF8FCFF,roughness:1,metalness:0,emissive:0xD9E8F2,emissiveIntensity:0.34,fog:true});
     var g=new THREE.Group();
     var maxW=0,maxD=0,maxTop=0,maxSc=0;
     var numParts=minParts+Math.floor(Math.random()*(maxParts-minParts+1));
     for(var j=0;j<numParts;j++){
         var s=minS+Math.random()*(maxS-minS);
         var m=new THREE.Mesh(cg2,cm2);
-        m.scale.set(s,s*0.45,s*0.7);
-        m.castShadow=true;m.receiveShadow=true;
-        var pz=Math.random()*1.5-0.75;
-        m.position.set(j*2.5,0,pz);
+        m.name='danbo-soft-cloud-lobe';
+        m.scale.set(s*(0.88+Math.random()*0.18),s*(0.48+Math.random()*0.18),s*(0.72+Math.random()*0.24));
+        m.castShadow=false;m.receiveShadow=true;
+        var pz=(Math.random()*2-1)*Math.max(0.9,s*0.28);
+        var px=j*(maxS*0.88)+(Math.random()-0.5)*Math.max(0.8,s*0.32);
+        var py=(j%2?0.12:-0.08)*s+Math.random()*s*0.12;
+        m.position.set(px,py,pz);
         g.add(m);
-        if(j*2.5+s>maxW)maxW=j*2.5+s;
-        var partD=Math.abs(pz)+s*0.7;
+        if(px+m.scale.x>maxW)maxW=px+m.scale.x;
+        var partD=Math.abs(pz)+m.scale.z;
         if(partD>maxD)maxD=partD;
-        if(s*0.45>maxTop)maxTop=s*0.45;
+        if(py+m.scale.y>maxTop)maxTop=py+m.scale.y;
         if(s>maxSc)maxSc=s;
     }
     var halfW=maxW*0.5;
     for(var ci2=0;ci2<g.children.length;ci2++){g.children[ci2].position.x-=halfW;}
+    g.name='danbo-soft-cloud-platform';
     g.position.set(cx,cy,cz);
     scene.add(g);
     // Wider collision area than visual to prevent falling through edges
@@ -1410,7 +1430,7 @@ function _buildBabylonTower(){
     var ctx2=canvas.getContext('2d');
     ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,256,64);
     ctx2.fillStyle='#FFD700';ctx2.font='bold 22px sans-serif';ctx2.textAlign='center';
-    var towerLabel={zhs:'\u5DF4\u522B\u5854 \u2191 \u4E91\u4E2D\u754C',zht:'\u5DF4\u5225\u5854 \u2191 \u96F2\u4E2D\u754C',ja:'\u30D0\u30D9\u30EB\u306E\u5854 \u2191 \u96F2\u4E2D\u754C',en:'Babel \u2191 Cloud Realm'};
+    var towerLabel={zhs:'\u5DF4\u522B\u5854 \u2191 云栖蛋境',zht:'\u5DF4\u5225\u5854 \u2191 雲棲蛋境',ja:'\u30D0\u30D9\u30EB\u306E\u5854 \u2191 \u30AF\u30E9\u30A6\u30C9\u30A8\u30C3\u30B0',en:'Babel \u2191 Cloud Egg'};
     ctx2.fillText(towerLabel[_langCode]||towerLabel.en,128,42);
     var tex=new THREE.CanvasTexture(canvas);
     var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));

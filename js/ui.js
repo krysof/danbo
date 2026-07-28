@@ -11,56 +11,87 @@ function _drawSF2Map(highlightX,highlightY){
     ctx.imageSmoothingEnabled=true;
     if(ctx.imageSmoothingQuality)ctx.imageSmoothingQuality='high';
     ctx.clearRect(0,0,W,H);
-    // Ocean gradient — sunset warm
+    // ---- Original DANBO World map (NOT Earth) — a dreamy egg archipelago ----
+    // Magical ocean gradient
     var _og=ctx.createLinearGradient(0,0,0,H);
-    _og.addColorStop(0,'#553366');_og.addColorStop(0.5,'#884455');_og.addColorStop(1,'#CC7744');
+    _og.addColorStop(0,'#243A6E');_og.addColorStop(0.45,'#3E6FA6');_og.addColorStop(1,'#66C3C9');
     ctx.fillStyle=_og;ctx.fillRect(0,0,W,H);
-    // Draw continent with path
-    function _land(pts,color){
-        ctx.fillStyle=color||'#7BC67E';ctx.beginPath();ctx.moveTo(pts[0],pts[1]);
-        for(var i=2;i<pts.length;i+=2)ctx.lineTo(pts[i],pts[i+1]);
-        ctx.closePath();ctx.fill();
-        ctx.strokeStyle='#6AB86D';ctx.lineWidth=0.8;ctx.stroke();
+    // Twinkling stars in the upper dream-sky
+    for(var _st=0;_st<26;_st++){
+        var _sx=(_st*97+13)%W, _sy=(_st*53+7)%(H*0.42);
+        var _tw=0.35+0.4*Math.abs(Math.sin(Date.now()*0.002+_st));
+        ctx.fillStyle='rgba(255,255,255,'+_tw.toFixed(2)+')';
+        ctx.fillRect(_sx,_sy,1.4,1.4);
     }
-    // North America
-    _land([40,18, 55,12, 75,10, 95,15, 105,25, 110,40, 105,55, 95,65, 85,75, 75,85, 65,90, 55,88, 45,80, 35,65, 30,50, 32,35]);
-    // Central America
-    _land([65,90, 72,95, 78,105, 75,112, 68,108, 62,100, 60,95]);
-    // South America
-    _land([78,112, 90,108, 105,115, 115,125, 120,140, 118,160, 112,175, 105,185, 95,190, 85,185, 80,170, 78,155, 80,140, 82,125]);
-    // Europe
-    _land([178,18, 195,15, 210,18, 220,25, 225,35, 222,48, 215,55, 205,52, 195,48, 188,42, 182,35, 175,28]);
-    // UK
-    _land([170,22, 176,20, 178,28, 175,32, 170,30]);
-    // Africa
-    _land([190,65, 200,60, 215,62, 225,70, 230,85, 228,100, 225,115, 220,130, 212,142, 200,148, 192,145, 185,135, 182,120, 180,105, 182,90, 185,78]);
-    // Middle East
-    _land([228,55, 240,50, 252,55, 255,65, 250,75, 240,78, 232,72, 228,62]);
-    // Russia/North Asia
-    _land([225,10, 250,8, 280,10, 310,12, 340,15, 360,18, 370,25, 365,35, 350,38, 330,35, 310,32, 290,30, 270,28, 250,25, 235,22, 228,18],'#1a5a2a');
-    // China/East Asia
-    _land([280,35, 300,32, 320,38, 340,42, 350,50, 348,62, 340,70, 330,75, 318,72, 305,68, 295,60, 285,52, 278,45]);
-    // India
-    _land([265,68, 278,62, 290,68, 295,80, 290,95, 282,105, 272,108, 265,100, 260,88, 258,78]);
-    // Southeast Asia
-    _land([320,78, 330,75, 340,80, 345,90, 340,98, 332,95, 325,88]);
-    // Japan
-    _land([355,45, 360,40, 365,42, 368,50, 365,58, 360,62, 355,58, 352,52]);
-    // Indonesia
-    _land([325,105, 335,102, 345,105, 355,108, 350,114, 340,112, 330,110]);
-    // Australia
-    _land([335,140, 355,135, 370,140, 378,150, 375,165, 365,172, 350,175, 338,170, 332,158, 330,148]);
-    // New Zealand
-    _land([382,168, 386,165, 388,172, 385,178, 382,175]);
-    // Greenland
-    _land([115,5, 130,3, 140,8, 138,18, 128,22, 118,18, 112,12]);
-    // Grid lines
-    ctx.strokeStyle='rgba(100,150,255,0.06)';ctx.lineWidth=0.5;
-    for(var gi=0;gi<W;gi+=50){ctx.beginPath();ctx.moveTo(gi,0);ctx.lineTo(gi,H);ctx.stroke();}
-    for(var gj=0;gj<H;gj+=44){ctx.beginPath();ctx.moveTo(0,gj);ctx.lineTo(W,gj);ctx.stroke();}
-    // Equator
-    ctx.strokeStyle='rgba(100,150,255,0.12)';ctx.setLineDash([4,4]);
-    ctx.beginPath();ctx.moveTo(0,H*0.5);ctx.lineTo(W,H*0.5);ctx.stroke();ctx.setLineDash([]);
+    // Soft water shimmer bands
+    ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
+    for(var _wb=0;_wb<5;_wb++){
+        var _wy=H*0.55+_wb*10;
+        ctx.beginPath();
+        for(var _wx=0;_wx<=W;_wx+=8)ctx.lineTo(_wx,_wy+Math.sin(_wx*0.05+_wb)*2);
+        ctx.stroke();
+    }
+    // Island helper: soft egg-shaped land with sandy rim + drop shadow
+    function _isle(cx,cy,rx,ry,grass,sand){
+        ctx.save();
+        ctx.fillStyle='rgba(10,20,40,0.28)';
+        ctx.beginPath();ctx.ellipse(cx+2,cy+ry*0.28+3,rx*1.02,ry*0.5,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=sand||'#F3E3A8';
+        ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=grass||'#7BD88A';
+        ctx.beginPath();ctx.ellipse(cx,cy-ry*0.14,rx*0.84,ry*0.80,0,0,Math.PI*2);ctx.fill();
+        ctx.restore();
+    }
+    // Faint dotted travel routes from the central homeland to the outer isles
+    var _hub={x:200,y:110};
+    var _routes=[[110,55],[300,52],[200,34],[335,120],[95,165],[55,105],[320,175]];
+    ctx.strokeStyle='rgba(255,240,200,0.22)';ctx.lineWidth=1;ctx.setLineDash([2,4]);
+    for(var _r=0;_r<_routes.length;_r++){
+        ctx.beginPath();ctx.moveTo(_hub.x,_hub.y);
+        ctx.quadraticCurveTo((_hub.x+_routes[_r][0])/2,(_hub.y+_routes[_r][1])/2-14,_routes[_r][0],_routes[_r][1]);
+        ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // ---- Islands — an original DANBO World arrangement (NOT based on Earth) ----
+    // A central homeland ringed by dreamy themed isles.
+    // 1) Central homeland — Flower Isle (花朵蛋)
+    _isle(200,110,72,50,'#8FE39B','#F5E6B0');
+    // little castle + flower on the homeland
+    ctx.fillStyle='#FFF4E0';ctx.fillRect(192,88,16,16);
+    ctx.fillStyle='#E86A8A';ctx.beginPath();ctx.moveTo(200,82);ctx.lineTo(208,90);ctx.lineTo(192,90);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#FF6FA0';for(var _fp=0;_fp<5;_fp++){var _fa=_fp/5*Math.PI*2;ctx.beginPath();ctx.arc(224+Math.cos(_fa)*4,112+Math.sin(_fa)*4,2.6,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle='#FFD84D';ctx.beginPath();ctx.arc(224,112,2.4,0,Math.PI*2);ctx.fill();
+    // 2) Forest Isle (森林蛋) — upper left
+    _isle(110,55,34,24,'#4FB06E','#E9D89A');
+    ctx.fillStyle='#2E8B57';[-10,0,10].forEach(function(dx){ctx.beginPath();ctx.moveTo(110+dx,41);ctx.lineTo(104+dx,55);ctx.lineTo(116+dx,55);ctx.closePath();ctx.fill();});
+    // 3) Crystal Isle (水晶蛋) — upper right
+    _isle(300,52,32,22,'#9DE4EC','#DFF6F8');
+    ctx.fillStyle='#5FD6E8';ctx.beginPath();ctx.moveTo(300,38);ctx.lineTo(307,50);ctx.lineTo(300,62);ctx.lineTo(293,50);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.75)';ctx.beginPath();ctx.moveTo(300,40);ctx.lineTo(304,49);ctx.lineTo(300,49);ctx.closePath();ctx.fill();
+    // 4) Sky/Angel Isle (天使蛋) — floating on a cloud, top-center
+    ctx.fillStyle='rgba(255,255,255,0.92)';
+    [[-14,4],[0,0],[14,4],[-6,8],[7,8]].forEach(function(o){ctx.beginPath();ctx.arc(200+o[0],40+o[1],9,0,Math.PI*2);ctx.fill();});
+    _isle(200,34,22,13,'#CFE9FF','#EAF5FF');
+    ctx.fillStyle='#FFE58A';ctx.font='9px sans-serif';ctx.textAlign='center';ctx.fillText('\u2728',200,32);
+    // 5) Candy Isle (糖心蛋) — right
+    _isle(335,120,34,24,'#F7B6D2','#FBE0EC');
+    ['#FF6FA0','#FFD84D','#7BD8FF'].forEach(function(col,ci){ctx.fillStyle=col;ctx.beginPath();ctx.arc(325+ci*10,118,3.4,0,Math.PI*2);ctx.fill();});
+    // 6) Star Isle (星愿蛋) — lower left
+    _isle(95,165,30,22,'#B9A7F0','#E7DEFA');
+    ctx.fillStyle='#FFD84D';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('\u2b50',95,169);
+    // 7) Rock Isle (岩石蛋) — left
+    _isle(55,105,26,20,'#B89B6E','#E7D6A8');
+    ctx.fillStyle='#8A7350';ctx.beginPath();ctx.arc(49,101,6,0,Math.PI*2);ctx.arc(61,103,7,0,Math.PI*2);ctx.fill();
+    // 8) Wind Isle (风行蛋) — lower right
+    _isle(320,175,24,18,'#BFEAD0','#E4F6EC');
+    ctx.strokeStyle='#7FD8B0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(320,173,7,0.4,Math.PI*1.7);ctx.stroke();ctx.beginPath();ctx.arc(320,173,3.5,Math.PI*1.2,Math.PI*2.6);ctx.stroke();
+    // Decorative compass rose (bottom-left) — original, not lat/long grid
+    ctx.save();ctx.translate(24,H-26);
+    ctx.strokeStyle='rgba(255,240,200,0.5)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(0,0,9,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='rgba(255,240,200,0.7)';
+    ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(3,0);ctx.lineTo(-3,0);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(0,11);ctx.lineTo(3,0);ctx.lineTo(-3,0);ctx.closePath();ctx.fill();
+    ctx.restore();
     // Highlight marker
     if(highlightX!==undefined){
         ctx.fillStyle='#FF4444';
@@ -143,14 +174,13 @@ function _startPlaneAnim(fromX,fromY,toX,toY,callback){
 function _updateSF2Select(idx){
     var ch=CHARACTERS[idx];
     drawPortrait(ch);
-    // Update name
+    // Update name (egg characters have no nationality — name only, no flag/English)
     var nameEl=document.getElementById('sf2-char-name');
     if(nameEl)nameEl.textContent=ch.name;
-    // Update flag
-    var flagEl=document.getElementById('sf2-country-flag');
-    if(flagEl)flagEl.textContent=ch.flag;
-    // Update map
+    // Update the DANBO World island map
     _drawSF2Map(ch.mapX,ch.mapY);
+    // The current select screen uses the same real-time 3D mascot model as gameplay.
+    if(typeof window._update3DCharacterSelect==='function')window._update3DCharacterSelect(idx);
 }
 
 function _drawCuteMiniPortrait(ctx,ch,size){
@@ -158,19 +188,19 @@ function _drawCuteMiniPortrait(ctx,ch,size){
     var rx=size*0.31,ry=size*0.35;
     if(ch.type==='cat'||ch.type==='bull'){rx=size*0.35;ry=size*0.32;}
     else if(ch.type==='bear'){rx=size*0.38;ry=size*0.37;}
-    else if(ch.type==='cockroach'){rx=size*0.26;ry=size*0.38;}
+    else if(ch.type==='cockroach'){rx=size*0.33;ry=size*0.33;}
     var ac='#'+((ch.accent||0).toString(16)).padStart(6,'0');
     // Tiny species cues behind the face, kept very simple.
     if(ch.type==='dog'){[-1,1].forEach(function(s){ctx.fillStyle=ch.portrait;ctx.beginPath();ctx.ellipse(cx+s*size*0.25,cy-size*0.25,size*0.07,size*0.14,s*0.25,0,Math.PI*2);ctx.fill();});}
     else if(ch.type==='cat'){[-1,1].forEach(function(s){ctx.fillStyle=ch.portrait;ctx.beginPath();ctx.moveTo(cx+s*size*0.15,cy-size*0.35);ctx.lineTo(cx+s*size*0.27,cy-size*0.15);ctx.lineTo(cx+s*size*0.07,cy-size*0.2);ctx.closePath();ctx.fill();});}
     else if(ch.type==='bear'){[-1,1].forEach(function(s){ctx.fillStyle=ch.portrait;ctx.beginPath();ctx.arc(cx+s*size*0.22,cy-size*0.29,size*0.09,0,Math.PI*2);ctx.fill();});}
     else if(ch.type==='monkey'){[-1,1].forEach(function(s){ctx.fillStyle='#FFD5AF';ctx.beginPath();ctx.arc(cx+s*size*0.25,cy-size*0.08,size*0.09,0,Math.PI*2);ctx.fill();});}
-    else if(ch.type==='bull'){[-1,1].forEach(function(s){ctx.fillStyle='#FFF0C8';ctx.beginPath();ctx.moveTo(cx+s*size*0.16,cy-size*0.26);ctx.quadraticCurveTo(cx+s*size*0.36,cy-size*0.34,cx+s*size*0.30,cy-size*0.45);ctx.quadraticCurveTo(cx+s*size*0.25,cy-size*0.33,cx+s*size*0.12,cy-size*0.22);ctx.closePath();ctx.fill();});}
+    else if(ch.type==='bull'){ctx.strokeStyle='#5AA84A';ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(cx,cy-size*0.30);ctx.lineTo(cx,cy-size*0.42);ctx.stroke();[-1,1].forEach(function(s){ctx.fillStyle='#6FBF5A';ctx.beginPath();ctx.ellipse(cx+s*size*0.10,cy-size*0.42,size*0.11,size*0.05,s*0.6,0,Math.PI*2);ctx.fill();});}
     else if(ch.type==='rooster'){ctx.fillStyle='#FF6F7D';for(var ri=0;ri<3;ri++){ctx.beginPath();ctx.arc(cx-size*0.06+ri*size*0.06,cy-size*0.38,size*0.04,0,Math.PI*2);ctx.fill();}}
-    else if(ch.type==='cockroach'){[-1,1].forEach(function(s){ctx.strokeStyle='#7A552A';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(cx+s*size*0.06,cy-size*0.32);ctx.quadraticCurveTo(cx+s*size*0.22,cy-size*0.50,cx+s*size*0.28,cy-size*0.40);ctx.stroke();});}
     [-1,1].forEach(function(s){ctx.fillStyle=ac;ctx.beginPath();ctx.ellipse(cx+s*size*0.13,cy+ry*0.82,size*0.085,size*0.04,0,0,Math.PI*2);ctx.fill();});
     ctx.fillStyle=ch.portrait;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,0.62)';ctx.lineWidth=1.2;ctx.stroke();
+    if(ch.type==='bear'){[[-0.16,-0.02],[0.18,0.12]].forEach(function(o){ctx.fillStyle='#9A928A';ctx.beginPath();ctx.arc(cx+o[0]*size,cy+o[1]*size,size*0.05,0,Math.PI*2);ctx.fill();});}
     [-1,1].forEach(function(s){
         ctx.fillStyle='#171A2A';ctx.beginPath();ctx.ellipse(cx+s*size*0.10,cy-size*0.06,size*0.035,size*0.085,0,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx+s*size*0.085,cy-size*0.095,size*0.011,0,Math.PI*2);ctx.fill();
@@ -218,10 +248,14 @@ function _drawMiniPortrait(ch,size){
 CHARACTERS.forEach((ch,i) => {
     const cell = document.createElement('div');
     cell.className = 'char-cell' + (i===0?' selected':'');
-    var miniCanvas=_drawMiniPortrait(ch,56);
-    miniCanvas.style.cssText='border-radius:6px;';
-    miniCanvas.className='char-icon-canvas';
-    cell.appendChild(miniCanvas);
+    cell.dataset.charIndex=String(i);
+    cell.setAttribute('role','button');
+    cell.setAttribute('tabindex','0');
+    cell.setAttribute('aria-label',ch.name);
+    cell.style.setProperty('--card-rgb',((ch.accent>>16)&255)+','+((ch.accent>>8)&255)+','+(ch.accent&255));
+    var num=document.createElement('span');num.className='char-number';num.textContent=String(i+1).padStart(2,'0');cell.appendChild(num);
+    var fallback=document.createElement('span');fallback.className='char-fallback';fallback.textContent=ch.icon;cell.appendChild(fallback);
+    var label=document.createElement('span');label.className='char-label';label.textContent=ch.name;cell.appendChild(label);
     cell.addEventListener('click', () => {
         document.querySelectorAll('.char-cell').forEach(c=>c.classList.remove('selected'));
         cell.classList.add('selected');
@@ -229,6 +263,7 @@ CHARACTERS.forEach((ch,i) => {
         _updateSF2Select(i);
         playMenuMove();
     });
+    cell.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();cell.click();}});
     if (charGrid) charGrid.appendChild(cell);
 });
 if (portraitCtx) _updateSF2Select(0);

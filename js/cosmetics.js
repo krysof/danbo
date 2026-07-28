@@ -182,6 +182,9 @@ function _applyCosmetics(previewCat,previewId){
         var obj=_buildCosmetic(id);
         if(obj){root.add(obj);if(obj.userData&&obj.userData._spin)_cosSpinGroups.push(obj);}
     }
+    // Keep the player marker centered above the tallest equipped item. Hats, helmets
+    // and halos must never be pierced or covered by the downward-pointing arrow.
+    if(typeof _updatePlayerArrowClearance==='function')_updatePlayerArrowClearance(root);
     _cosLastMesh=playerEgg.mesh;
 }
 

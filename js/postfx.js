@@ -11,7 +11,7 @@ var _postFXSize=new THREE.Vector2(1,1);
 var _postFXFrame=0;
 
 var _postFXMood=[
-    {bloom:0.16,sat:1.025,contrast:1.055,exposure:1.015,vignette:0.18,warm:0.012,threshold:0.74},
+    {bloom:0.095,sat:1.018,contrast:1.045,exposure:0.995,vignette:0.16,warm:0.010,threshold:0.82},
     {bloom:0.18,sat:1.00,contrast:0.94,exposure:1.06,vignette:0.12,warm:0.075,threshold:0.68},
     {bloom:0.20,sat:0.98,contrast:0.93,exposure:1.08,vignette:0.10,warm:-0.015,threshold:0.68},
     {bloom:0.26,sat:1.02,contrast:0.96,exposure:1.04,vignette:0.18,warm:0.070,threshold:0.63},
@@ -55,7 +55,8 @@ function _initCinematicPostFX(){
             uAO:{value:0.14},
             uDOF:{value:0.22},
             uFocusDistance:{value:26},
-            uFocusRange:{value:24}
+            uFocusRange:{value:24},
+            uSharpness:{value:0.20}
         },
         vertexShader:[
             'varying vec2 vUv;',
@@ -85,6 +86,7 @@ function _initCinematicPostFX(){
             'uniform float uDOF;',
             'uniform float uFocusDistance;',
             'uniform float uFocusRange;',
+            'uniform float uSharpness;',
             'varying vec2 vUv;',
             'float luma(vec3 c){return dot(c,vec3(0.2126,0.7152,0.0722));}',
             'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}',
@@ -123,7 +125,7 @@ function _initCinematicPostFX(){
             '  vec2 dofStep=px*(2.0+focusBlur*3.5);',
             '  vec3 dofCol=(texture2D(tDiffuse,uv+vec2(dofStep.x,0.0)).rgb+texture2D(tDiffuse,uv-vec2(dofStep.x,0.0)).rgb+texture2D(tDiffuse,uv+vec2(0.0,dofStep.y)).rgb+texture2D(tDiffuse,uv-vec2(0.0,dofStep.y)).rgb)*0.25;',
             '  col=mix(col,dofCol,focusBlur*uDOF);',
-            '  col += (col-localAvg)*0.16;',
+            '  col += (col-localAvg)*uSharpness;',
             '  col*=ao;',
             '  vec3 bloom=vec3(0.0);',
             '  vec2 d1=px*2.25;',
@@ -180,8 +182,11 @@ function _updatePostFXMood(){
     u.uVignette.value=m.vignette;
     u.uWarmth.value=m.warm;
     u.uThreshold.value=m.threshold;
-    u.uAO.value=q==='low'?0.0:(q==='balanced'?0.085:0.15);
-    u.uDOF.value=q==='low'?0.0:(q==='balanced'?0.10:0.22);
+    u.uAO.value=q==='low'?0.0:(q==='balanced'?0.095:0.17);
+    u.uSharpness.value=q==='low'?0.07:(q==='balanced'?0.17:0.24);
+    // Keep silhouettes and material grain crisp. High mode still gets a restrained
+    // distance falloff, but never the smeared miniature look of a strong full-screen blur.
+    u.uDOF.value=q==='low'?0.0:(q==='balanced'?0.012:0.026);
     if(typeof playerEgg!=='undefined'&&playerEgg&&playerEgg.mesh){
         var dx=camera.position.x-playerEgg.mesh.position.x,dy=camera.position.y-playerEgg.mesh.position.y,dz=camera.position.z-playerEgg.mesh.position.z;
         var focus=Math.sqrt(dx*dx+dy*dy+dz*dz);

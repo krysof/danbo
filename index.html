@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>DANBO World</title>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260713.4">
+<link rel="stylesheet" href="style.css?v=20260729.1">
 </head>
 <body>
 <div id="game-container">
@@ -25,27 +25,62 @@
     </div>
   </div>
 
-  <!-- Character select — SF2 style -->
-  <!-- Character select — SF2 World Warrior style -->
-  <div id="select-screen" class="screen">
-    <div class="sf2-select-top">
-      <div class="sf2-char-name" id="sf2-char-name">SELECT YOUR FIGHTER</div>
+  <!-- Cinematic real-time 3D character select -->
+  <div id="select-screen" class="screen cinematic-select">
+    <canvas id="select-3d-canvas" aria-hidden="true"></canvas>
+    <div class="select-sky-glow select-sky-glow-a" aria-hidden="true"></div>
+    <div class="select-sky-glow select-sky-glow-b" aria-hidden="true"></div>
+    <div class="select-cinematic-shell">
+      <header class="select-cinematic-header">
+        <div class="select-brand-mark"><span>DW</span></div>
+        <div class="select-header-copy">
+          <div class="select-kicker">DANBO WORLD · ADVENTURER CAST</div>
+          <h1 id="select-page-title">选择你的蛋宝</h1>
+          <p>实时 3D 角色预览 · 游戏内同款模型</p>
+        </div>
+        <div class="select-quality-chip"><i></i> CINEMATIC 3D</div>
+      </header>
+
+      <main class="select-cinematic-main">
+        <section class="select-hero-panel" aria-label="Selected character preview">
+          <div id="select-hero-viewport" class="select-hero-viewport" aria-hidden="true"></div>
+          <div class="select-hero-rings" aria-hidden="true"><span></span><span></span></div>
+          <div class="select-hero-copy">
+            <div class="select-archetype" id="select-archetype">花冠守护者</div>
+            <div class="sf2-char-name" id="sf2-char-name">花朵蛋</div>
+            <p id="select-hero-desc">温暖、勇敢、均衡。带着希望踏上全新的冒险。</p>
+            <div class="select-feature-row">
+              <span>PBR 材质</span><span>动态光影</span><span>完整动作</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="select-roster-panel" aria-label="Character roster">
+          <div class="select-roster-top">
+            <div class="select-roster-heading">
+              <div><small>CHOOSE YOUR HERO</small><strong id="select-roster-title">八位原创蛋宝</strong></div>
+              <span class="select-roster-count"><b id="select-roster-index">01</b> / 08</span>
+            </div>
+            <aside class="select-map-panel" aria-label="Selected game scene map">
+              <div class="select-map-caption">
+                <span id="select-map-label">场景地图</span>
+                <strong id="select-map-city">希望之城</strong>
+              </div>
+              <div id="select-map-viewport" class="select-map-viewport" aria-hidden="true"></div>
+              <div class="select-map-live"><i></i> LIVE 3D</div>
+            </aside>
+          </div>
+          <div class="char-grid" id="char-grid"></div>
+          <div class="select-confirm-row">
+            <div class="select-control-tip"><kbd>←</kbd><kbd>→</kbd><span id="select-switch-hint">切换角色</span></div>
+            <button id="confirm-btn" class="btn btn-primary"><span>进入蛋宝世界</span><b>→</b></button>
+          </div>
+        </section>
+      </main>
     </div>
-    <div class="sf2-select-main">
-      <div class="sf2-portrait-area">
-        <canvas id="portrait-canvas" width="220" height="260"></canvas>
-        <div class="sf2-country-flag" id="sf2-country-flag"></div>
-      </div>
-      <div class="sf2-map-area">
-        <canvas id="sf2-map-canvas" width="400" height="220"></canvas>
-      </div>
-    </div>
-    <div class="sf2-grid-area">
-      <div class="char-grid" id="char-grid"></div>
-    </div>
-    <button id="confirm-btn" class="btn btn-primary">⚔️ Confirm</button>
-    <!-- Airplane animation overlay -->
-    <canvas id="sf2-plane-canvas" width="400" height="300" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;display:none;z-index:15;"></canvas>
+    <div class="select-launch-flash" aria-hidden="true"></div>
+    <!-- Legacy transition canvas is retained only as a non-WebGL fallback. -->
+    <canvas id="sf2-plane-canvas" width="400" height="300" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none;z-index:15;"></canvas>
   </div>
 
   <!-- Portal prompt -->
@@ -142,7 +177,7 @@
 
 <script>
 (function(){
-  var cache='v=20260713.4';
+  var cache='v=20260729.1';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   var warmStart=false;
@@ -172,6 +207,7 @@
     return text;
   }
   var threeUrls=[
+    'js/vendor/three.min.js',
     'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
     'https://unpkg.com/three@0.160.0/build/three.min.js'
   ];
@@ -200,6 +236,7 @@
     'js/hud.js',
     'js/input.js',
     'js/entity.js',
+    'js/select-3d.js',
     'js/city.js',
     'js/world.js',
     'js/map.js',
