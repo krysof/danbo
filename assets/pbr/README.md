@@ -10,4 +10,7 @@ Assets used:
 - `rectangular_paving` — https://polyhaven.com/a/rectangular_paving
 - `marble_01` — https://polyhaven.com/a/marble_01
 
-For each asset, the game includes the 1K JPG diffuse, OpenGL normal, and roughness maps. Files are kept locally so the game does not depend on Poly Haven's API or CDN at runtime.
+For each asset, the game includes the 1K JPG diffuse, OpenGL normal, and roughness maps. The
+`*_arm.jpg` files are locally packed glTF-style ORM textures: red = AO, green = roughness,
+blue = metalness. Files are kept locally so the game does not depend on Poly Haven's API or
+CDN at runtime.

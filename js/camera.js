@@ -355,11 +355,11 @@ function updateCamera(){
     // Normal exploration camera. It keeps the fixed, readable control direction of the
     // original view, but frames the hero against the skyline instead of looking almost
     // straight down at the floor. Portrait phones retain a little more height for playability.
-    var _normalFov=(innerHeight>innerWidth)?44:42;
+    var _normalFov=58;
     if(camera.fov!==_normalFov){camera.fov=_normalFov;camera.updateProjectionMatrix();}
     var _portraitCam=innerHeight>innerWidth;
-    var _normalYOffset=CAMERA_CONFIG.yOffset*(_portraitCam?1.13:1.0);
-    var _normalZOffset=CAMERA_CONFIG.zOffset*(_portraitCam?1.08:1.0);
+    var _normalYOffset=CAMERA_CONFIG.yOffset*(_portraitCam?1.45:1.0);
+    var _normalZOffset=CAMERA_CONFIG.zOffset*(_portraitCam?1.22:1.0);
     var tx=p.x, ty=p.y+_normalYOffset*_cameraZoom, tz=p.z+_normalZOffset*_cameraZoom;
     camera.position.x+=(tx-camera.position.x)*CAMERA_CONFIG.followSmooth;
     camera.position.y+=(ty-camera.position.y)*CAMERA_CONFIG.followSmooth;
@@ -374,7 +374,7 @@ function updateCamera(){
         camera.position.z+=(Math.random()-0.5)*shakeAmt*CAMERA_CONFIG.shakeMultZ;
         _earthquakeTimer--;
     }
-    var _lookAhead=(_portraitCam?5.4:6.8)*Math.max(0.72,Math.min(1.25,_cameraZoom));
+    var _lookAhead=(_portraitCam?3.2:6.8)*Math.max(0.72,Math.min(1.25,_cameraZoom));
     camera.lookAt(p.x,p.y+0.82,p.z-_lookAhead);
     sun.position.set(p.x+RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,p.z+RENDER_CONFIG.sunPos.z);
     sun.target.position.set(p.x,0,p.z);

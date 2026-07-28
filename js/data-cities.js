@@ -78,22 +78,23 @@ var CLOUD_CONFIG={
 var CAMERA_CONFIG={
     zoomMin:0.04, zoomMax:1000,
     followSmooth:0.08, minHeight:3,
-    yOffset:6.4, zOffset:12.8,
+    yOffset:4.3, zOffset:7.8,
     shakeMultX:2, shakeMultY:1.5, shakeMultZ:2
 };
 
 // ---- Renderer / lighting parameters ----
 var RENDER_CONFIG={
-    fogNear:80, fogFar:400,
-    fogColor:0x87CEEB,
-    sunColor:0xFFF0D1, sunIntensity:2.02,
-    sunPos:{x:72,y:58,z:-82},
-    shadowMapSize:4096, shadowBias:-0.00055,
-    shadowRange:74, shadowNear:1, shadowFar:240,
-    ambientIntensity:0.25,
-    hemiSkyColor:0xDDF4FF, hemiGroundColor:0x66785F, hemiIntensity:0.52,
+    fogNear:80, fogFar:400, fogDensity:0.0021,
+    fogColor:0xA9B9C7,
+    sunColor:0xFFD9A0, sunIntensity:5.2,
+    // Matches the rotated low sun in kloppenheim_06_puresky.
+    sunPos:{x:88.4,y:16.0,z:-79.6},
+    shadowMapSize:4096, shadowBias:-0.0005,
+    shadowRange:55, shadowNear:1, shadowFar:360,
+    ambientIntensity:0.04,
+    hemiSkyColor:0xD8E8F0, hemiGroundColor:0x48534A, hemiIntensity:0.10,
     pixelRatioMin:1.0, pixelRatioMax:2.0,
-    toneExposure:0.97
+    toneExposure:0.66
 };
 
 // ---- Portal (race entrance) parameters ----

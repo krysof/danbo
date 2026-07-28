@@ -1,214 +1,234 @@
 // postfx.js — DANBO World
 // ============================================================
-//  Cinematic post-processing: depth-aware contact shading, restrained bloom,
-//  focus falloff, filmic grading and micro-contrast. No external dependencies.
+// Three.js r180 cinematic post stack.
+// Order follows the r180 color-space contract:
+// Render -> GTAO -> Bloom -> Grade -> SMAA -> Output.
+// SMAA is intentionally before OutputPass because r180 SMAAPass operates in
+// linear-sRGB; OutputPass performs the final ACES + sRGB conversion.
 // ============================================================
-/* global THREE, R, scene, camera, currentCityStyle, _renderPixelRatio */
+/* global THREE, R, scene, camera */
 
 var _postFXEnabled=true;
-var _postFXRT=null,_postFXScene=null,_postFXCamera=null,_postFXQuad=null,_postFXMat=null;
-var _postFXSize=new THREE.Vector2(1,1);
-var _postFXFrame=0;
+var _postFXComposer=null;
+var _postFXGTAO=null,_postFXBloom=null,_postFXGrade=null,_postFXSMAA=null,_postFXOutput=null;
+var _postFXLastTime=performance.now();
+var _postFXInitFailed=false;
+var _postFXSize={w:0,h:0,dpr:0};
 
-var _postFXMood=[
-    {bloom:0.095,sat:1.018,contrast:1.045,exposure:0.995,vignette:0.16,warm:0.010,threshold:0.82},
-    {bloom:0.18,sat:1.00,contrast:0.94,exposure:1.06,vignette:0.12,warm:0.075,threshold:0.68},
-    {bloom:0.20,sat:0.98,contrast:0.93,exposure:1.08,vignette:0.10,warm:-0.015,threshold:0.68},
-    {bloom:0.26,sat:1.02,contrast:0.96,exposure:1.04,vignette:0.18,warm:0.070,threshold:0.63},
-    {bloom:0.28,sat:1.04,contrast:0.93,exposure:1.08,vignette:0.08,warm:0.055,threshold:0.66},
-    {bloom:0.24,sat:0.99,contrast:0.94,exposure:1.02,vignette:0.22,warm:-0.010,threshold:0.61},
-    {bloom:0.24,sat:1.03,contrast:0.93,exposure:1.08,vignette:0.10,warm:0.050,threshold:0.66},
-    {bloom:0.24,sat:0.98,contrast:0.93,exposure:1.09,vignette:0.12,warm:-0.005,threshold:0.64}
-];
+var _cinematicGradeShader={
+    uniforms:{
+        tDiffuse:{value:null},
+        time:{value:0},
+        vignette:{value:1.05},
+        grain:{value:0.055},
+        chroma:{value:0.0016},
+        saturation:{value:0.86},
+        contrast:{value:1.13},
+        lift:{value:0.012},
+        shadowTint:{value:new THREE.Color(0.12,0.34,0.42)},
+        highlightTint:{value:new THREE.Color(1.0,0.72,0.38)},
+        splitAmount:{value:0.20}
+    },
+    vertexShader:[
+        'varying vec2 vUv;',
+        'void main(){',
+        '  vUv=uv;',
+        '  gl_Position=vec4(position.xy,0.0,1.0);',
+        '}'
+    ].join('\n'),
+    fragmentShader:[
+        '#ifdef GL_ES',
+        'precision highp float;',
+        '#endif',
+        'uniform sampler2D tDiffuse;',
+        'uniform float time;',
+        'uniform float vignette;',
+        'uniform float grain;',
+        'uniform float chroma;',
+        'uniform float saturation;',
+        'uniform float contrast;',
+        'uniform float lift;',
+        'uniform vec3 shadowTint;',
+        'uniform vec3 highlightTint;',
+        'uniform float splitAmount;',
+        'varying vec2 vUv;',
+        'float luma(vec3 c){return dot(c,vec3(0.2126,0.7152,0.0722));}',
+        'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}',
+        'void main(){',
+        '  vec2 radial=vUv-0.5;',
+        '  vec2 shift=radial*chroma;',
+        '  vec3 center=texture2D(tDiffuse,vUv).rgb;',
+        '  vec3 col=vec3(',
+        '    texture2D(tDiffuse,vUv+shift).r,',
+        '    center.g,',
+        '    texture2D(tDiffuse,vUv-shift).b',
+        '  );',
+        '  float y=luma(col);',
+        '  float sw=1.0-smoothstep(0.12,0.58,y);',
+        '  float hw=smoothstep(0.46,1.08,y);',
+        '  vec3 split=col;',
+        '  split=mix(split,split*shadowTint*2.05,sw*splitAmount);',
+        '  split=mix(split,split*highlightTint*1.18,hw*splitAmount);',
+        '  col=split;',
+        '  y=luma(col);',
+        '  col=mix(vec3(y),col,saturation);',
+        '  col=(col-0.5)*contrast+0.5+lift;',
+        '  float edge=length(radial)*1.41421356;',
+        '  float vig=smoothstep(0.28,max(0.30,vignette),edge);',
+        '  col*=mix(1.0,0.78,vig);',
+        '  float n=hash(gl_FragCoord.xy+vec2(time*31.7,time*17.3))-0.5;',
+        '  col+=n*grain*0.18;',
+        '  gl_FragColor=vec4(max(col,vec3(0.0)),1.0);',
+        '}'
+    ].join('\n')
+};
+
+function _postFXShouldSkipAO(object){
+    if(!object||!object.visible)return false;
+    if(object.userData&&object.userData.noAO)return true;
+    if(object.isSprite||object.isPoints||object.isLine||object.isLine2)return true;
+    var mats=Array.isArray(object.material)?object.material:[object.material];
+    for(var i=0;i<mats.length;i++){
+        var mat=mats[i];if(!mat)continue;
+        if(mat.blending===THREE.AdditiveBlending)return true;
+        if(mat.transparent&&mat.depthWrite===false)return true;
+    }
+    return false;
+}
+
+function _patchGTAONoAO(pass){
+    if(!pass||pass.userData&&pass.userData._danboNoAOPatched)return;
+    pass.userData=pass.userData||{};
+    pass.userData._danboNoAOPatched=true;
+    var original=pass._overrideVisibility.bind(pass);
+    pass._overrideVisibility=function(){
+        original();
+        var cache=this._visibilityCache;
+        this.scene.traverse(function(object){
+            if(_postFXShouldSkipAO(object)){
+                object.visible=false;
+                cache.push(object);
+            }
+        });
+    };
+}
 
 function _initCinematicPostFX(){
-    if(_postFXRT||typeof R==='undefined'||typeof THREE==='undefined')return;
-    _postFXRT=new THREE.WebGLRenderTarget(2,2,{
-        minFilter:THREE.LinearFilter,
-        magFilter:THREE.LinearFilter,
-        format:THREE.RGBAFormat,
-        depthBuffer:true,
-        stencilBuffer:false
-    });
-    _postFXRT.depthTexture=new THREE.DepthTexture(2,2,THREE.UnsignedIntType);
-    _postFXRT.depthTexture.format=THREE.DepthFormat;
-    if(R.capabilities&&R.capabilities.isWebGL2)_postFXRT.samples=2;
-    _postFXScene=new THREE.Scene();
-    _postFXCamera=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
-    _postFXMat=new THREE.ShaderMaterial({
-        depthWrite:false,
-        depthTest:false,
-        uniforms:{
-            tDiffuse:{value:null},
-            tDepth:{value:null},
-            resolution:{value:new THREE.Vector2(2,2)},
-            time:{value:0},
-            uBloom:{value:0.22},
-            uSaturation:{value:0.99},
-            uContrast:{value:0.94},
-            uExposure:{value:1.06},
-            uVignette:{value:0.10},
-            uWarmth:{value:0.03},
-            uThreshold:{value:0.55},
-            cameraNear:{value:camera.near},
-            cameraFar:{value:camera.far},
-            uAO:{value:0.14},
-            uDOF:{value:0.22},
-            uFocusDistance:{value:26},
-            uFocusRange:{value:24},
-            uSharpness:{value:0.20}
-        },
-        vertexShader:[
-            'varying vec2 vUv;',
-            'void main(){',
-            '  vUv=uv;',
-            '  gl_Position=vec4(position.xy,0.0,1.0);',
-            '}'
-        ].join('\n'),
-        fragmentShader:[
-            '#ifdef GL_ES',
-            'precision highp float;',
-            '#endif',
-            'uniform sampler2D tDiffuse;',
-            'uniform sampler2D tDepth;',
-            'uniform vec2 resolution;',
-            'uniform float time;',
-            'uniform float uBloom;',
-            'uniform float uSaturation;',
-            'uniform float uContrast;',
-            'uniform float uExposure;',
-            'uniform float uVignette;',
-            'uniform float uWarmth;',
-            'uniform float uThreshold;',
-            'uniform float cameraNear;',
-            'uniform float cameraFar;',
-            'uniform float uAO;',
-            'uniform float uDOF;',
-            'uniform float uFocusDistance;',
-            'uniform float uFocusRange;',
-            'uniform float uSharpness;',
-            'varying vec2 vUv;',
-            'float luma(vec3 c){return dot(c,vec3(0.2126,0.7152,0.0722));}',
-            'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}',
-            'float viewDistance(vec2 uv){',
-            '  float z=texture2D(tDepth,uv).x;',
-            '  float viewZ=(cameraNear*cameraFar)/((cameraFar-cameraNear)*z-cameraFar);',
-            '  return max(cameraNear,-viewZ);',
-            '}',
-            'vec3 brightSample(vec2 uv){',
-            '  vec3 c=texture2D(tDiffuse,uv).rgb;',
-            '  float b=smoothstep(uThreshold,1.0,luma(c));',
-            '  return c*b;',
-            '}',
-            'void main(){',
-            '  vec2 uv=vUv;',
-            '  vec2 px=1.0/max(resolution,vec2(1.0));',
-            '  float edge=length(uv-0.5);',
-            '  vec3 col=texture2D(tDiffuse,uv).rgb;',
-            '  float centerDepth=viewDistance(uv);',
-            '  vec2 aoStep=px*3.0;',
-            '  float occ=0.0;',
-            '  float aoScale=max(0.24,centerDepth*0.035);',
-            '  occ+=smoothstep(0.02,1.0,(centerDepth-viewDistance(uv+vec2( aoStep.x,0.0)))/aoScale);',
-            '  occ+=smoothstep(0.02,1.0,(centerDepth-viewDistance(uv+vec2(-aoStep.x,0.0)))/aoScale);',
-            '  occ+=smoothstep(0.02,1.0,(centerDepth-viewDistance(uv+vec2(0.0, aoStep.y)))/aoScale);',
-            '  occ+=smoothstep(0.02,1.0,(centerDepth-viewDistance(uv+vec2(0.0,-aoStep.y)))/aoScale);',
-            '  occ+=smoothstep(0.02,1.0,(centerDepth-viewDistance(uv+aoStep))/aoScale);',
-            '  occ+=smoothstep(0.02,1.0,(centerDepth-viewDistance(uv-aoStep))/aoScale);',
-            '  float ao=1.0-uAO*min(1.0,occ/3.5);',
-            '  vec3 n1=texture2D(tDiffuse,uv+vec2(px.x,0.0)).rgb;',
-            '  vec3 n2=texture2D(tDiffuse,uv-vec2(px.x,0.0)).rgb;',
-            '  vec3 n3=texture2D(tDiffuse,uv+vec2(0.0,px.y)).rgb;',
-            '  vec3 n4=texture2D(tDiffuse,uv-vec2(0.0,px.y)).rgb;',
-            '  vec3 localAvg=(n1+n2+n3+n4)*0.25;',
-            '  float focusBlur=smoothstep(uFocusRange*0.35,uFocusRange,abs(centerDepth-uFocusDistance));',
-            '  vec2 dofStep=px*(2.0+focusBlur*3.5);',
-            '  vec3 dofCol=(texture2D(tDiffuse,uv+vec2(dofStep.x,0.0)).rgb+texture2D(tDiffuse,uv-vec2(dofStep.x,0.0)).rgb+texture2D(tDiffuse,uv+vec2(0.0,dofStep.y)).rgb+texture2D(tDiffuse,uv-vec2(0.0,dofStep.y)).rgb)*0.25;',
-            '  col=mix(col,dofCol,focusBlur*uDOF);',
-            '  col += (col-localAvg)*uSharpness;',
-            '  col*=ao;',
-            '  vec3 bloom=vec3(0.0);',
-            '  vec2 d1=px*2.25;',
-            '  vec2 d2=px*5.25;',
-            '  bloom += brightSample(uv+vec2( d1.x, 0.0))*1.0;',
-            '  bloom += brightSample(uv+vec2(-d1.x, 0.0))*1.0;',
-            '  bloom += brightSample(uv+vec2(0.0,  d1.y))*1.0;',
-            '  bloom += brightSample(uv+vec2(0.0, -d1.y))*1.0;',
-            '  bloom += brightSample(uv+vec2( d2.x, d2.y))*0.55;',
-            '  bloom += brightSample(uv+vec2(-d2.x, d2.y))*0.55;',
-            '  bloom += brightSample(uv+vec2( d2.x,-d2.y))*0.55;',
-            '  bloom += brightSample(uv+vec2(-d2.x,-d2.y))*0.55;',
-            '  bloom/=6.2;',
-            '  col += bloom*uBloom;',
-            '  col *= vec3(1.0+uWarmth*0.75,1.0+uWarmth*0.16,1.0-uWarmth*0.60);',
-            '  col = (col-0.5)*uContrast+0.5;',
-            '  float g=luma(col);',
-            '  col=mix(vec3(g),col,uSaturation);',
-            '  col=max(col,vec3(0.0))*uExposure;',
-            '  col=col*0.987+vec3(0.013,0.012,0.010);',
-            '  float vig=smoothstep(uVignette,0.92,edge);',
-            '  col*=mix(1.0,0.92,vig);',
-            '  col += (hash(gl_FragCoord.xy+time*17.0)-0.5)/255.0;',
-            '  gl_FragColor=vec4(col,1.0);',
-            '}'
-        ].join('\n')
-    });
-    _postFXQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),_postFXMat);
-    _postFXScene.add(_postFXQuad);
+    if(_postFXComposer||_postFXInitFailed||!_postFXEnabled)return;
+    var A=window.DANBO_THREE_ADDONS;
+    if(!A||!A.EffectComposer||!A.RenderPass||!A.ShaderPass||!A.OutputPass){
+        _postFXInitFailed=true;
+        console.warn('r180 postprocessing unavailable; direct renderer fallback active');
+        return;
+    }
+    try{
+        var target=new THREE.WebGLRenderTarget(1,1,{
+            type:THREE.HalfFloatType,
+            minFilter:THREE.LinearFilter,
+            magFilter:THREE.LinearFilter,
+            depthBuffer:true,
+            stencilBuffer:false
+        });
+        target.texture.name='DANBO.CinematicColor';
+        _postFXComposer=new A.EffectComposer(R,target);
+        _postFXComposer.addPass(new A.RenderPass(scene,camera));
+
+        var q=window.DANBO_VISUAL_QUALITY||{mode:'balanced'};
+        var allowGTAO=!!A.GTAOPass&&q.mode!=='low';
+        if(allowGTAO){
+            var samples=q.high&&!q.realMobile?16:8;
+            _postFXGTAO=new A.GTAOPass(
+                scene,camera,1,1,{},
+                {
+                    radius:0.55,
+                    distanceExponent:1.0,
+                    thickness:1.0,
+                    distanceFallOff:1.0,
+                    scale:1.0,
+                    samples:samples,
+                    screenSpaceRadius:false
+                },
+                {
+                    lumaPhi:10,
+                    depthPhi:2,
+                    normalPhi:3,
+                    radius:4,
+                    radiusExponent:2,
+                    rings:2,
+                    samples:samples
+                }
+            );
+            _postFXGTAO.blendIntensity=q.high?0.95:0.72;
+            _patchGTAONoAO(_postFXGTAO);
+            _postFXComposer.addPass(_postFXGTAO);
+        }
+
+        if(A.UnrealBloomPass&&q.mode!=='low'){
+            _postFXBloom=new A.UnrealBloomPass(new THREE.Vector2(1,1),0.26,0.55,1.15);
+            _postFXBloom.strength=q.high?0.26:0.18;
+            _postFXBloom.radius=0.55;
+            _postFXBloom.threshold=1.15;
+            _postFXComposer.addPass(_postFXBloom);
+        }
+
+        _postFXGrade=new A.ShaderPass(_cinematicGradeShader);
+        if(q.mode==='low'){
+            _postFXGrade.uniforms.grain.value=0.024;
+            _postFXGrade.uniforms.chroma.value=0.0006;
+            _postFXGrade.uniforms.splitAmount.value=0.12;
+        }else if(q.mode==='balanced'){
+            _postFXGrade.uniforms.grain.value=0.038;
+            _postFXGrade.uniforms.chroma.value=0.0011;
+            _postFXGrade.uniforms.splitAmount.value=0.17;
+        }
+        _postFXComposer.addPass(_postFXGrade);
+
+        // r180's SMAA works in linear-sRGB, therefore it must precede OutputPass.
+        if(A.SMAAPass){
+            _postFXSMAA=new A.SMAAPass();
+            _postFXComposer.addPass(_postFXSMAA);
+        }
+        _postFXOutput=new A.OutputPass();
+        _postFXComposer.addPass(_postFXOutput);
+        _resizeCinematicComposer();
+        window.DANBO_POSTFX={
+            engine:'three-r180',
+            chain:['RenderPass'].concat(_postFXGTAO?['GTAOPass']:[]).concat(_postFXBloom?['UnrealBloomPass']:[]).concat(['CinematicGrade']).concat(_postFXSMAA?['SMAAPass']:[]).concat(['OutputPass']),
+            gtao:_postFXGTAO,
+            bloom:_postFXBloom,
+            composer:_postFXComposer
+        };
+    }catch(err){
+        _postFXInitFailed=true;
+        console.error('Cinematic postprocessing fallback',err);
+        if(_postFXComposer&&_postFXComposer.dispose)_postFXComposer.dispose();
+        _postFXComposer=null;
+    }
 }
 
-function _updatePostFXSize(){
-    if(!_postFXRT)return;
-    R.getDrawingBufferSize(_postFXSize);
+function _resizeCinematicComposer(){
+    if(!_postFXComposer)return;
     var scale=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.postScale)||1;
-    var w=Math.max(1,Math.floor(_postFXSize.x*scale));
-    var h=Math.max(1,Math.floor(_postFXSize.y*scale));
-    if(_postFXRT.width!==w||_postFXRT.height!==h){
-        _postFXRT.setSize(w,h);
-        _postFXMat.uniforms.resolution.value.set(w,h);
-    }
-}
-
-function _updatePostFXMood(){
-    if(!_postFXMat)return;
-    var style=(typeof currentCityStyle==='number')?currentCityStyle:0;
-    var m=_postFXMood[style]||_postFXMood[0];
-    var u=_postFXMat.uniforms;
-    var q=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'high';
-    u.uBloom.value=m.bloom*(q==='low'?0.58:(q==='balanced'?0.82:1));
-    u.uSaturation.value=m.sat;
-    u.uContrast.value=m.contrast;
-    u.uExposure.value=m.exposure;
-    u.uVignette.value=m.vignette;
-    u.uWarmth.value=m.warm;
-    u.uThreshold.value=m.threshold;
-    u.uAO.value=q==='low'?0.0:(q==='balanced'?0.095:0.17);
-    u.uSharpness.value=q==='low'?0.07:(q==='balanced'?0.17:0.24);
-    // Keep silhouettes and material grain crisp. High mode still gets a restrained
-    // distance falloff, but never the smeared miniature look of a strong full-screen blur.
-    u.uDOF.value=q==='low'?0.0:(q==='balanced'?0.012:0.026);
-    if(typeof playerEgg!=='undefined'&&playerEgg&&playerEgg.mesh){
-        var dx=camera.position.x-playerEgg.mesh.position.x,dy=camera.position.y-playerEgg.mesh.position.y,dz=camera.position.z-playerEgg.mesh.position.z;
-        var focus=Math.sqrt(dx*dx+dy*dy+dz*dz);
-        u.uFocusDistance.value=focus;u.uFocusRange.value=Math.max(18,focus*0.95);
-    }
-    u.cameraNear.value=camera.near;u.cameraFar.value=camera.far;
+    var effectiveDpr=Math.max(0.5,(typeof _renderPixelRatio==='number'?_renderPixelRatio:1)*scale);
+    if(_postFXSize.w===innerWidth&&_postFXSize.h===innerHeight&&Math.abs(_postFXSize.dpr-effectiveDpr)<0.001)return;
+    _postFXSize.w=innerWidth;_postFXSize.h=innerHeight;_postFXSize.dpr=effectiveDpr;
+    _postFXComposer.setPixelRatio(effectiveDpr);
+    _postFXComposer.setSize(innerWidth,innerHeight);
 }
 
 function _renderCinematicFrame(){
     if(!_postFXEnabled){R.render(scene,camera);return;}
+    // Let LoadingManager finish HDR/PBR decoding before compiling the expensive
+    // GTAO/Bloom/SMAA stack on the main thread.
+    if(window.DANBO_RENDER_ASSETS_READY===false){R.render(scene,camera);return;}
     _initCinematicPostFX();
-    if(!_postFXRT||!_postFXMat){R.render(scene,camera);return;}
-    _updatePostFXSize();
-    _updatePostFXMood();
-    _postFXFrame++;
-    _postFXMat.uniforms.time.value=performance.now()*0.001;
-    R.setRenderTarget(_postFXRT);
-    R.render(scene,camera);
-    R.setRenderTarget(null);
-    _postFXMat.uniforms.tDiffuse.value=_postFXRT.texture;
-    _postFXMat.uniforms.tDepth.value=_postFXRT.depthTexture;
-    R.render(_postFXScene,_postFXCamera);
+    if(!_postFXComposer){R.render(scene,camera);return;}
+    _resizeCinematicComposer();
+    var now=performance.now(),dt=Math.min(0.10,Math.max(0.001,(now-_postFXLastTime)/1000));
+    _postFXLastTime=now;
+    if(_postFXGrade)_postFXGrade.uniforms.time.value=now*0.001;
+    _postFXComposer.render(dt);
 }
 
 function _setCinematicPostFXEnabled(v){_postFXEnabled=!!v;}
+window.addEventListener('resize',_resizeCinematicComposer);

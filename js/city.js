@@ -337,9 +337,9 @@ function _decorateHopePremiumBuilding(b,bMeshes,col,i){
 
 function _buildHopeCinematicPlaza(){
     var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
-    var paving=_visualSurfaceMaterial('path',0xA89A84,{roughness:0.72,normalScale:new THREE.Vector2(0.72,0.72),envMapIntensity:0.34});
-    var edge=_visualSurfaceMaterial('stone',0xC7BBA6,{roughness:0.76,normalScale:new THREE.Vector2(0.45,0.45)});
-    var garden=_visualSurfaceMaterial('grass',0x326B39,{roughness:0.94,normalScale:new THREE.Vector2(0.55,0.55)});
+    var paving=_visualSurfaceMaterial('path',0xA89A84,{worldSpan:34.4,roughness:0.72,normalScale:new THREE.Vector2(0.72,0.72),envMapIntensity:0.34});
+    var edge=_visualSurfaceMaterial('stone',0xC7BBA6,{worldSpan:21,roughness:0.76,normalScale:new THREE.Vector2(0.45,0.45)});
+    var garden=_visualSurfaceMaterial('grass',0x326B39,{worldSpan:34.4,roughness:0.94,normalScale:new THREE.Vector2(0.55,0.55)});
     var plaza=new THREE.Mesh(new THREE.CircleGeometry(17.2,high?96:48),paving);
     plaza.rotation.x=-Math.PI/2;plaza.position.y=0.075;plaza.receiveShadow=true;plaza.name='hope-cinematic-stone-plaza';cityGroup.add(plaza);
     var curb=new THREE.Mesh(new THREE.TorusGeometry(17.25,0.24,high?12:7,high?96:48),edge);
@@ -486,7 +486,7 @@ function buildCity() {
     });
     } else {
     const groundGeo = new THREE.PlaneGeometry(CITY_SIZE*2, CITY_SIZE*2, 32, 32);
-    const groundMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('grass',st.ground,{roughness:0.96}):toon(st.ground);
+    const groundMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('grass',st.ground,{worldSpan:CITY_SIZE*2,roughness:0.96}):toon(st.ground);
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
     cityGroup.add(ground);
@@ -555,7 +555,7 @@ function buildCity() {
         cityGroup.add(bm);
         const bMeshes = [bm]; // collect all meshes for this building
         if(currentCityStyle===0){
-            var _baseMat=_visualSurfaceMaterial('stone',_cityMixHex(col,0xD8D0C4,0.72),{roughness:0.86,normalScale:new THREE.Vector2(0.30,0.30)});
+            var _baseMat=_visualSurfaceMaterial('stone',_cityMixHex(col,0xD8D0C4,0.72),{worldSpan:Math.max(b.w+0.52,b.d+0.52),roughness:0.86,normalScale:new THREE.Vector2(0.30,0.30)});
             var _baseGeo=_visualRoundedBoxGeometry(b.w+0.52,0.48,b.d+0.52,0.18);
             var _foundation=new THREE.Mesh(_baseGeo,_baseMat);_foundation.position.set(b.x,0.24,b.z);_foundation.castShadow=true;_foundation.receiveShadow=true;cityGroup.add(_foundation);bMeshes.push(_foundation);
             var _corniceColor=_cityMixHex(col,0xFFF7EA,0.62);
@@ -581,7 +581,7 @@ function buildCity() {
         } else if(currentCityStyle===0&&typeof _visualGableRoofGeometry==='function'){
         var _hopeRoofPalette=[0xA94C35,0xB96343,0x8E5143,0xC06B45,0x955746];
         var _hopeRoofColor=_cityMixHex(st.roof,_hopeRoofPalette[i%_hopeRoofPalette.length],0.44);
-        var roofMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('roof',_hopeRoofColor,{roughness:0.60,envMapIntensity:0.42}):toon(st.roof);
+        var roofMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('roof',_hopeRoofColor,{worldSpan:Math.max(b.w+1.45,b.d+1.45),roughness:0.60,envMapIntensity:0.42}):toon(st.roof);
         var _roofW=b.w+1.45,_roofD=b.d+1.45,_roofH=BUILDING_CONFIG.roofHeight;
         var _roofTurn=i%3===1;
         const roof = new THREE.Mesh(_roofTurn?_visualGableRoofGeometry(_roofD,_roofW,_roofH):_visualGableRoofGeometry(_roofW,_roofD,_roofH),roofMat);
@@ -804,9 +804,9 @@ function buildCity() {
 
 // ---- Grand Roman Wishing Fountain (Trevi-style) — skip for Sakura City ----
     if(currentCityStyle!==6&&currentCityStyle!==7){
-    var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xC3C6C5,{roughness:0.91,bumpScale:0.055,envMapIntensity:0.14}):toon(0xCCBBAA);
-    var stoneD=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x9DA3A3,{roughness:0.94,bumpScale:0.060,envMapIntensity:0.10}):toon(0xAA9988);
-    var marbleM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xE3E7E5,{roughness:0.72,bumpScale:0.030,envMapIntensity:0.18}):toon(0xEEE8DD);
+    var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xC3C6C5,{worldSpan:21,roughness:0.91,bumpScale:0.055,envMapIntensity:0.14}):toon(0xCCBBAA);
+    var stoneD=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x9DA3A3,{worldSpan:21,roughness:0.94,bumpScale:0.060,envMapIntensity:0.10}):toon(0xAA9988);
+    var marbleM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xE3E7E5,{worldSpan:21,roughness:0.72,bumpScale:0.030,envMapIntensity:0.18}):toon(0xEEE8DD);
     var _waterSet=currentCityStyle===0&&typeof _visualSurfaceTextureSet==='function'?_visualSurfaceTextureSet('water'):null;
     if(_waterSet)window._danboWaterBump=_waterSet.bumpMap;
     var waterM=currentCityStyle===0?(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?new THREE.MeshPhongMaterial({color:0x58AFC0,specular:0xD9FCFF,shininess:76,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:0.66,depthWrite:false}):new THREE.MeshPhysicalMaterial({color:0x4FA9BA,roughness:0.075,metalness:0.0,clearcoat:1.0,clearcoatRoughness:0.075,envMapIntensity:0.92,ior:1.333,reflectivity:0.64,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:0.66,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});

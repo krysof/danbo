@@ -1,11 +1,13 @@
 // renderer.js — DANBO World
 // ---- Renderer ----
 const root = document.getElementById('three-root');
-const R = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance', stencil:false});
-R.setSize(innerWidth,innerHeight);
 var _visualQualityPref='auto';
 try{_visualQualityPref=localStorage.getItem('danbo_visual_quality')||'auto';}catch(e){}
-var _visualQualityMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
+// A coarse primary pointer is not enough to call a device "mobile": touch laptops
+// usually also expose a fine pointer and should retain the desktop render path.
+var _visualQualityCoarse=!!(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
+var _visualQualityFine=!!(window.matchMedia&&matchMedia('(any-pointer: fine)').matches);
+var _visualQualityMobile=_visualQualityCoarse&&!_visualQualityFine;
 var _visualQualityMemory=Number(navigator.deviceMemory||4);
 var _visualQualityCores=Number(navigator.hardwareConcurrency||4);
 var _visualQualityMode=_visualQualityPref;
@@ -13,25 +15,34 @@ if(['low','balanced','high'].indexOf(_visualQualityMode)<0){
     if(_visualQualityMobile)_visualQualityMode=(_visualQualityMemory<=4||_visualQualityCores<=4)?'low':'balanced';
     else _visualQualityMode=(_visualQualityMemory>=6&&_visualQualityCores>=6)?'high':'balanced';
 }
+// r180 uses a post AA pass, so native MSAA stays off. This also avoids paying for
+// two independent antialiasing paths on high-DPR desktops.
+const R = new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance',stencil:false});
+R.setSize(innerWidth,innerHeight);
 window.DANBO_VISUAL_QUALITY={
     requested:_visualQualityPref,
     mode:_visualQualityMode,
     high:_visualQualityMode==='high',
     low:_visualQualityMode==='low',
-    postScale:_visualQualityMode==='high'?1.0:(_visualQualityMode==='low'?0.68:0.84)
+    realMobile:_visualQualityMobile,
+    postScale:_visualQualityMode==='high'?1.0:(_visualQualityMode==='low'?0.72:0.86)
 };
+window.DANBO_THREE_REVISION=String(THREE.REVISION||window.DANBO_THREE_REVISION||'');
 window.setDanboVisualQuality=function(mode){
     mode=['low','balanced','high','auto'].indexOf(mode)>=0?mode:'auto';
     try{localStorage.setItem('danbo_visual_quality',mode);}catch(e){}
     location.reload();
 };
-var _pixelRatioMin=RENDER_CONFIG.pixelRatioMin||1.0;
-var _qualityDprCap=_visualQualityMode==='high'?(RENDER_CONFIG.pixelRatioMax||2):(_visualQualityMode==='low'?1.25:1.65);
-var _pixelRatioMax=Math.min(devicePixelRatio||1,_qualityDprCap);
+var _pixelRatioMin=1.0;
+// Real phones are fixed at DPR 1. A touch-enabled laptop with a mouse is desktop
+// and receives its real DPR up to 2, exactly like a conventional workstation.
+var _qualityDprCap=_visualQualityMobile?1:Math.min(devicePixelRatio||1,RENDER_CONFIG.pixelRatioMax||2);
+var _pixelRatioMax=_qualityDprCap;
 var _renderPixelRatio=_pixelRatioMax;
 function _setRenderPixelRatio(v){
     _renderPixelRatio=Math.max(_pixelRatioMin,Math.min(_pixelRatioMax,v));
     R.setPixelRatio(_renderPixelRatio);
+    if(typeof _resizeCinematicComposer==='function')_resizeCinematicComposer();
 }
 _setRenderPixelRatio(_renderPixelRatio);
 R.shadowMap.enabled = true;
@@ -40,12 +51,12 @@ R.outputColorSpace = THREE.SRGBColorSpace;
 if(THREE.ColorManagement)THREE.ColorManagement.enabled=true;
 if(THREE.ACESFilmicToneMapping!==undefined)R.toneMapping=THREE.ACESFilmicToneMapping;
 else if(THREE.LinearToneMapping!==undefined)R.toneMapping=THREE.LinearToneMapping;
-R.toneMappingExposure=RENDER_CONFIG.toneExposure||1.0;
+R.toneMappingExposure=RENDER_CONFIG.toneExposure||0.66;
 root.appendChild(R.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(RENDER_CONFIG.fogColor);
-scene.fog = new THREE.Fog(RENDER_CONFIG.fogColor, RENDER_CONFIG.fogNear, RENDER_CONFIG.fogFar);
+scene.fog = new THREE.FogExp2(RENDER_CONFIG.fogColor,RENDER_CONFIG.fogDensity||0.0021);
 
 // Procedural reflection environment.  This is not visible geometry: it gives the original
 // glass, painted walls, water and character shells coherent sky/ground reflections.
@@ -66,13 +77,89 @@ function _createDanboReflectionEnvironment(){
     if(THREE.SRGBColorSpace!==undefined)cube.colorSpace=THREE.SRGBColorSpace;
     cube.needsUpdate=true;return cube;
 }
-window._danboReflectionEnvironment=_createDanboReflectionEnvironment();
+window._danboLegacyReflectionEnvironment=_createDanboReflectionEnvironment();
+window._danboReflectionEnvironment=window._danboLegacyReflectionEnvironment;
 scene.environment=window._danboReflectionEnvironment;
+if(scene.environmentIntensity!==undefined)scene.environmentIntensity=0.9;
 
-const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.5, 2000000);
+// HDRI and authored PBR textures participate in the engine loader. The public
+// index waits for this promise, with its own 20-second escape hatch.
+THREE.Cache.enabled=true;
+window.DANBO_PRELOADED_TEXTURES=window.DANBO_PRELOADED_TEXTURES||{};
+window.DANBO_RENDER_ASSETS_READY=false;
+window.DANBO_RENDER_READY=new Promise(function(resolve){
+    var done=false;
+    function finish(){if(done)return;done=true;window.DANBO_RENDER_ASSETS_READY=true;resolve(true);}
+    var manager=new THREE.LoadingManager();
+    manager.onLoad=finish;
+    manager.onError=function(url){console.warn('Render asset fallback:',url);};
+    var assetSuffix=window.DANBO_ASSET_VERSION?'?'+window.DANBO_ASSET_VERSION:'';
+    var textureLoader=new THREE.TextureLoader(manager);
+    var surfaceIds=['leafy_grass','clay_roof_tiles_02','rectangular_paving','marble_01'];
+    var channels=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?['diff']:['diff','normal','arm'];
+    surfaceIds.forEach(function(id){
+        channels.forEach(function(channel){
+            var base='assets/pbr/'+id+'_'+channel+'.jpg';
+            var tex=textureLoader.load(base+assetSuffix);
+            if(channel==='diff'&&THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
+            else if(THREE.NoColorSpace!==undefined)tex.colorSpace=THREE.NoColorSpace;
+            window.DANBO_PRELOADED_TEXTURES[base]=tex;
+        });
+    });
+    var addons=window.DANBO_THREE_ADDONS;
+    if(addons&&addons.HDRLoader){
+        new addons.HDRLoader(manager).load(
+            'assets/hdri/kloppenheim_06_puresky_1k.hdr'+assetSuffix,
+            function(hdr){
+                hdr.mapping=THREE.EquirectangularReflectionMapping;
+                var pmrem=new THREE.PMREMGenerator(R);
+                pmrem.compileEquirectangularShader();
+                var env=pmrem.fromEquirectangular(hdr).texture;
+                pmrem.dispose();
+                window._danboHDRBackground=hdr;
+                window._danboHDRIEnvironment=env;
+                window._danboReflectionEnvironment=env;
+                if(typeof currentCityStyle==='undefined'||currentCityStyle===0){
+                    scene.background=hdr;
+                    scene.environment=env;
+                    if(scene.backgroundIntensity!==undefined)scene.backgroundIntensity=0.85;
+                    if(scene.environmentIntensity!==undefined)scene.environmentIntensity=0.9;
+                }
+            },
+            undefined,
+            function(err){console.warn('HDRI fallback active',err);}
+        );
+    }else{
+        // The legacy r160 emergency fallback has no HDRLoader bundle.
+        manager.itemStart('danbo-hdri-fallback');
+        setTimeout(function(){manager.itemEnd('danbo-hdri-fallback');},0);
+    }
+    setTimeout(finish,20000);
+});
+
+// Keep the raw equirectangular sky only in Hope City; other themed worlds retain
+// their authored backgrounds. Environment and background use the same Y rotation,
+// so the key light can stay aligned to the visible HDR sun.
+window._applyDanboEnvironmentForCity=function(style,st){
+    var useHDR=style===0&&!!window._danboHDRBackground;
+    scene.background=useHDR?window._danboHDRBackground:new THREE.Color(st&&st.sky!==undefined?st.sky:RENDER_CONFIG.fogColor);
+    scene.environment=useHDR?window._danboHDRIEnvironment:window._danboLegacyReflectionEnvironment;
+    var rotationY=-1.2741; // original +31° sun -> -42° camera-facing sun
+    var rotationX=-0.1196; // 14.45° source elevation -> 7.6° dusk key
+    if(scene.backgroundRotation)scene.backgroundRotation.set(useHDR?rotationX:0,useHDR?rotationY:0,0);
+    if(scene.environmentRotation)scene.environmentRotation.set(useHDR?rotationX:0,useHDR?rotationY:0,0);
+    if(scene.backgroundIntensity!==undefined)scene.backgroundIntensity=useHDR?0.85:1.0;
+    if(scene.environmentIntensity!==undefined)scene.environmentIntensity=useHDR?0.9:0.72;
+    if(typeof _skyDome!=='undefined')_skyDome.visible=!useHDR;
+    if(useHDR)scene.fog=new THREE.FogExp2(0xA9B9C7,0.0021);
+    return useHDR;
+};
+
+const camera = new THREE.PerspectiveCamera(58,innerWidth/innerHeight,0.1,1200);
 window.addEventListener('resize', ()=>{
     R.setSize(innerWidth,innerHeight);
-    _pixelRatioMax=Math.min(devicePixelRatio||1,_qualityDprCap);
+    _qualityDprCap=_visualQualityMobile?1:Math.min(devicePixelRatio||1,RENDER_CONFIG.pixelRatioMax||2);
+    _pixelRatioMax=_qualityDprCap;
     _setRenderPixelRatio(_renderPixelRatio);
     camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
 });
@@ -85,19 +172,21 @@ var _shadowQualitySize=_visualQualityMode==='high'?RENDER_CONFIG.shadowMapSize:(
 sun.shadow.mapSize.set(_shadowQualitySize,_shadowQualitySize);
 const ssc=sun.shadow.camera; ssc.left=-RENDER_CONFIG.shadowRange;ssc.right=RENDER_CONFIG.shadowRange;ssc.top=RENDER_CONFIG.shadowRange;ssc.bottom=-RENDER_CONFIG.shadowRange;ssc.near=RENDER_CONFIG.shadowNear;ssc.far=RENDER_CONFIG.shadowFar;
 sun.shadow.bias=RENDER_CONFIG.shadowBias;
-sun.shadow.normalBias=0.016;
-sun.shadow.radius=_visualQualityMode==='high'?3.4:2.6;
+sun.shadow.normalBias=0.03;
+sun.shadow.radius=3;
+if(sun.shadow.intensity!==undefined)sun.shadow.intensity=0.68;
 scene.add(sun); scene.add(sun.target);
 scene.add(new THREE.HemisphereLight(RENDER_CONFIG.hemiSkyColor,RENDER_CONFIG.hemiGroundColor,RENDER_CONFIG.hemiIntensity));
-const rimLight = new THREE.DirectionalLight(0xCFEAFF,0.20);
+const rimLight = new THREE.DirectionalLight(0xCFEAFF,0.08);
 rimLight.position.set(-50,45,-60);
 scene.add(rimLight);
-const softFillLight = new THREE.DirectionalLight(0xFFE2CF,0.10);
+const softFillLight = new THREE.DirectionalLight(0xFFE2CF,0.04);
 softFillLight.position.set(35,24,55);
 scene.add(softFillLight);
 // A clean solar disc plus a soft radial corona. The glow is texture-shaped rather
 // than a translucent sphere, so it reads as sunlight without a hard plastic edge.
 var _sunMesh=new THREE.Mesh(new THREE.SphereGeometry(8,32,20),new THREE.MeshBasicMaterial({color:0xFFF1A8,fog:false,toneMapped:false}));
+_sunMesh.userData.noAO=true;
 _sunMesh.position.copy(sun.position).multiplyScalar(3);
 scene.add(_sunMesh);
 var _sunGlowCanvas=document.createElement('canvas');_sunGlowCanvas.width=_sunGlowCanvas.height=128;
@@ -107,12 +196,13 @@ _sunGlowGrad.addColorStop(.52,'rgba(255,196,92,.13)');_sunGlowGrad.addColorStop(
 _sunGlowCtx.fillStyle=_sunGlowGrad;_sunGlowCtx.fillRect(0,0,128,128);
 var _sunGlowTex=new THREE.CanvasTexture(_sunGlowCanvas);_sunGlowTex.colorSpace=THREE.SRGBColorSpace;
 var _sunGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:_sunGlowTex,color:0xFFF0C0,transparent:true,opacity:0.72,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+_sunGlow.userData.noAO=true;
 _sunGlow.scale.set(52,52,1);_sunGlow.renderOrder=990;
 _sunGlow.position.copy(_sunMesh.position);
 scene.add(_sunGlow);
 
 // ---- Procedural gradient sky + adaptive render quality ----
-var _skyDomeGeo=new THREE.SphereGeometry(900000,32,16);
+var _skyDomeGeo=new THREE.SphereGeometry(900,32,16);
 var _skyDomeMat=new THREE.MeshBasicMaterial({side:THREE.BackSide,vertexColors:true,depthWrite:false,depthTest:false,fog:false});
 var _skyDome=new THREE.Mesh(_skyDomeGeo,_skyDomeMat);
 _skyDome.frustumCulled=false;
@@ -132,7 +222,7 @@ function _updateSkyDome(skyHex,horizonHex,groundHex){
     var pos=_skyDomeGeo.attributes.position;
     var colors=[];
     for(var i=0;i<pos.count;i++){
-        var y=pos.getY(i)/900000;
+        var y=pos.getY(i)/900;
         var cHex;
         if(y>=0)cHex=_mixHex(horizonHex,skyHex,Math.pow(y,0.65));
         else cHex=_mixHex(horizonHex,groundHex,Math.min(1,-y*1.8));
@@ -145,18 +235,9 @@ _updateSkyDome(RENDER_CONFIG.fogColor,0xEAF7FF,0x88CCAA);
 
 var _qualityFrameCount=0,_qualityAvgMs=16.7,_qualityCooldown=0;
 function _updateRenderQuality(frameMs){
-    if(!frameMs||gameState==='menu')return;
-    _qualityAvgMs=_qualityAvgMs*0.94+frameMs*0.06;
-    _qualityFrameCount++;
-    if(_qualityCooldown>0){_qualityCooldown--;return;}
-    if(_qualityFrameCount%45!==0)return;
-    if(_qualityAvgMs>24&&_renderPixelRatio>_pixelRatioMin+0.05){
-        _setRenderPixelRatio(_renderPixelRatio-0.12);
-        _qualityCooldown=45;
-    } else if(_qualityAvgMs<17.2&&_renderPixelRatio<_pixelRatioMax-0.05){
-        _setRenderPixelRatio(_renderPixelRatio+0.08);
-        _qualityCooldown=90;
-    }
+    // Pixel ratio is deliberately deterministic in the r180 profile. Quality
+    // differences are handled by post-process scale and sample count instead.
+    if(frameMs)_qualityAvgMs=_qualityAvgMs*0.94+frameMs*0.06;
 }
 
 function _updateSunShadowFocus(){

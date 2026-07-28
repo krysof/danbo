@@ -77,20 +77,35 @@ function _visualExternalSurfaceTextureSet(kind){
     // materials where the pattern has a real scale (roof tiles, paving, stone and grass).
     var ids={grass:'leafy_grass',roof:'clay_roof_tiles_02',path:'rectangular_paving',stone:'marble_01'};
     var id=ids[kind];if(!id)return null;
-    var repeat=kind==='grass'?22:(kind==='path'?9:(kind==='roof'?5:(kind==='facade'?4:7)));
+    var metersPerTile={grass:2.07,roof:0.5,path:2.2,stone:2.0}[kind]||2.0;
+    // Fallback repeat represents a 24m reference patch. Materials attached to known
+    // large surfaces pass worldSpan and are recalculated in real-world metres below.
+    var repeat=24/metersPerTile;
     var suffix=(window.DANBO_ASSET_VERSION?'?'+window.DANBO_ASSET_VERSION:'');
     var loader=new THREE.TextureLoader();
     function load(channel,isColor){
-        var tex=loader.load('assets/pbr/'+id+'_'+channel+'.jpg'+suffix);
+        var base='assets/pbr/'+id+'_'+channel+'.jpg';
+        var cached=window.DANBO_PRELOADED_TEXTURES&&window.DANBO_PRELOADED_TEXTURES[base];
+        var tex=cached?cached.clone():loader.load(base+suffix);
+        if(cached)tex.needsUpdate=true;
         tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(repeat,repeat);
         tex.minFilter=THREE.LinearMipmapLinearFilter;tex.magFilter=THREE.LinearFilter;
         tex.anisotropy=Math.min(16,(typeof R!=='undefined'&&R.capabilities)?R.capabilities.getMaxAnisotropy():4);
+        tex.channel=0;
         if(isColor&&THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
         else if(THREE.NoColorSpace!==undefined)tex.colorSpace=THREE.NoColorSpace;
         return tex;
     }
     var low=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
-    return {map:load('diff',true),normalMap:low?null:load('normal',false),roughnessMap:low?null:load('rough',false),external:true};
+    var arm=low?null:load('arm',false);
+    return {
+        map:load('diff',true),
+        normalMap:low?null:load('normal',false),
+        armMap:arm,
+        roughnessMap:arm,
+        metersPerTile:metersPerTile,
+        external:true
+    };
 }
 function _visualSurfaceTextureSet(kind){
     if(_visualSurfaceTextureSets[kind])return _visualSurfaceTextureSets[kind];
@@ -181,18 +196,38 @@ function _visualSurfaceTextureSet(kind){
 function _visualSurfaceTexture(kind){return _visualSurfaceTextureSet(kind).map;}
 function _visualSurfaceMaterial(kind,color,opts){
     opts=opts||{};
+    var worldSpan=Number(opts.worldSpan||0);
+    if(opts.worldSpan!==undefined){opts=Object.assign({},opts);delete opts.worldSpan;}
     var optKey=Object.keys(opts).sort().map(function(k){var v=opts[k];return k+'='+(v&&v.isVector2?(v.x+','+v.y):String(v));}).join(';');
-    var materialKey=kind+'|'+String(color)+'|'+optKey+'|'+((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced');
+    var materialKey=kind+'|'+String(color)+'|'+worldSpan.toFixed(3)+'|'+optKey+'|'+((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced');
     if(_visualSurfaceMaterials[materialKey])return _visualSurfaceMaterials[materialKey];
     var set=_visualSurfaceTextureSet(kind);
-    var base={map:set.map,roughnessMap:set.roughnessMap,roughness:kind==='roof'?0.62:(kind==='facade'?0.76:0.94),metalness:0,envMapIntensity:kind==='roof'?0.46:(kind==='facade'?0.18:0.24)};
-    if(set.normalMap){var ns=kind==='grass'?0.46:(kind==='roof'?0.68:(kind==='path'?0.40:(kind==='stone'?0.30:0.34)));base.normalMap=set.normalMap;base.normalScale=new THREE.Vector2(ns,ns);}
+    function surfaceTexture(tex){
+        if(!tex)return null;
+        if(!worldSpan||!set.metersPerTile)return tex;
+        var clone=tex.clone(),tiles=Math.max(1,worldSpan/set.metersPerTile);
+        clone.wrapS=clone.wrapT=THREE.RepeatWrapping;clone.repeat.set(tiles,tiles);
+        clone.needsUpdate=true;return clone;
+    }
+    var map=surfaceTexture(set.map),arm=surfaceTexture(set.armMap||set.roughnessMap);
+    var base={
+        map:map,
+        roughnessMap:arm||set.roughnessMap,
+        roughness:set.external?1:(kind==='roof'?0.62:(kind==='facade'?0.76:0.94)),
+        metalness:set.external?1:0,
+        envMapIntensity:kind==='roof'?0.78:(kind==='facade'?0.50:0.68)
+    };
+    if(arm){base.aoMap=arm;base.metalnessMap=arm;base.aoMapIntensity=0.76;}
+    if(set.normalMap){var ns=kind==='grass'?0.46:(kind==='roof'?0.68:(kind==='path'?0.40:(kind==='stone'?0.30:0.34)));base.normalMap=surfaceTexture(set.normalMap);base.normalScale=new THREE.Vector2(ns,ns);}
     else{base.bumpMap=set.bumpMap;base.bumpScale=kind==='grass'?0.12:(kind==='facade'?0.034:(kind==='roof'?0.18:0.10));}
     if(set.external&&typeof _mixHex==='function'){
         var tintLift=kind==='grass'?0.34:(kind==='facade'?0.22:(kind==='roof'?0.12:(kind==='path'?0.38:0.44)));
         color=_mixHex(color,0xFFFFFF,tintLift);
     }
     for(var k in opts)base[k]=opts[k];
+    // Authored ARM controls roughness/metalness completely; B is black for these
+    // non-metal surfaces, while R/G carry AO and roughness.
+    if(set.external&&arm){base.roughness=1;base.metalness=1;}
     var mat=typeof softPBR==='function'?softPBR(color,base):toon(color,base);
     if(set.external){
         var blend=kind==='grass'?0.48:(kind==='roof'?0.72:(kind==='path'?0.44:0.38));
@@ -375,6 +410,7 @@ function _visualMat(color,opacity,additive,tex){
 }
 function _visualAddGlow(x,y,z,color,w,h,opacity,phase,tex){
     var sp=new THREE.Sprite(_visualMat(color,opacity,true,tex));
+    sp.userData.noAO=true;
     sp.position.set(x,y,z);sp.scale.set(w,h,1);sp.renderOrder=-5;
     _visualFXGroup.add(sp);
     _visualFXState.glows.push({sprite:sp,baseW:w,baseH:h,baseOpacity:opacity,phase:phase||Math.random()*Math.PI*2,pulse:0.06+Math.random()*0.08});
@@ -530,7 +566,22 @@ function _visualAddPointsCloud(name,count,style,bounds,colorA,colorB,size,opts){
         fog:opts.fog!==false
     });
     var pts=new THREE.Points(geo,mat);
+    pts.userData.noAO=true;
     pts.name=name;pts.frustumCulled=false;
+    // Cheap depth fade keeps distant motes from turning into a flat sparkly veil.
+    mat.onBeforeCompile=function(shader){
+        shader.vertexShader='varying float vDanboParticleDepth;\n'+shader.vertexShader;
+        shader.vertexShader=shader.vertexShader.replace(
+            '#include <project_vertex>',
+            '#include <project_vertex>\n  vDanboParticleDepth=max(0.0,-mvPosition.z);'
+        );
+        shader.fragmentShader='varying float vDanboParticleDepth;\n'+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace(
+            '#include <premultiplied_alpha_fragment>',
+            'diffuseColor.a*=1.0-smoothstep(90.0,280.0,vDanboParticleDepth);\n#include <premultiplied_alpha_fragment>'
+        );
+    };
+    mat.customProgramCacheKey=function(){return 'danbo-depth-faded-points-v1';};
     _visualFXGroup.add(pts);
     _visualFXState.particles.push({points:pts,pos:pos,vel:vel,phase:phase,bounds:bounds,opts:opts,baseOpacity:mat.opacity});
     return pts;
@@ -700,7 +751,8 @@ function _visualAddCitySpecific(style,st,mood){
     var range=(style===5?MOON_CITY_SIZE:CITY_SIZE);
     if(style===0){
         _visualAddHopeGroundPatches();
-        _visualAddPointsCloud('hope-sunlit-pollen',220,style,{xMin:-82,xMax:82,zMin:-82,zMax:82,yMin:0.6,yMax:13},0xFFE59A,0xFFFFFF,0.72,{opacity:0.38,vx:0.006,vxRand:0.008,vy:0.003,vyRand:0.005,vzRand:0.008,wrap:true,twinkle:true,additive:true});
+        var _dustCount=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high&&!DANBO_VISUAL_QUALITY.realMobile)?1400:((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?220:620);
+        _visualAddPointsCloud('hope-volumetric-dust',_dustCount,style,{xMin:-82,xMax:82,zMin:-82,zMax:82,yMin:0.6,yMax:18},0xFFE1A0,0xFFFFFF,0.68,{opacity:0.32,vx:0.004,vxRand:0.008,vy:0.002,vyRand:0.004,vzRand:0.008,wrap:true,twinkle:true,additive:true});
         for(var hi=0;hi<10;hi++){
             var ha=hi/10*Math.PI*2+0.18,hr=18+hi%2*9;
             _visualAddGlow(Math.cos(ha)*hr,4.4,Math.sin(ha)*hr,0xFFD08A,3.8,3.8,0.075,hi*0.45,_visualFlareTex);

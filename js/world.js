@@ -666,8 +666,10 @@ function clearCity(){
 
 function applyCityTheme(){
     var st=CITY_STYLES[currentCityStyle];
-    // Sky color
-    scene.background=new THREE.Color(st.sky);
+    // Hope City uses the raw HDRI for the visible sky and its PMREM convolution
+    // for material lighting. Themed fantasy worlds keep their authored backgrounds.
+    var _hopeHDR=(typeof window._applyDanboEnvironmentForCity==='function')?window._applyDanboEnvironmentForCity(currentCityStyle,st):false;
+    if(!_hopeHDR)scene.background=new THREE.Color(st.sky);
     if(typeof _updateSkyDome==='function'){
         var horizon=st.fog||_mixHex(st.sky,0xFFFFFF,currentCityStyle===5?0.08:0.38);
         var groundTint=st.ground||st.path||0x88CCAA;
@@ -677,10 +679,11 @@ function applyCityTheme(){
         _updateSkyDome(st.sky,horizon,groundTint);
     }
     if(typeof R!=='undefined'){
-        R.toneMappingExposure=currentCityStyle===0?1.05:(currentCityStyle===5?1.06:(currentCityStyle===7?1.08:(RENDER_CONFIG.toneExposure||1.06)));
+        R.toneMappingExposure=currentCityStyle===0?0.66:(currentCityStyle===5?1.06:(currentCityStyle===7?1.08:(RENDER_CONFIG.toneExposure||0.66)));
     }
     // Fog / aerial perspective — always keep a little depth haze for richer scenery
-    if(st.fog){scene.fog=new THREE.Fog(st.fog,60,180);}
+    if(_hopeHDR){scene.fog=new THREE.FogExp2(0xA9B9C7,0.0021);}
+    else if(st.fog){scene.fog=new THREE.Fog(st.fog,60,180);}
     else if(currentCityStyle===5){scene.fog=new THREE.Fog(0x070712,260,900);}
     else if(currentCityStyle===7){scene.fog=new THREE.Fog(0x91A7C9,130,850);}
     else if(currentCityStyle===0){scene.fog=new THREE.Fog(0xB3D3DC,210,560);}
@@ -690,21 +693,21 @@ function applyCityTheme(){
         if(currentCityStyle===7){rimLight.color.setHex(0xE3EFFF);rimLight.intensity=0.28;}
         else if(currentCityStyle===3){rimLight.color.setHex(0xFFC2A6);rimLight.intensity=0.18;}
         else if(currentCityStyle===2){rimLight.color.setHex(0xE5F6FF);rimLight.intensity=0.24;}
-        else if(currentCityStyle===0){rimLight.color.setHex(0xD8F0FF);rimLight.intensity=0.27;}
+        else if(currentCityStyle===0){rimLight.color.setHex(0xD8F0FF);rimLight.intensity=_hopeHDR?0.0:0.08;}
         else{rimLight.color.setHex(0xD0F0FF);rimLight.intensity=0.22;}
     }
     if(typeof softFillLight!=='undefined'){
         softFillLight.visible=currentCityStyle!==5;
-        if(currentCityStyle===0){softFillLight.color.setHex(0xFFE1C9);softFillLight.intensity=0.16;}
+        if(currentCityStyle===0){softFillLight.color.setHex(0xFFE1C9);softFillLight.intensity=_hopeHDR?0.0:0.04;}
         else if(currentCityStyle===3){softFillLight.color.setHex(0xFF8A55);softFillLight.intensity=0.18;}
         else{softFillLight.color.setHex(0xFFE3D4);softFillLight.intensity=0.14;}
     }
     // Sun visibility — only in ground cities, not on moon
     var isMoon=(currentCityStyle===5);
-    if(currentCityStyle===0){RENDER_CONFIG.sunPos.x=48;RENDER_CONFIG.sunPos.y=68;RENDER_CONFIG.sunPos.z=-105;}
+    if(currentCityStyle===0){RENDER_CONFIG.sunPos.x=88.4;RENDER_CONFIG.sunPos.y=16.0;RENDER_CONFIG.sunPos.z=-79.6;}
     else{RENDER_CONFIG.sunPos.x=60;RENDER_CONFIG.sunPos.y=80;RENDER_CONFIG.sunPos.z=40;}
-    _sunMesh.visible=!isMoon;
-    _sunGlow.visible=!isMoon;
+    _sunMesh.visible=!isMoon&&!_hopeHDR;
+    _sunGlow.visible=!isMoon&&!_hopeHDR;
     sun.visible=!isMoon;
     // Follow player with shadow camera
     if(!isMoon){
@@ -720,13 +723,14 @@ function applyCityTheme(){
                 if(c.isHemisphereLight){c.color.setHex(0xD7E6FF);c.groundColor.setHex(0xAFC0D8);c.intensity=0.92;}
             });
         } else if(currentCityStyle===0){
-            sun.intensity=2.42;
-            sun.color.setHex(0xFFE0B0);
-            sun.shadow.radius=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high)?3.6:2.6;
-            _sunMesh.visible=true;_sunGlow.visible=true;
+            sun.intensity=5.2;
+            sun.color.setHex(0xFFD9A0);
+            sun.shadow.radius=3;
+            if(sun.shadow.intensity!==undefined)sun.shadow.intensity=0.68;
+            _sunMesh.visible=!_hopeHDR;_sunGlow.visible=!_hopeHDR;
             scene.children.forEach(function(c){
-                if(c.isAmbientLight){c.color.setHex(0xFFF4E5);c.intensity=0.32;}
-                if(c.isHemisphereLight){c.color.setHex(0xDDEFFF);c.groundColor.setHex(0x776F5C);c.intensity=0.58;}
+                if(c.isAmbientLight){c.color.setHex(0xFFF4E5);c.intensity=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?0.24:0.04;}
+                if(c.isHemisphereLight){c.color.setHex(0xDDEFFF);c.groundColor.setHex(0x596457);c.intensity=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?0.42:0.10;}
             });
         } else {
             sun.intensity=RENDER_CONFIG.sunIntensity;
