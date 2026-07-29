@@ -5,7 +5,9 @@ const CHARACTERS = [
     {name:'森林蛋',type:'bull',color:0xBFE8A0,accent:0x8FD16A,icon:'\uD83C\uDF32',portrait:'#BFE8A0',mapX:110,mapY:55},
     {name:'水晶蛋',type:'cat',color:0xD6F5FF,accent:0x9FE6F5,icon:'\uD83D\uDC8E',portrait:'#D6F5FF',mapX:300,mapY:52},
     {name:'天使蛋',type:'rooster',color:0xBFEA7C,accent:0xFF7BA3,icon:'\uD83D\uDC7C',portrait:'#BFEA7C',mapX:200,mapY:34},
-    {name:'糖心蛋',type:'dog',color:0xFF7E86,accent:0xFFE066,icon:'\uD83C\uDF6C',portrait:'#FF7E86',mapX:335,mapY:120},
+    // A softer warm-coral body keeps the raspberry cheek colour readable under
+    // the selection screen's warm key light, without changing Candy Egg's identity.
+    {name:'糖心蛋',type:'dog',color:0xFF9C91,accent:0xFFE066,icon:'\uD83C\uDF6C',portrait:'#FF9C91',mapX:335,mapY:120},
     {name:'星愿蛋',type:'monkey',color:0x72A8FF,accent:0xFFD66B,icon:'\u2B50',portrait:'#72A8FF',mapX:95,mapY:165},
     {name:'岩石蛋',type:'bear',color:0xCFA06A,accent:0xF7C95A,icon:'\uD83E\uDEA8',portrait:'#CFA06A',mapX:55,mapY:105},
     {name:'风行蛋',type:'cockroach',color:0xFFA040,accent:0xFF7A1A,icon:'\uD83C\uDF2A\uFE0F',portrait:'#FFA040',mapX:320,mapY:175},
@@ -111,7 +113,7 @@ function _drawCuteRoundPortrait(ctx,ch,W,H){
     });
     [-1,1].forEach(function(s){
         ctx.beginPath();ctx.ellipse(cx+s*34,cy+10,11,7,0,0,Math.PI*2);
-        ctx.fillStyle='rgba(255,125,165,0.46)';ctx.fill();
+        ctx.fillStyle=ch.type==='dog'?'rgba(226,72,112,0.58)':'rgba(255,125,165,0.46)';ctx.fill();
     });
     ctx.beginPath();ctx.arc(cx,cy+13,13,0.18*Math.PI,0.82*Math.PI);
     ctx.strokeStyle='#2B202B';ctx.lineWidth=2.5;ctx.stroke();
@@ -180,7 +182,7 @@ function drawPortrait(ch) {
     // Blush
     [-1,1].forEach(function(s){
         portraitCtx.beginPath();portraitCtx.ellipse(cx+s*32,cy+8,10,6,0,0,Math.PI*2);
-        portraitCtx.fillStyle='rgba(255,125,160,0.42)';portraitCtx.fill();
+        portraitCtx.fillStyle=ch.type==='dog'?'rgba(226,72,112,0.56)':'rgba(255,125,160,0.42)';portraitCtx.fill();
     });
     // Small shiny badge/sticker on the chest.
     portraitCtx.save();
@@ -435,4 +437,3 @@ function drawPortrait(ch) {
         }
     }
 }
-

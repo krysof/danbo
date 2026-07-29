@@ -4,8 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>DANBO World</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./js/vendor/three-r180/three.module.min.js",
+    "three/addons/": "./js/vendor/three-r180/addons/"
+  }
+}
+</script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260729.2">
+<link rel="stylesheet" href="style.css?v=20260729.1">
 </head>
 <body>
 <div id="game-container">
@@ -177,7 +185,7 @@
 
 <script>
 (function(){
-  var cache='v=20260729.2';
+  var cache='v=20260729.1';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   var warmStart=false;
@@ -206,12 +214,6 @@
     if(data)text=text.replace(/\{(\w+)\}/g,function(_,k){return data[k]!==undefined?data[k]:'';});
     return text;
   }
-  var threeUrls=[
-    'js/vendor/three-r180-stack.min.js',
-    'js/vendor/three.min.js',
-    'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
-    'https://unpkg.com/three@0.160.0/build/three.min.js'
-  ];
   var gameFiles=[
     'js/core.js',
     'js/wasm.js',
@@ -274,22 +276,14 @@
     s.onerror=onerror;
     document.body.appendChild(s);
   }
-  var finishRequested=false;
   function finishGameLoading(){
-    if(finishRequested)return;
-    finishRequested=true;
-    var renderReady=window.DANBO_RENDER_READY&&typeof window.DANBO_RENDER_READY.then==='function'?window.DANBO_RENDER_READY:Promise.resolve(true);
-    var timeout=new Promise(function(resolve){setTimeout(function(){resolve(false);},20000);});
-    Promise.race([renderReady,timeout]).then(function(){
-      finishGameLoadingNow();
-    },function(err){
-      console.warn('Render assets fallback',err);
-      finishGameLoadingNow();
+    var assets=window.DANBO_RENDER_ASSETS_READY;
+    var wait=assets&&typeof assets.then==='function'?assets:Promise.resolve();
+    var timeout=new Promise(function(resolve){setTimeout(resolve,20000);});
+    Promise.race([wait,timeout]).catch(function(err){console.warn('Render asset fallback',err);}).then(function(){
+      try{localStorage.setItem('danbo_loader_version',cache);}catch(e){}
+      setEngineLoading('ready',100);setTimeout(hideEngineLoading,warmStart?80:250);
     });
-  }
-  function finishGameLoadingNow(){
-    try{localStorage.setItem('danbo_loader_version',cache);}catch(e){}
-    setEngineLoading('ready',100);setTimeout(hideEngineLoading,warmStart?80:250);
   }
   var manifestFile='plugins/manifest.js';
   var pluginFiles=[];
@@ -382,17 +376,40 @@
       loadGameScript(0);
     });
   }
-  function loadThree(i){
-    if(typeof THREE!=='undefined'){loadManifestThenGame();return;}
-    if(i>=threeUrls.length){setStartText('loadFail');return;}
-    setEngineLoading('loading',12+i*10);
-    loadScript(threeUrls[i],function(){
-      if(typeof THREE==='undefined')loadThree(i+1);
-      else loadManifestThenGame();
-    },function(){loadThree(i+1);});
+  async function loadThree180(){
+    setEngineLoading('loading',12);
+    var core=await import('three');
+    var modules=await Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'),
+      import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/GTAOPass.js'),
+      import('three/addons/postprocessing/UnrealBloomPass.js'),
+      import('three/addons/postprocessing/OutputPass.js'),
+      import('three/addons/postprocessing/ShaderPass.js'),
+      import('three/addons/postprocessing/SMAAPass.js'),
+      import('three/addons/loaders/HDRLoader.js')
+    ]);
+    window.THREE=core;
+    window.DANBO_THREE_ADDONS={
+      EffectComposer:modules[0].EffectComposer,
+      RenderPass:modules[1].RenderPass,
+      GTAOPass:modules[2].GTAOPass,
+      UnrealBloomPass:modules[3].UnrealBloomPass,
+      OutputPass:modules[4].OutputPass,
+      ShaderPass:modules[5].ShaderPass,
+      SMAAPass:modules[6].SMAAPass,
+      HDRLoader:modules[7].HDRLoader
+    };
+    Object.assign(window,window.DANBO_THREE_ADDONS);
+    if(String(core.REVISION)!=='180')throw new Error('Unexpected Three.js revision '+core.REVISION);
+    setEngineLoading('loading',30);
+    loadManifestThenGame();
   }
   setEngineLoading('loading',4);
-  loadThree(0);
+  loadThree180().catch(function(err){
+    console.error('Failed to load Three.js r180 modules',err);
+    setStartText('loadFail');
+  });
 })();
 </script>
 </body>

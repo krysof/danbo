@@ -10,7 +10,14 @@ Assets used:
 - `rectangular_paving` — https://polyhaven.com/a/rectangular_paving
 - `marble_01` — https://polyhaven.com/a/marble_01
 
-For each asset, the game includes the 1K JPG diffuse, OpenGL normal, and roughness maps. The
-`*_arm.jpg` files are locally packed glTF-style ORM textures: red = AO, green = roughness,
-blue = metalness. Files are kept locally so the game does not depend on Poly Haven's API or
-CDN at runtime.
+For each asset, the game includes the 1K JPG diffuse, OpenGL normal, and roughness maps. Files are kept locally so the game does not depend on Poly Haven's API or CDN at runtime.
+
+The generated `*_arm.jpg` files use the glTF ORM channel convention expected by
+Three.js materials:
+
+- R: ambient occlusion
+- G: roughness
+- B: metalness
+
+Current world-scale UV references are 3.0 m for wall plaster, 2.0 m for roof and
+trim, 2.2 m for paving, and 2.07 m for grass/ground.

@@ -88,6 +88,18 @@
         if(layout.buildingSet&&registry.defaults[layout.buildingSet])return registry.defaults[layout.buildingSet];
         return null;
     };
+    registry.getSpecialObjects=function(id){
+        var layout=registry.getLayout(id);
+        return Array.isArray(layout.specialObjects)?layout.specialObjects:[];
+    };
+    registry.getSpecialObject=function(id,typeOrId){
+        var list=registry.getSpecialObjects(id);
+        for(var i=0;i<list.length;i++){
+            var item=list[i];
+            if(item&&(item.id===typeOrId||item.type===typeOrId))return item;
+        }
+        return null;
+    };
     registry.getWarpPipes=function(){return registry.defaults.warpPipes||null;};
 
     global.DANBO_CITY_REGISTRY=registry;

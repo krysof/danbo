@@ -117,7 +117,7 @@ function _setViewMode(mode){
     _viewMode=((mode%3)+3)%3;
     _tpsCamMode=_viewMode===1;
     if(_viewMode===1&&playerEgg){_tpsCamYaw=playerEgg.mesh.rotation.y+Math.PI;_tpsCamPitch=0.2;}
-    if(_viewMode!==2&&camera&&camera.fov!==45){camera.fov=45;camera.updateProjectionMatrix();}
+    if(_viewMode!==2&&camera&&camera.fov!==58){camera.fov=58;camera.updateProjectionMatrix();}
     _updateViewModeUI();
 }
 function _cycleViewMode(){
@@ -228,7 +228,7 @@ function updateCamera(){
             }
         }
         // Pinch zoom = FOV/distance zoom (not height)
-        camera.fov=45*Math.max(0.3,Math.min(3,_cameraZoom));
+        camera.fov=58*Math.max(0.3,Math.min(3,_cameraZoom));
         camera.updateProjectionMatrix();
         camera.position.set(_specCamX,_specCamY,_specCamZ);
         var _lookDist=100;
@@ -263,7 +263,7 @@ function updateCamera(){
     }
     // Third-person (RE5 style) camera — over-the-shoulder
     if(_tpsCamMode){
-        if(camera.fov!==45){camera.fov=45;camera.updateProjectionMatrix();}
+        if(camera.fov!==58){camera.fov=58;camera.updateProjectionMatrix();}
         _tpsCamDist=Math.max(2,Math.min(15,_tpsCamDist));
         // TPS: grab button adjusts camera angle manually
         var _tpsManual=false;
@@ -352,15 +352,9 @@ function updateCamera(){
         _sunGlow.position.copy(_sunMesh.position);
         return;
     }
-    // Normal exploration camera. It keeps the fixed, readable control direction of the
-    // original view, but frames the hero against the skyline instead of looking almost
-    // straight down at the floor. Portrait phones retain a little more height for playability.
-    var _normalFov=58;
-    if(camera.fov!==_normalFov){camera.fov=_normalFov;camera.updateProjectionMatrix();}
-    var _portraitCam=innerHeight>innerWidth;
-    var _normalYOffset=CAMERA_CONFIG.yOffset*(_portraitCam?1.45:1.0);
-    var _normalZOffset=CAMERA_CONFIG.zOffset*(_portraitCam?1.22:1.0);
-    var tx=p.x, ty=p.y+_normalYOffset*_cameraZoom, tz=p.z+_normalZOffset*_cameraZoom;
+    // Normal flat camera (used for all cities including moon)
+    if(camera.fov!==58){camera.fov=58;camera.updateProjectionMatrix();}
+    var tx=p.x, ty=p.y+CAMERA_CONFIG.yOffset*_cameraZoom, tz=p.z+CAMERA_CONFIG.zOffset*_cameraZoom;
     camera.position.x+=(tx-camera.position.x)*CAMERA_CONFIG.followSmooth;
     camera.position.y+=(ty-camera.position.y)*CAMERA_CONFIG.followSmooth;
     camera.position.z+=(tz-camera.position.z)*CAMERA_CONFIG.followSmooth;
@@ -374,8 +368,7 @@ function updateCamera(){
         camera.position.z+=(Math.random()-0.5)*shakeAmt*CAMERA_CONFIG.shakeMultZ;
         _earthquakeTimer--;
     }
-    var _lookAhead=(_portraitCam?3.2:6.8)*Math.max(0.72,Math.min(1.25,_cameraZoom));
-    camera.lookAt(p.x,p.y+0.82,p.z-_lookAhead);
+    camera.lookAt(p.x, p.y+0.3, p.z-4);
     sun.position.set(p.x+RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,p.z+RENDER_CONFIG.sunPos.z);
     sun.target.position.set(p.x,0,p.z);
     // Show spectator button on moon

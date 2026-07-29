@@ -635,11 +635,7 @@ function buildObs(seg,ri,sm){
     if(seg.type==='coins') for(let i=0;i<(seg.count||10);i++){
         const oz=seg.startZ+(i+0.5)*len/(seg.count||10);
         const ox=(Math.sin(i*1.7))*hw*0.5;
-        const coinG=new THREE.Group();
-        const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.4}));
-        disc.rotation.x=Math.PI/2; coinG.add(disc);
-        const rim=new THREE.Mesh(new THREE.TorusGeometry(0.35,0.06,6,16),toon(0xFFCC00));
-        coinG.add(rim);
+        const coinG=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(1.04):new THREE.Group();
         coinG.position.set(ox,fy+1.2,-oz);
         raceGroup.add(coinG);
         raceCoins.push({mesh:coinG,z:oz,x:ox,fy:fy,collected:false,bobPhase:i*0.5});
@@ -781,4 +777,3 @@ function buildObs(seg,ri,sm){
         }
     }
 }
-

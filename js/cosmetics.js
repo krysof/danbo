@@ -320,7 +320,7 @@ function _toast(text,color){
 }
 
 // ============================================================
-//  蛋堡城杂货铺：红房子(外观) + 门口进入 + 老板在店内
+//  蛋堡城杂货铺：可爱圆润的电影感店面 + 门口进入 + 老板在店内
 // ============================================================
 var _shopNPC=null,_shopDoorPos={x:8,z:-5.5};
 function _cosIsTouchLike(){
@@ -341,34 +341,108 @@ function _layoutShopButton(){
 }
 function _ensureShopNPC(){
     if(_shopNPC)return;
-    var g=new THREE.Group();
+    var g=new THREE.Group();g.name='hope-city-cute-grocery-store';
     var HX=8, HZ=-8, H=2.5, WH=4; // house centre + half-size + wall height
-    var wallMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('facade',0xCC4A48,{roughness:0.78}):toon(0xCC4A48);
-    var trimMat=typeof softPBR==='function'?softPBR(0xF2E8D8,{roughness:0.42,envMapIntensity:0.32}):toon(0xF2E8D8);
-    var roofMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('roof',0x8E2B2B,{roughness:0.56}):toon(0x8E2B2B);
-    var doorMat=typeof softPBR==='function'?softPBR(0x5A3A28,{roughness:0.78}):toon(0x5A3A28);
+    var low=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
+    var rounded=typeof _visualRoundedBoxGeometry==='function';
+    function box(w,h,d,r){return rounded?_visualRoundedBoxGeometry(w,h,d,r||0.10):new THREE.BoxGeometry(w,h,d);}
+    function add(geo,mat,x,y,z,name){
+        var mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);mesh.name=name||'shop-detail';g.add(mesh);return mesh;
+    }
+    var wallMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('facade',0xE9927E,{roughness:0.86,bumpScale:0.035,envMapIntensity:0.20}):toon(0xE9927E);
+    var wallLight=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('facade',0xF6B49A,{roughness:0.88,bumpScale:0.025,envMapIntensity:0.18}):toon(0xF6B49A);
+    var trimMat=typeof softPBR==='function'?softPBR(0xFFF0D1,{roughness:0.62,metalness:0,clearcoat:low?0:0.08,envMapIntensity:0.30}):toon(0xFFF0D1);
+    var trimPink=typeof softPBR==='function'?softPBR(0xD75D77,{roughness:0.54,metalness:0,clearcoat:low?0:0.14,clearcoatRoughness:0.46}):toon(0xD75D77);
+    var roofMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('roof',0xB84E68,{roughness:0.62,bumpScale:0.12,envMapIntensity:0.26}):toon(0xB84E68);
+    var roofAccent=typeof softPBR==='function'?softPBR(0xE98591,{roughness:0.48,clearcoat:low?0:0.10,clearcoatRoughness:0.48}):toon(0xE98591);
+    var doorMat=typeof softPBR==='function'?softPBR(0x79513F,{roughness:0.72,clearcoat:low?0:0.08,clearcoatRoughness:0.60}):toon(0x79513F);
+    var stoneMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xCDBDA9,{roughness:0.92,bumpScale:0.055,envMapIntensity:0.14}):toon(0xCDBDA9);
+    var woodMat=typeof softPBR==='function'?softPBR(0x9B6045,{roughness:0.76,metalness:0}):toon(0x9B6045);
+    var goldMat=typeof softPBR==='function'?softPBR(0xE9B64A,{roughness:0.31,metalness:0.18,clearcoat:low?0:0.20,clearcoatRoughness:0.28}):toon(0xE9B64A);
+    // Warm mineral-plaster walls retain the existing footprint and doorway trigger.
     var back=new THREE.Mesh(new THREE.BoxGeometry(H*2+0.4,WH,0.4),wallMat);back.position.set(HX,WH/2,HZ-H);g.add(back);
     var left=new THREE.Mesh(new THREE.BoxGeometry(0.4,WH,H*2+0.4),wallMat);left.position.set(HX-H,WH/2,HZ);g.add(left);
     var right=new THREE.Mesh(new THREE.BoxGeometry(0.4,WH,H*2+0.4),wallMat);right.position.set(HX+H,WH/2,HZ);g.add(right);
-    var fL=new THREE.Mesh(new THREE.BoxGeometry(H-0.6,WH,0.4),wallMat);fL.position.set(HX-(H/2+0.3),WH/2,HZ+H);g.add(fL);
-    var fR=new THREE.Mesh(new THREE.BoxGeometry(H-0.6,WH,0.4),wallMat);fR.position.set(HX+(H/2+0.3),WH/2,HZ+H);g.add(fR);
-    var fTop=new THREE.Mesh(new THREE.BoxGeometry(1.4,WH-2.4,0.4),wallMat);fTop.position.set(HX,WH-(WH-2.4)/2,HZ+H);g.add(fTop);
-    var door=new THREE.Mesh(new THREE.BoxGeometry(1.3,2.4,0.2),doorMat);door.position.set(HX,1.2,HZ+H+0.05);g.add(door);
-    var _shopGlass=typeof softPBR==='function'?softPBR(0x3F8DAA,{pastelAmount:0.02,roughness:0.07,metalness:0.08,clearcoat:0.94,clearcoatRoughness:0.07,envMapIntensity:1.0}):toon(0xBFE8FF);
+    var fL=new THREE.Mesh(box(H-0.6,WH,0.4,0.14),wallLight);fL.position.set(HX-(H/2+0.3),WH/2,HZ+H);g.add(fL);
+    var fR=new THREE.Mesh(box(H-0.6,WH,0.4,0.14),wallLight);fR.position.set(HX+(H/2+0.3),WH/2,HZ+H);g.add(fR);
+    var fTop=new THREE.Mesh(box(1.4,WH-2.4,0.4,0.12),wallLight);fTop.position.set(HX,WH-(WH-2.4)/2,HZ+H);g.add(fTop);
+    // Soft stone plinth, attached corner stones and a properly framed rounded door
+    // remove the old toy-box silhouette without changing collision/gameplay.
+    add(box(5.35,0.40,5.34,0.16),stoneMat,HX,0.20,HZ,'shop-stone-plinth');
+    [-1,1].forEach(function(side){
+        add(box(0.34,3.60,0.52,0.10),trimMat,HX+side*2.43,1.88,HZ+H+0.12,'shop-corner-trim');
+    });
+    add(box(1.72,2.82,0.22,0.28),trimMat,HX,1.43,HZ+H+0.20,'shop-door-frame');
+    var door=add(box(1.34,2.48,0.18,0.22),doorMat,HX,1.25,HZ+H+0.34,'shop-door');
+    add(new THREE.SphereGeometry(0.085,low?8:14,low?6:10),goldMat,HX+0.42,1.20,HZ+H+0.47,'shop-door-knob');
+    add(box(1.08,0.46,0.10,0.12),typeof softPBR==='function'?softPBR(0xFFD98C,{roughness:0.22,emissive:0xFFB867,emissiveIntensity:0.15}):toon(0xFFD98C),HX,2.02,HZ+H+0.47,'shop-door-window');
+    var _shopGlass=typeof softPBR==='function'?softPBR(0x86CEE0,{pastelAmount:0.04,roughness:0.12,metalness:0.02,clearcoat:low?0.35:0.78,clearcoatRoughness:0.11,envMapIntensity:0.82,emissive:0x5CA6B8,emissiveIntensity:0.08}):toon(0xBFE8FF);
     [-1.5,1.5].forEach(function(wx){
-        var wf=new THREE.Mesh(typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(1.10,1.10,0.12,0.18):new THREE.BoxGeometry(1.10,1.10,0.12),trimMat);wf.position.set(HX+wx,2.3,HZ+H+0.18);g.add(wf);
-        var win=new THREE.Mesh(typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(0.78,0.78,0.08,0.12):new THREE.BoxGeometry(0.78,0.78,0.08),_shopGlass);win.position.set(HX+wx,2.3,HZ+H+0.28);g.add(win);
+        add(box(1.34,1.46,0.16,0.25),trimMat,HX+wx,2.16,HZ+H+0.22,'shop-window-frame');
+        add(box(0.98,1.10,0.09,0.18),_shopGlass,HX+wx,2.16,HZ+H+0.34,'shop-window-glass');
+        add(box(0.08,1.00,0.06,0.03),trimMat,HX+wx,2.16,HZ+H+0.42,'shop-window-mullion');
+        add(box(0.90,0.07,0.06,0.03),trimMat,HX+wx,2.16,HZ+H+0.42,'shop-window-mullion');
+        var planter=add(box(1.22,0.25,0.40,0.09),woodMat,HX+wx,1.44,HZ+H+0.52,'shop-flower-box');
+        if(!low){
+            [-0.34,0,0.34].forEach(function(offset,fi){
+                var leaf=add(new THREE.SphereGeometry(0.15,10,7),typeof softPBR==='function'?softPBR(fi===1?0x70A45A:0x568D54,{roughness:0.83}):toon(0x568D54),HX+wx+offset,1.67,HZ+H+0.51,'shop-planter-leaf');
+                leaf.scale.set(1.05,0.78,0.88);
+                add(new THREE.SphereGeometry(0.09,10,7),typeof softPBR==='function'?softPBR(fi===1?0xFFD066:0xFF86A1,{roughness:0.48}):toon(0xFF86A1),HX+wx+offset,1.82+(fi%2)*0.04,HZ+H+0.56,'shop-planter-flower');
+            });
+        }
+    });
+    // Side windows continue the storefront language around the volume, so the
+    // building does not turn back into a plain box when seen from the plaza.
+    [-1,1].forEach(function(side){
+        [-1.18,1.18].forEach(function(wz){
+            add(box(0.16,1.30,1.30,0.22),trimMat,HX+side*(H+0.22),2.18,HZ+wz,'shop-side-window-frame');
+            add(box(0.09,0.96,0.96,0.16),_shopGlass,HX+side*(H+0.33),2.18,HZ+wz,'shop-side-window-glass');
+            add(box(0.06,0.08,0.88,0.025),trimMat,HX+side*(H+0.40),2.18,HZ+wz,'shop-side-window-mullion');
+        });
     });
     var roof=new THREE.Mesh(typeof _visualGableRoofGeometry==='function'?_visualGableRoofGeometry(H*2+1.15,H*2+1.15,2.0):new THREE.ConeGeometry(H*1.7,2.0,4),roofMat);roof.position.set(HX,WH,HZ);roof.castShadow=true;g.add(roof);
-    if(typeof _visualGableRoofGeometry==='function'){var _shopRidge=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,H*2+1.28,12),trimMat);_shopRidge.position.set(HX,WH+2.04,HZ);_shopRidge.rotation.x=Math.PI/2;g.add(_shopRidge);}
-    // door sign 【蛋堡城杂货铺】
-    var sc=document.createElement('canvas');sc.width=320;sc.height=96;var sgx=sc.getContext('2d');
-    sgx.fillStyle='#7A3B1E';sgx.fillRect(0,0,320,96);sgx.fillStyle='#F6E3C0';sgx.fillRect(6,6,308,84);
-    sgx.fillStyle='#7A3B1E';sgx.font='bold 40px system-ui,Segoe UI,sans-serif';sgx.textAlign='center';sgx.textBaseline='middle';
-    sgx.fillText('\u86CB\u5821\u57CE\u6742\u8D27\u94FA',160,50);
-    var signMat=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(sc),transparent:true,side:THREE.DoubleSide});
-    var sign=new THREE.Mesh(new THREE.PlaneGeometry(3.0,0.9),signMat);sign.position.set(HX,3.15,HZ+H+0.25);g.add(sign);
-    var signBoard=new THREE.Mesh(new THREE.BoxGeometry(3.2,1.05,0.12),trimMat);signBoard.position.set(HX,3.15,HZ+H+0.18);g.add(signBoard);
+    if(typeof _visualGableRoofGeometry==='function'){
+        var _shopRidge=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,H*2+1.28,low?8:16),trimMat);_shopRidge.position.set(HX,WH+2.04,HZ);_shopRidge.rotation.x=Math.PI/2;g.add(_shopRidge);
+    }
+    // Scalloped striped awning brings the storefront forward and shades the face.
+    var awningY=3.12,awningZ=HZ+H+0.62;
+    add(box(4.58,0.18,0.82,0.09),trimMat,HX,awningY,awningZ-0.12,'shop-awning-frame');
+    var stripeCount=low?5:9;
+    for(var ai=0;ai<stripeCount;ai++){
+        var aw=add(box(4.42/stripeCount+0.02,0.24,0.88,0.08),ai%2?trimMat:trimPink,HX-2.21+(ai+0.5)*4.42/stripeCount,awningY+0.10,awningZ,'shop-awning-stripe');
+        aw.rotation.x=-0.12;
+        var scallop=add(new THREE.SphereGeometry(0.16,low?8:12,low?6:8),ai%2?trimMat:trimPink,aw.position.x,awningY-0.05,awningZ+0.42,'shop-awning-scallop');
+        scallop.scale.set(1.30,0.62,0.74);
+    }
+    // door sign 【蛋堡城杂货铺】 — warm, rounded and readable without a flat 2D slab.
+    var sc=document.createElement('canvas');sc.width=640;sc.height=180;var sgx=sc.getContext('2d');
+    var bg=sgx.createLinearGradient(0,0,0,180);bg.addColorStop(0,'#FFF7DE');bg.addColorStop(1,'#FFE6B8');
+    sgx.fillStyle=bg;sgx.beginPath();sgx.moveTo(54,12);sgx.lineTo(586,12);sgx.quadraticCurveTo(628,12,628,54);
+    sgx.lineTo(628,126);sgx.quadraticCurveTo(628,168,586,168);sgx.lineTo(54,168);sgx.quadraticCurveTo(12,168,12,126);
+    sgx.lineTo(12,54);sgx.quadraticCurveTo(12,12,54,12);sgx.closePath();sgx.fill();
+    sgx.lineWidth=10;sgx.strokeStyle='#C85C71';sgx.stroke();
+    sgx.fillStyle='#EFB54F';sgx.beginPath();sgx.ellipse(72,90,25,33,0,0,Math.PI*2);sgx.fill();
+    sgx.fillStyle='#FFF9E9';sgx.beginPath();sgx.ellipse(72,83,12,15,0,0,Math.PI*2);sgx.fill();
+    sgx.fillStyle='#8D4D41';sgx.font='800 65px system-ui,Segoe UI,sans-serif';sgx.textAlign='center';sgx.textBaseline='middle';
+    sgx.fillText('\u86CB\u5821\u57CE\u6742\u8D27\u94FA',355,92);
+    var signTexture=new THREE.CanvasTexture(sc);if(THREE.SRGBColorSpace!==undefined)signTexture.colorSpace=THREE.SRGBColorSpace;
+    if(typeof R!=='undefined'&&R.capabilities&&R.capabilities.getMaxAnisotropy)signTexture.anisotropy=Math.min(4,R.capabilities.getMaxAnisotropy());
+    var signMat=new THREE.MeshBasicMaterial({map:signTexture,transparent:true,side:THREE.DoubleSide,toneMapped:false});
+    add(box(3.72,1.10,0.18,0.25),woodMat,HX,3.82,HZ+H+0.28,'shop-sign-board');
+    add(new THREE.PlaneGeometry(3.52,0.99),signMat,HX,3.82,HZ+H+0.39,'shop-sign-face');
+    // Chimney, egg finial and small side emblem provide a friendly asymmetrical skyline.
+    var chimney=add(box(0.48,1.18,0.52,0.10),wallLight,HX+1.55,5.10,HZ-0.75,'shop-chimney');
+    add(box(0.64,0.18,0.68,0.07),trimMat,HX+1.55,5.72,HZ-0.75,'shop-chimney-cap');
+    var finial=add(new THREE.SphereGeometry(0.25,low?10:18,low?8:12),goldMat,HX,6.13,HZ,'shop-egg-finial');finial.scale.set(0.84,1.18,0.84);
+    if(!low){
+        var sideSign=add(new THREE.CylinderGeometry(0.52,0.52,0.16,24),trimMat,HX-2.88,3.42,HZ+H+0.18,'shop-round-emblem');sideSign.rotation.x=Math.PI/2;
+        var sideEgg=add(new THREE.SphereGeometry(0.28,16,12),goldMat,HX-2.88,3.42,HZ+H+0.30,'shop-round-emblem-egg');sideEgg.scale.set(0.82,1.10,0.40);
+        add(new THREE.CylinderGeometry(0.055,0.055,0.78,10),woodMat,HX-2.66,3.42,HZ+H+0.02,'shop-sign-bracket').rotation.z=Math.PI/2;
+    }
+    // Rounded doorstep and two welcoming path stones sit on the actual entrance axis.
+    add(box(1.72,0.18,0.72,0.14),stoneMat,HX,0.10,HZ+H+0.58,'shop-doorstep');
+    add(new THREE.CylinderGeometry(0.72,0.78,0.12,low?14:24),stoneMat,HX,0.07,HZ+H+1.18,'shop-path-stone');
+    g.traverse(function(item){if(item.isMesh){item.castShadow=true;item.receiveShadow=true;}});
     g.visible=false;scene.add(g);_shopNPC=g;
 }
 // elderly egg shopkeeper (蛋堡老板) — built fresh INSIDE the shop, faces +z

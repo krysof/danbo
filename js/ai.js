@@ -219,9 +219,7 @@ function updateObstacles(){
                         if(ob.mesh.children[2])ob.mesh.children[2].visible=false;
                         // Spawn 3 coin meshes
                         for(var _sci=0;_sci<3;_sci++){
-                            var _scG=new THREE.Group();
-                            var _scDisc=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.06,8),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.5}));
-                            _scDisc.rotation.x=Math.PI/2; _scG.add(_scDisc);
+                            var _scG=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.82):new THREE.Group();
                             _scG.position.set(ob.mesh.position.x,ob.data.baseY+1,ob.mesh.position.z);
                             raceGroup.add(_scG);
                             var _scAngle=(_sci/3)*Math.PI*2+Math.random()*0.5;
@@ -316,12 +314,9 @@ function updateCityNPC(egg){if(egg.heldBy)return;
                     });
                 }
                 // Add visible coin mesh inside NPC body
-                var sCoin=new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.4,0.4,0.08,10),
-                    new THREE.MeshBasicMaterial({color:0xFFDD00})
-                );
+                var sCoin=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.88):
+                    new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.08,10),new THREE.MeshBasicMaterial({color:0xFFDD00}));
                 var sIdx=egg._stolenCoinMeshes.length;
-                sCoin.rotation.x=Math.PI/2;
                 sCoin.position.set(0.35*(sIdx-1),0.3+sIdx*0.4,0);
                 egg.mesh.add(sCoin);
                 egg._stolenCoinMeshes.push(sCoin);

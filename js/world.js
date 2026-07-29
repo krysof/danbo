@@ -16,6 +16,16 @@ const RACES = [
     {name:'\u2601\ufe0f \u4e91\u7aef\u5929\u5802', desc:'\u7a7a\u4e2d\u5e73\u53f0\u4e0e\u5f39\u7c27\uff01', x:20, z:-35, color:0x88CCFF},
     {name:'🏰 \u5e93\u5df4\u57ce\u5821', desc:'\u6700\u7ec8\u5173\u5361\uff01\u5168\u969c\u788d\uff01', x:35, z:-20, color:0x884422}
 ];
+// Keep the rebuilt race entrances on the open inner boulevard.  The previous
+// 40-unit ring intersected eight of the new city buildings, hiding the portals.
+var _racePortalPositions=[
+    [50,0],[44,25],[25,44],[0,50],[-25,44],[-44,25],
+    [-50,0],[-44,-25],[-25,-44],[0,-50],[25,-44],[44,-25]
+];
+for(var _rpp=0;_rpp<RACES.length&&_rpp<_racePortalPositions.length;_rpp++){
+    RACES[_rpp].x=_racePortalPositions[_rpp][0];
+    RACES[_rpp].z=_racePortalPositions[_rpp][1];
+}
 // Apply localized race names/descs
 for(var _ri=0;_ri<RACES.length;_ri++){RACES[_ri].name=I18N.raceNames[_langCode][_ri]||RACES[_ri].name;RACES[_ri].desc=I18N.raceDescs[_langCode][_ri]||RACES[_ri].desc;}
 
@@ -27,21 +37,235 @@ function _danboPortalLocale(value){
 
 function _danboMakePortalSign(group,text,color,pos,scale){
     if(!group||typeof THREE==='undefined')return null;
-    var canvas=document.createElement('canvas');canvas.width=512;canvas.height=64;
+    var canvas=document.createElement('canvas');canvas.width=512;canvas.height=112;
     var ctx=canvas.getContext('2d');
-    ctx.fillStyle='rgba(0,0,0,0.72)';ctx.fillRect(0,0,512,64);
-    ctx.fillStyle='#'+('000000'+((color||0xFFD700)&0xffffff).toString(16)).slice(-6);
+    var accent='#'+('000000'+((color||0xFFD700)&0xffffff).toString(16)).slice(-6);
+    function roundedRect(x,y,w,h,r){
+        ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+        ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+        ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+        ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+    }
+    ctx.shadowColor='rgba(5,10,24,.58)';ctx.shadowBlur=18;ctx.shadowOffsetY=7;
+    var bg=ctx.createLinearGradient(0,14,0,98);
+    bg.addColorStop(0,'rgba(31,42,65,.94)');bg.addColorStop(1,'rgba(11,18,34,.92)');
+    roundedRect(14,12,484,86,25);ctx.fillStyle=bg;ctx.fill();
+    ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.lineWidth=4;ctx.strokeStyle=accent;ctx.stroke();
+    var shine=ctx.createLinearGradient(38,0,474,0);
+    shine.addColorStop(0,'rgba(255,255,255,0)');shine.addColorStop(.5,'rgba(255,255,255,.24)');shine.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=shine;roundedRect(42,22,428,4,2);ctx.fill();
+    ctx.fillStyle='#F8FBFF';
     ctx.textAlign='center';
-    var fs=28;ctx.font='bold '+fs+'px sans-serif';
-    while(ctx.measureText(text||'').width>480&&fs>12){fs-=2;ctx.font='bold '+fs+'px sans-serif';}
-    ctx.fillText(text||'',256,42);
+    var fs=31;ctx.font='800 '+fs+'px sans-serif';
+    while(ctx.measureText(text||'').width>438&&fs>15){fs-=2;ctx.font='800 '+fs+'px sans-serif';}
+    ctx.shadowColor='rgba(0,0,0,.72)';ctx.shadowBlur=5;ctx.fillText(text||'',256,69);
+    ctx.shadowBlur=0;ctx.fillStyle=accent;roundedRect(206,82,100,5,3);ctx.fill();
     var tex=new THREE.CanvasTexture(canvas);
+    if(THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
     var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
-    scale=scale||{x:6,y:0.8,z:1};pos=pos||{x:0,y:5,z:0};
-    sign.scale.set(scale.x||6,scale.y||0.8,scale.z||1);
-    sign.position.set(pos.x||0,pos.y||5,pos.z||0);
+    scale=scale||{x:5.4,y:1.18,z:1};pos=pos||{x:0,y:5.55,z:0};
+    sign.scale.set(scale.x||5.4,scale.y||1.18,scale.z||1);
+    sign.position.set(pos.x||0,pos.y||5.55,pos.z||0);
+    sign.material.depthWrite=false;
     group.add(sign);
     return sign;
+}
+
+function _danboPortalTheme(index,fallback){
+    var themes=[
+        ['arcane',0xFF526A,0xFFB15E,0xFFF4C2,0xA92C55,0xE7D6C9],
+        ['storm',0xFF8C3A,0xFFD75D,0xFFF8D5,0xA94B26,0xE8D4BF],
+        ['arcane',0x9368FF,0xE48BFF,0xF8EEFF,0x5940A8,0xDCD4EA],
+        ['royal',0xFFD34F,0xFFF0A8,0xFFFBE0,0x9A6B1F,0xE8DDC3],
+        ['nature',0x54D66D,0xB8F26D,0xF2FFD0,0x267A47,0xD8DDC5],
+        ['fire',0xFF4828,0xFFB82E,0xFFF1A3,0x7A2630,0xE3C7AF],
+        ['ice',0x4DCFFF,0xA7F3FF,0xF4FFFF,0x3976B6,0xD7E5EA],
+        ['sky',0xFF78D8,0x78D9FF,0xFFF5FF,0x805AA8,0xE4D7E8],
+        ['nature',0x5BCB68,0xFFD85A,0xF5FFD7,0x38753E,0xDCD7BD],
+        ['fire',0xE93F25,0xFF8A28,0xFFE79A,0x64272B,0xD9BCA7],
+        ['sky',0x78CFFF,0xD3F5FF,0xFFFFFF,0x547FB0,0xE1E6E7],
+        ['royal',0x9C6B4D,0xE6A857,0xFFF1C4,0x553A46,0xD2C3B8]
+    ];
+    var p=themes[index%themes.length]||['arcane',fallback||0xAA66FF,0x66CCFF,0xFFFFFF,fallback||0x7755AA,0xD8D2CC];
+    return {kind:p[0],a:p[1],b:p[2],core:p[3],rim:p[4],stone:p[5]};
+}
+
+function _danboPortalTexture(kind){
+    if(!window._danboPortalTextures)window._danboPortalTextures={};
+    if(window._danboPortalTextures[kind])return window._danboPortalTextures[kind];
+    var c=document.createElement('canvas');c.width=kind==='flame'?64:96;c.height=kind==='flame'?112:96;
+    var x=c.getContext('2d');
+    if(kind==='flame'){
+        var fg=x.createRadialGradient(32,82,2,32,65,42);
+        fg.addColorStop(0,'rgba(255,255,225,1)');fg.addColorStop(.20,'rgba(255,221,80,.98)');
+        fg.addColorStop(.52,'rgba(255,88,24,.78)');fg.addColorStop(1,'rgba(155,10,28,0)');
+        x.fillStyle=fg;x.beginPath();x.moveTo(32,3);x.bezierCurveTo(50,31,60,54,49,85);
+        x.bezierCurveTo(42,106,17,108,10,84);x.bezierCurveTo(2,58,24,42,32,3);x.fill();
+    }else{
+        var g=x.createRadialGradient(48,48,2,48,48,47);
+        g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.16,'rgba(255,255,255,.88)');
+        g.addColorStop(.48,'rgba(255,255,255,.30)');g.addColorStop(1,'rgba(255,255,255,0)');
+        x.fillStyle=g;x.fillRect(0,0,96,96);
+    }
+    var tex=new THREE.CanvasTexture(c);
+    if(THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
+    window._danboPortalTextures[kind]=tex;return tex;
+}
+
+function _danboPortalGeometry(){
+    if(!window._danboPortalGeometryCache)window._danboPortalGeometryCache={};
+    var low=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low),key=low?'low':'full';
+    if(window._danboPortalGeometryCache[key])return window._danboPortalGeometryCache[key];
+    var radial=low?7:12,tubular=low?28:56,sides=low?16:32;
+    var geo={
+        arch:new THREE.TorusGeometry(PORTAL_CONFIG.ringRadius,0.36,radial,tubular),
+        outer:new THREE.TorusGeometry(2.39,0.10,low?6:8,tubular),
+        energy:new THREE.TorusGeometry(1.72,0.075,low?6:8,tubular),
+        surface:new THREE.CircleGeometry(1.69,low?28:64),
+        base1:new THREE.CylinderGeometry(2.72,2.96,0.28,sides),
+        base2:new THREE.CylinderGeometry(2.42,2.66,0.28,sides),
+        halo:new THREE.CircleGeometry(2.52,low?28:56),
+        support:new THREE.CylinderGeometry(0.34,0.43,2.0,low?10:18),
+        supportCap:new THREE.SphereGeometry(0.43,low?10:18,low?7:12),
+        rune:new THREE.OctahedronGeometry(0.13,0),
+        crystal:new THREE.ConeGeometry(0.18,0.92,5)
+    };
+    window._danboPortalGeometryCache[key]=geo;return geo;
+}
+
+function _danboPortalVortexTexture(theme){
+    if(!window._danboPortalVortexTextures)window._danboPortalVortexTextures={};
+    var key=theme.kind+'-'+theme.a+'-'+theme.b;
+    if(window._danboPortalVortexTextures[key])return window._danboPortalVortexTextures[key];
+    var c=document.createElement('canvas'),size=256;c.width=c.height=size;
+    var x=c.getContext('2d'),ca=new THREE.Color(theme.a),cb=new THREE.Color(theme.b),cc=new THREE.Color(theme.core);
+    function rgb(col,a){return 'rgba('+Math.round(col.r*255)+','+Math.round(col.g*255)+','+Math.round(col.b*255)+','+a+')';}
+    x.clearRect(0,0,size,size);
+    var bg=x.createRadialGradient(128,128,8,128,128,127);
+    bg.addColorStop(0,rgb(cc,0.96));bg.addColorStop(0.22,rgb(ca,0.96));
+    bg.addColorStop(0.70,rgb(ca,0.92));bg.addColorStop(1,rgb(ca,0.74));
+    x.fillStyle=bg;x.beginPath();x.arc(128,128,127,0,Math.PI*2);x.fill();
+    x.save();x.globalCompositeOperation='lighter';x.lineCap='round';
+    for(var arm=0;arm<5;arm++){
+        x.beginPath();
+        for(var s=0;s<=92;s++){
+            var n=s/92,r=10+n*112,a=arm*Math.PI*2/5+n*4.55;
+            var px=128+Math.cos(a)*r,py=128+Math.sin(a)*r;
+            if(s===0)x.moveTo(px,py);else x.lineTo(px,py);
+        }
+        x.strokeStyle=rgb(cb,0.34);x.lineWidth=24;x.stroke();
+        x.strokeStyle=rgb(cc,0.68);x.lineWidth=7;x.stroke();
+    }
+    x.globalCompositeOperation='source-over';
+    var core=x.createRadialGradient(128,128,0,128,128,53);
+    core.addColorStop(0,rgb(cc,0.96));core.addColorStop(0.28,rgb(cb,0.34));core.addColorStop(1,rgb(cb,0));
+    x.fillStyle=core;x.beginPath();x.arc(128,128,54,0,Math.PI*2);x.fill();
+    var shade=x.createRadialGradient(128,128,84,128,128,128);
+    shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(16,10,28,.38)');
+    x.fillStyle=shade;x.beginPath();x.arc(128,128,127,0,Math.PI*2);x.fill();x.restore();
+    var tex=new THREE.CanvasTexture(c);
+    if(THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
+    tex.minFilter=THREE.LinearMipmapLinearFilter;tex.magFilter=THREE.LinearFilter;
+    if(typeof R!=='undefined'&&R.capabilities&&R.capabilities.getMaxAnisotropy)tex.anisotropy=Math.min(4,R.capabilities.getMaxAnisotropy());
+    window._danboPortalVortexTextures[key]=tex;return tex;
+}
+
+function _danboPortalSurfaceMaterial(theme){
+    return new THREE.MeshBasicMaterial({
+        map:_danboPortalVortexTexture(theme),color:0xFFFFFF,transparent:true,opacity:0.98,
+        depthWrite:true,side:THREE.DoubleSide,blending:THREE.NormalBlending,toneMapped:false
+    });
+}
+
+function _danboBuildRacePortal(race,index){
+    var low=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
+    var high=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high);
+    var theme=_danboPortalTheme(index,race.color),geo=_danboPortalGeometry(),g=new THREE.Group();g.name='cinematic-themed-portal';
+    var archMat=softPBR(theme.stone,{roughness:0.56,metalness:0.03,clearcoat:low?0:0.12,clearcoatRoughness:0.48,envMapIntensity:0.48});
+    var rimMat=softPBR(theme.rim,{roughness:0.36,metalness:0.18,clearcoat:low?0:0.16,clearcoatRoughness:0.34,emissive:theme.a,emissiveIntensity:0.11});
+    var baseMat=softPBR(0xB5AA9C,{roughness:0.82,metalness:0.01,envMapIntensity:0.24});
+    var ring=new THREE.Mesh(geo.arch,rimMat);ring.position.y=PORTAL_CONFIG.baseHeight;ring.castShadow=true;ring.receiveShadow=true;g.add(ring);
+    var outer=new THREE.Mesh(geo.outer,archMat);outer.position.y=PORTAL_CONFIG.baseHeight;outer.castShadow=true;g.add(outer);
+    var energyMat=new THREE.MeshBasicMaterial({color:theme.b,transparent:true,opacity:0.76,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+    var energyRing=new THREE.Mesh(geo.energy,energyMat);energyRing.position.set(0,PORTAL_CONFIG.baseHeight,0.045);energyRing.renderOrder=49;g.add(energyRing);
+    var inner=new THREE.Mesh(geo.surface,_danboPortalSurfaceMaterial(theme));inner.position.set(0,PORTAL_CONFIG.baseHeight,0);inner.renderOrder=50;g.add(inner);
+    var base1=new THREE.Mesh(geo.base1,baseMat);base1.position.y=0.14;base1.receiveShadow=true;base1.castShadow=true;g.add(base1);
+    var base2=new THREE.Mesh(geo.base2,archMat);base2.position.y=0.41;base2.receiveShadow=true;base2.castShadow=true;g.add(base2);
+    var haloMat=new THREE.MeshBasicMaterial({color:theme.a,transparent:true,opacity:0.20,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false,side:THREE.DoubleSide});
+    var groundHalo=new THREE.Mesh(geo.halo,haloMat);groundHalo.rotation.x=-Math.PI/2;groundHalo.position.y=0.57;g.add(groundHalo);
+    var sm=new THREE.Matrix4(),supports=new THREE.InstancedMesh(geo.support,archMat,2);
+    sm.makeTranslation(-2.03,1.36,0);supports.setMatrixAt(0,sm);sm.makeTranslation(2.03,1.36,0);supports.setMatrixAt(1,sm);supports.castShadow=true;supports.receiveShadow=true;g.add(supports);
+    var caps=new THREE.InstancedMesh(geo.supportCap,rimMat,2);
+    sm.makeTranslation(-2.03,0.58,0);caps.setMatrixAt(0,sm);sm.makeTranslation(2.03,0.58,0);caps.setMatrixAt(1,sm);caps.castShadow=true;g.add(caps);
+    // A small egg crest and paired gem lanterns give the gate a friendly DANBO
+    // silhouette instead of reading as a bare neon doughnut.
+    var crestMat=softPBR(theme.core,{roughness:0.28,metalness:0.04,clearcoat:low?0:0.32,clearcoatRoughness:0.22,emissive:theme.b,emissiveIntensity:0.12});
+    var crest=new THREE.Mesh(new THREE.SphereGeometry(0.33,low?10:20,low?7:14),crestMat);
+    crest.position.set(0,5.04,0.02);crest.scale.set(0.84,1.15,0.72);crest.castShadow=true;g.add(crest);
+    var gemGeo=new THREE.OctahedronGeometry(0.19,low?0:1),gemMat=new THREE.MeshBasicMaterial({color:theme.core,transparent:true,opacity:0.82,toneMapped:false});
+    [-1,1].forEach(function(side){
+        var gem=new THREE.Mesh(gemGeo,gemMat);gem.position.set(side*2.04,1.68,0.18);gem.rotation.z=Math.PI/4;gem.renderOrder=52;g.add(gem);
+    });
+    var runeCount=low?6:10,runeMat=new THREE.MeshBasicMaterial({color:theme.core,transparent:true,opacity:0.78,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+    var runeRing=new THREE.Group(),runes=new THREE.InstancedMesh(geo.rune,runeMat,runeCount);
+    for(var ri=0;ri<runeCount;ri++){
+        var ra=Math.PI*2*ri/runeCount,rr=2.37;
+        sm.compose(new THREE.Vector3(Math.cos(ra)*rr,Math.sin(ra)*rr,0.08),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,ra)),new THREE.Vector3(1,1,1));
+        runes.setMatrixAt(ri,sm);
+    }
+    runes.renderOrder=52;runeRing.position.y=PORTAL_CONFIG.baseHeight;runeRing.add(runes);g.add(runeRing);
+    var pCount=low?8:(high?22:14),pos=new Float32Array(pCount*3),phases=new Float32Array(pCount),bands=new Float32Array(pCount);
+    for(var pi=0;pi<pCount;pi++){phases[pi]=Math.PI*2*pi/pCount;bands[pi]=(pi%5)/5;pos[pi*3+1]=PORTAL_CONFIG.baseHeight;}
+    var pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    var pm=new THREE.PointsMaterial({color:theme.core,size:theme.kind==='fire'?0.34:0.25,map:_danboPortalTexture('glow'),transparent:true,opacity:0.88,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true,toneMapped:false});
+    var particles=new THREE.Points(pg,pm);particles.renderOrder=51;g.add(particles);
+    var themed=[];
+    if(theme.kind==='fire'){
+        for(var fi=0;fi<(low?3:6);fi++){
+            var flameMat=new THREE.SpriteMaterial({map:_danboPortalTexture('flame'),color:fi%2?theme.b:theme.core,transparent:true,opacity:0.62,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+            var flame=new THREE.Sprite(flameMat),side=fi%2?-1:1;
+            flame.position.set(side*(1.72+(fi%3)*0.24),0.72+(fi%3)*0.42,0.20);
+            flame.scale.set(0.72,1.26,1);flame.userData.portalFlamePhase=fi*0.83;g.add(flame);themed.push(flame);
+        }
+    }else if(theme.kind==='ice'){
+        var crystalMat=softPBR(0xBDEFFF,{roughness:0.20,metalness:0.04,clearcoat:low?0:0.44,clearcoatRoughness:0.18,emissive:0x5CCFFF,emissiveIntensity:0.16,transparent:true,opacity:0.88});
+        var shardCount=low?4:8,shards=new THREE.InstancedMesh(geo.crystal,crystalMat,shardCount);
+        for(var si=0;si<shardCount;si++){
+            var side=si%2?-1:1,sx=side*(1.72+(si%3)*0.25),sy=0.72+(si%4)*0.58;
+            sm.compose(new THREE.Vector3(sx,sy,0.18),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,side*(0.18+(si%3)*0.13))),new THREE.Vector3(1.02+(si%2)*0.24,1.10+(si%3)*0.24,1.02));
+            shards.setMatrixAt(si,sm);
+        }
+        shards.castShadow=true;g.add(shards);themed.push(shards);
+        for(var mi=0;mi<(low?2:4);mi++){
+            var mistMat=new THREE.SpriteMaterial({map:_danboPortalTexture('glow'),color:0xAEEFFF,transparent:true,opacity:0.13,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+            var mist=new THREE.Sprite(mistMat);mist.position.set(-1.5+mi,0.68,0.12);mist.scale.set(2.2,0.58,1);mist.userData.portalMistPhase=mi*1.7;g.add(mist);themed.push(mist);
+        }
+    }else if(theme.kind==='nature'){
+        var leafMat=softPBR(0x6FBF69,{roughness:0.78,metalness:0,emissive:0x3B7D4B,emissiveIntensity:0.04});
+        for(var li=0;li<(low?4:8);li++){
+            var leafSide=li%2?-1:1,leaf=new THREE.Mesh(new THREE.SphereGeometry(0.19,low?7:11,low?5:8),leafMat);
+            leaf.position.set(leafSide*(2.10+0.10*Math.sin(li)),0.80+(li>>1)*0.77,0.18);
+            leaf.scale.set(1.35,0.54,0.62);leaf.rotation.z=leafSide*(0.42+(li%3)*0.13);leaf.castShadow=true;g.add(leaf);
+        }
+        if(!low){
+            var budMat=softPBR(theme.b,{roughness:0.42,clearcoat:0.10});
+            [-1,1].forEach(function(side){
+                var bud=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,8),budMat);
+                bud.position.set(side*2.22,2.42,0.26);bud.castShadow=true;g.add(bud);
+            });
+        }
+    }else if(theme.kind==='sky'&&!low){
+        var cloudMat=softPBR(0xF4FBFF,{roughness:0.95,metalness:0,emissive:0xB9E4F4,emissiveIntensity:0.08});
+        [-1,1].forEach(function(side){
+            for(var ci=0;ci<3;ci++){
+                var puff=new THREE.Mesh(new THREE.SphereGeometry(0.25+ci*0.04,14,9),cloudMat);
+                puff.position.set(side*(1.75+ci*0.25),0.65+ci*0.10,0.15);puff.scale.set(1.30,0.72,0.82);g.add(puff);
+            }
+        });
+    }
+    var light=window._danboEffectLightPool&&window._danboEffectLightPool[0]||null;
+    if(light){light.color.setHex(theme.b);light.intensity=0;light.visible=true;}
+    return {group:g,ring:ring,outer:outer,inner:inner,energyRing:energyRing,runeRing:runeRing,groundHalo:groundHalo,particles:particles,phases:phases,bands:bands,themed:themed,light:light,theme:theme,baseLightIntensity:high?0.82:0.54};
 }
 
 function buildPluginEntrances(){
@@ -92,6 +316,7 @@ function buildPluginEntrances(){
 }
 
 function buildPortals() {
+    if(window._danboEffectLightPool)window._danboEffectLightPool.forEach(function(light){light.intensity=0;light.visible=true;});
     if(currentCityStyle===5) return; // No race portals on moon
     // Clear old portals
     for(var _opi=portals.length-1;_opi>=0;_opi--){
@@ -99,90 +324,51 @@ function buildPortals() {
     }
     portals.length=0;
     RACES.forEach((race,i)=>{
-        const g = new THREE.Group();
+        var portalVisual=_danboBuildRacePortal(race,i);
+        const g = portalVisual.group;
         var portalX=race.x, portalY=currentCityStyle===7?3:0, portalZ=race.z;
         g.position.set(portalX,portalY,portalZ);
-
-        // Moon-style portals: silver/blue tones
-        var pColor=race.color;
-        var baseColor=0x888888;
-        if(currentCityStyle===5){
-            pColor=[0xAABBDD,0x8899CC,0xCCCCEE,0x99AADD,0x7788BB,0xBBCCEE,0x6677AA,0xAABBCC,0x8899BB,0xCCDDFF,0x7788CC,0x99AACC][i%12];
-            baseColor=0x666688;
-        }
-
-        // Portal ring
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(PORTAL_CONFIG.ringRadius, PORTAL_CONFIG.ringThickness, 8, 24), toon(pColor, {emissive:pColor, emissiveIntensity:0.3}));
-        ring.position.y = PORTAL_CONFIG.baseHeight; ring.castShadow = true;
-        g.add(ring);
-
-        // Outer glow ring
-        var glowRing=new THREE.Mesh(new THREE.TorusGeometry(PORTAL_CONFIG.glowRadius,PORTAL_CONFIG.glowThickness,6,24),new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:0.3}));
-        glowRing.position.y=PORTAL_CONFIG.baseHeight;g.add(glowRing);
-
-        // Swirling inner
-        const inner = new THREE.Mesh(new THREE.CircleGeometry(1.7, 20), toon(pColor, {transparent:true, opacity:0.4, side:THREE.DoubleSide, emissive:pColor, emissiveIntensity:0.5}));
-        inner.position.y = PORTAL_CONFIG.baseHeight;
-        g.add(inner);
-
-        // Base platform
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(PORTAL_CONFIG.baseRadius, 2.8, 0.4, 16), toon(baseColor));
-        base.position.y = 0.2; base.receiveShadow = true;
-        g.add(base);
-
-        // Floating particles (small spheres)
-        for(let p=0;p<8;p++){
-            var partColor=currentCityStyle===5?pColor:race.color;
-            const particle = new THREE.Mesh(new THREE.SphereGeometry(0.12,4,4), toon(partColor, {emissive:partColor, emissiveIntensity:0.6}));
-            particle.position.set(Math.cos(p)*PORTAL_CONFIG.particleRadius, PORTAL_CONFIG.baseHeight+Math.sin(p*2)*0.8, Math.sin(p)*PORTAL_CONFIG.particleRadius);
-            particle.userData.orbitPhase = p;
-            g.add(particle);
-        }
+        // Face along the circular boulevard instead of toward the building
+        // ring.  Players approach from either direction and see a full doorway.
+        var portalLen=Math.sqrt(portalX*portalX+portalZ*portalZ)||1;
+        var portalTangentX=-portalZ/portalLen,portalTangentZ=portalX/portalLen;
+        g.rotation.y=Math.atan2(portalTangentX,portalTangentZ);
 
         cityGroup.add(g);
-        portals.push({mesh:g, ring, inner, name:race.name, desc:race.desc, raceIndex:i, x:portalX, z:portalZ, y:portalY, color:race.color});
+        portals.push({mesh:g,ring:portalVisual.ring,inner:portalVisual.inner,name:race.name,desc:race.desc,raceIndex:i,x:portalX,z:portalZ,y:portalY,color:race.color,_visual:portalVisual});
 
         // Name sign above portal
-        var _pc=document.createElement('canvas');_pc.width=512;_pc.height=64;
-        var _px=_pc.getContext('2d');
-        _px.fillStyle='rgba(0,0,0,0.7)';_px.fillRect(0,0,512,64);
-        _px.fillStyle='#FFD700';_px.textAlign='center';
-        var _pfs=28;_px.font='bold '+_pfs+'px sans-serif';
-        while(_px.measureText(race.name).width>480&&_pfs>12){_pfs-=2;_px.font='bold '+_pfs+'px sans-serif';}
-        _px.fillText(race.name,256,42);
-        var _ptex=new THREE.CanvasTexture(_pc);
-        var _psign=new THREE.Sprite(new THREE.SpriteMaterial({map:_ptex,transparent:true}));
-        _psign.scale.set(6,0.8,1);_psign.position.y=5;
-        g.add(_psign);
+        _danboMakePortalSign(g,race.name,portalVisual.theme.b);
         // No collider for portals — player walks through them to enter
     });
 
     // ---- Platformer mini-game portal ----
     if(currentCityStyle!==5){
-        var _pfPortalG=new THREE.Group();
         var _pfPX=PORTAL_POSITIONS.platformerPortal.x,_pfPZ=PORTAL_POSITIONS.platformerPortal.z;
+        // Use the same cinematic PBR gate language as the race portals.  The old
+        // saturated red torus looked like a debug primitive beside Hope City.
+        var _pfVisual=_danboBuildRacePortal({color:0x66C879},8);
+        var _pfPortalG=_pfVisual.group;_pfPortalG.name='danbo-adventure-cute-portal';
         _pfPortalG.position.set(_pfPX,0,_pfPZ);
-        var _pfRing=new THREE.Mesh(new THREE.TorusGeometry(PORTAL_CONFIG.ringRadius,PORTAL_CONFIG.ringThickness,8,24),toon(0xFF6644,{emissive:0xFF4422,emissiveIntensity:0.4}));
-        _pfRing.position.y=PORTAL_CONFIG.baseHeight;_pfPortalG.add(_pfRing);
-        var _pfInner=new THREE.Mesh(new THREE.CircleGeometry(1.7,20),toon(0xFF8844,{transparent:true,opacity:0.4,side:THREE.DoubleSide,emissive:0xFF6622,emissiveIntensity:0.5}));
-        _pfInner.position.y=PORTAL_CONFIG.baseHeight;_pfPortalG.add(_pfInner);
-        var _pfBase=new THREE.Mesh(new THREE.CylinderGeometry(PORTAL_CONFIG.baseRadius,2.8,0.4,16),toon(0x886644));
-        _pfBase.position.y=0.2;_pfPortalG.add(_pfBase);
+        // Friendly mushroom markers make this special entrance recognizable
+        // without returning to the old flat red ring.
+        var _pfLow=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
+        var _pfStemMat=softPBR(0xFFF0D3,{roughness:0.80,metalness:0});
+        var _pfCapColors=[0xF06B72,0xF4B84C,0xE98BB5,0x73B765];
+        for(var _pmi=0;_pmi<(_pfLow?2:4);_pmi++){
+            var _pmside=_pmi%2?-1:1,_pmx=_pmside*(2.34+(_pmi>>1)*0.28),_pmy=0.58+(_pmi>>1)*0.16;
+            var _pmStem=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.18,_pmy,10),_pfStemMat);
+            _pmStem.position.set(_pmx,_pmy*0.5,0.42);_pmStem.castShadow=true;_pfPortalG.add(_pmStem);
+            var _pmCap=new THREE.Mesh(new THREE.SphereGeometry(0.30+(_pmi>>1)*0.05,_pfLow?10:16,_pfLow?7:10,0,Math.PI*2,0,Math.PI/2),softPBR(_pfCapColors[_pmi],{roughness:0.48,clearcoat:_pfLow?0:0.12}));
+            _pmCap.position.set(_pmx,_pmy,0.42);_pmCap.scale.set(1.12,0.68,1);_pmCap.castShadow=true;_pfPortalG.add(_pmCap);
+        }
         cityGroup.add(_pfPortalG);
         var _pfName={zhs:'\uD83C\uDF44 \u86CB\u5B9D\u5192\u9669',zht:'\uD83C\uDF44 \u86CB\u5BF6\u5192\u96AA',ja:'\uD83C\uDF44 \u30C0\u30F3\u30DC\u30A2\u30C9\u30D9\u30F3\u30C1\u30E3\u30FC',en:'\uD83C\uDF44 Danbo Adventure'};
         var _pfDesc={zhs:'\u6A2A\u7248\u8FC7\u5173\uFF01\u548C\u4F19\u4F34\u4E00\u8D77\u95EF\u5173\uFF01',zht:'\u6A6B\u7248\u904E\u95DC\uFF01\u548C\u5925\u4F34\u4E00\u8D77\u95D6\u95DC\uFF01',ja:'\u6A2A\u30B9\u30AF\u30ED\u30FC\u30EB\uFF01\u4EF2\u9593\u3068\u4E00\u7DD2\u306B\uFF01',en:'Side-scrolling adventure with friends!'};
-        portals.push({mesh:_pfPortalG,ring:_pfRing,inner:_pfInner,
+        portals.push({mesh:_pfPortalG,ring:_pfVisual.ring,inner:_pfVisual.inner,
             name:_pfName[_langCode]||_pfName.en,desc:_pfDesc[_langCode]||_pfDesc.en,
-            raceIndex:-1,x:_pfPX,z:_pfPZ,y:0,color:0xFF6644,_hiddenType:'platformer',_targetStyle:-99});
-        // Sign
-        var _pfSC=document.createElement('canvas');_pfSC.width=512;_pfSC.height=64;
-        var _pfSX=_pfSC.getContext('2d');
-        _pfSX.fillStyle='rgba(0,0,0,0.7)';_pfSX.fillRect(0,0,512,64);
-        _pfSX.fillStyle='#FF8844';_pfSX.textAlign='center';_pfSX.font='bold 26px sans-serif';
-        _pfSX.fillText(_pfName[_langCode]||_pfName.en,256,42);
-        var _pfSTex=new THREE.CanvasTexture(_pfSC);
-        var _pfSign=new THREE.Sprite(new THREE.SpriteMaterial({map:_pfSTex,transparent:true}));
-        _pfSign.scale.set(6,0.8,1);_pfSign.position.y=5;_pfPortalG.add(_pfSign);
+            raceIndex:-1,x:_pfPX,z:_pfPZ,y:0,color:0x66C879,_hiddenType:'platformer',_targetStyle:-99,_visual:_pfVisual});
+        _danboMakePortalSign(_pfPortalG,_pfName[_langCode]||_pfName.en,_pfVisual.theme.b);
     }
 
     // ---- Mini-game entrances provided by lightweight plugin entrance scripts ----
@@ -190,12 +376,98 @@ function buildPortals() {
 }
 
 // ---- Collectible coins in city ----
+// Shared, rounded PBR coin used by the city, cloud world and mini-games.
+// The former 12-sided flat cylinder read like a yellow token. This version keeps
+// the same collision footprint while adding a softly bevelled rim, recessed face
+// and a raised Egg Hero crest. Geometry and materials are shared so the richer
+// silhouette remains practical with hundreds of collectibles on mobile Safari.
+function _makeCinematicCoinMesh(scale){
+    var low=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
+    var cacheKey=low?'low':'full';
+    if(!window._danboCinematicCoinCache)window._danboCinematicCoinCache={};
+    var cache=window._danboCinematicCoinCache[cacheKey];
+    if(!cache){
+        var seg=low?12:20;
+        var coinShape=new THREE.Shape();
+        coinShape.absarc(0,0,0.39,0,Math.PI*2,false);
+        var bodyGeo=new THREE.ExtrudeGeometry(coinShape,{
+            depth:0.075,curveSegments:seg,steps:1,
+            bevelEnabled:true,bevelSegments:low?1:2,bevelSize:0.024,bevelThickness:0.024
+        });
+        bodyGeo.translate(0,0,-0.0375);
+        var faceGeo=new THREE.CylinderGeometry(0.305,0.305,0.094,seg);
+        faceGeo.rotateX(Math.PI/2);
+        var ringGeo=new THREE.TorusGeometry(0.335,0.026,low?4:6,seg);
+
+        // Original egg-shaped crest, gently bevelled rather than printed flat.
+        var eggShape=new THREE.Shape();
+        eggShape.moveTo(0,-0.19);
+        eggShape.bezierCurveTo(-0.145,-0.19,-0.205,-0.07,-0.19,0.045);
+        eggShape.bezierCurveTo(-0.175,0.16,-0.095,0.235,0,0.255);
+        eggShape.bezierCurveTo(0.095,0.235,0.175,0.16,0.19,0.045);
+        eggShape.bezierCurveTo(0.205,-0.07,0.145,-0.19,0,-0.19);
+        var crestGeo=new THREE.ExtrudeGeometry(eggShape,{
+            depth:0.025,steps:1,curveSegments:low?5:8,
+            bevelEnabled:true,bevelSegments:1,bevelSize:0.009,bevelThickness:0.007
+        });
+        crestGeo.translate(0,-0.018,0);
+
+        // Merge all relief pieces into one vertex-coloured geometry. A city can
+        // contain roughly 180 coins, so one draw object per coin is substantially
+        // cheaper than six nested meshes while retaining the full raised profile.
+        function mergeCoinParts(parts){
+            var prepared=[],total=0;
+            for(var pi=0;pi<parts.length;pi++){
+                var pg=parts[pi].geo.index?parts[pi].geo.toNonIndexed():parts[pi].geo.clone();
+                if(parts[pi].matrix)pg.applyMatrix4(parts[pi].matrix);
+                pg.computeVertexNormals();
+                var count=pg.attributes.position.count;
+                prepared.push({geo:pg,color:new THREE.Color(parts[pi].color),count:count});total+=count;
+            }
+            var positions=new Float32Array(total*3),normals=new Float32Array(total*3),uvs=new Float32Array(total*2),colors=new Float32Array(total*3);
+            var vo=0,uo=0;
+            for(var mi=0;mi<prepared.length;mi++){
+                var part=prepared[mi],pa=part.geo.attributes.position.array,na=part.geo.attributes.normal.array,ua=part.geo.attributes.uv&&part.geo.attributes.uv.array;
+                positions.set(pa,vo*3);normals.set(na,vo*3);
+                if(ua)uvs.set(ua,uo*2);
+                for(var ci=0;ci<part.count;ci++){
+                    var co=(vo+ci)*3;colors[co]=part.color.r;colors[co+1]=part.color.g;colors[co+2]=part.color.b;
+                }
+                vo+=part.count;uo+=part.count;
+            }
+            var merged=new THREE.BufferGeometry();
+            merged.setAttribute('position',new THREE.BufferAttribute(positions,3));
+            merged.setAttribute('normal',new THREE.BufferAttribute(normals,3));
+            merged.setAttribute('uv',new THREE.BufferAttribute(uvs,2));
+            merged.setAttribute('color',new THREE.BufferAttribute(colors,3));
+            merged.computeBoundingSphere();return merged;
+        }
+        var frontRingMatrix=new THREE.Matrix4().makeTranslation(0,0,0.057);
+        var backRingMatrix=new THREE.Matrix4().makeTranslation(0,0,-0.057);
+        var frontCrestMatrix=new THREE.Matrix4().makeTranslation(0,0,0.059);
+        var backCrestMatrix=new THREE.Matrix4().makeRotationY(Math.PI);
+        backCrestMatrix.premultiply(new THREE.Matrix4().makeTranslation(0,0,-0.059));
+        var mergedGeo=mergeCoinParts([
+            {geo:bodyGeo,color:0xD99518},{geo:faceGeo,color:0xF7C94D},
+            {geo:ringGeo,color:0xFFE89A,matrix:frontRingMatrix},{geo:ringGeo,color:0xFFE89A,matrix:backRingMatrix},
+            {geo:crestGeo,color:0xFFF1B0,matrix:frontCrestMatrix},{geo:crestGeo,color:0xFFF1B0,matrix:backCrestMatrix}
+        ]);
+        var mergedMat=softPBR(0xFFFFFF,{pastelAmount:0,vertexColors:true,roughness:0.29,metalness:0.54,clearcoat:0.30,clearcoatRoughness:0.19,envMapIntensity:0.86,emissive:0x5E3000,emissiveIntensity:0.045});
+        cache=window._danboCinematicCoinCache[cacheKey]={geometry:mergedGeo,material:mergedMat};
+    }
+    var coin=new THREE.Mesh(cache.geometry,cache.material);
+    coin.name='danbo-cinematic-coin';
+    coin.scale.setScalar(scale===undefined?1:scale);
+    coin.userData._coinCinematic=true;
+    coin.castShadow=false;coin.receiveShadow=false;
+    return coin;
+}
+window._makeCinematicCoinMesh=_makeCinematicCoinMesh;
+
 function buildCityCoins() {
     var _coinCityLayout=(typeof _getCityLayout==='function')?_getCityLayout(currentCityStyle):null;
     var _coinCityData=(typeof _getCityCollectibles==='function')?_getCityCollectibles(currentCityStyle):null;
     var coinCount=(_coinCityData&&_coinCityData.coinCount!==undefined)?_coinCityData.coinCount:((_coinCityLayout&&_coinCityLayout.coinCount!==undefined)?_coinCityLayout.coinCount:(currentCityStyle===5?200:180));
-    if(!window._sharedCityCoinGeo)window._sharedCityCoinGeo=new THREE.CylinderGeometry(0.35,0.35,0.08,12);
-    if(!window._sharedCityCoinMat)window._sharedCityCoinMat=toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3});
     for(let i=0;i<coinCount;i++){
         var coinSpread=currentCityStyle===5?MOON_CITY_SIZE*0.9:CITY_SIZE*0.9;
         const cx=(Math.random()-0.5)*coinSpread*2, cz=(Math.random()-0.5)*coinSpread*2;
@@ -205,8 +477,8 @@ function buildCityCoins() {
             if(DANBO_WASM.within2D(cx,cz,0,0,7)) skip=true;
         }
         if(skip) continue;
-        const coin=new THREE.Mesh(window._sharedCityCoinGeo, window._sharedCityCoinMat);
-        coin.position.set(cx,1.2,cz); coin.rotation.x=Math.PI/2;
+        const coin=_makeCinematicCoinMesh(0.94);
+        coin.position.set(cx,1.2,cz);
         cityGroup.add(coin);
         cityCoins.push({mesh:coin, collected:false});
     }
@@ -666,84 +938,46 @@ function clearCity(){
 
 function applyCityTheme(){
     var st=CITY_STYLES[currentCityStyle];
-    // Hope City uses the raw HDRI for the visible sky and its PMREM convolution
-    // for material lighting. Themed fantasy worlds keep their authored backgrounds.
-    var _hopeHDR=(typeof window._applyDanboEnvironmentForCity==='function')?window._applyDanboEnvironmentForCity(currentCityStyle,st):false;
-    if(!_hopeHDR)scene.background=new THREE.Color(st.sky);
+    var isMoon=(currentCityStyle===5);
+    // Ground cities share one physically coherent HDRI. The raw equirectangular
+    // texture remains visible while its PMREM convolution drives PBR materials.
+    scene.background=(!isMoon&&window._danboHDRIBackground)?window._danboHDRIBackground:new THREE.Color(st.sky);
+    scene.backgroundIntensity=!isMoon?(RENDER_CONFIG.backgroundIntensity||0.85):1;
+    scene.environmentIntensity=!isMoon?(RENDER_CONFIG.environmentIntensity||0.9):0.28;
     if(typeof _updateSkyDome==='function'){
         var horizon=st.fog||_mixHex(st.sky,0xFFFFFF,currentCityStyle===5?0.08:0.38);
         var groundTint=st.ground||st.path||0x88CCAA;
-        if(currentCityStyle===0){horizon=0x91C5DA;groundTint=0x385E42;}
+        if(currentCityStyle===0){horizon=0x8FC4DA;groundTint=0x355D40;}
         if(currentCityStyle===7){horizon=0x91A7C9;groundTint=0x293C5A;}
         if(currentCityStyle===5){horizon=0x111133;groundTint=0x020208;}
         _updateSkyDome(st.sky,horizon,groundTint);
+        if(typeof _skyDome!=='undefined')_skyDome.visible=!window._danboHDRIBackground&& !isMoon;
     }
     if(typeof R!=='undefined'){
-        R.toneMappingExposure=currentCityStyle===0?0.66:(currentCityStyle===5?1.06:(currentCityStyle===7?1.08:(RENDER_CONFIG.toneExposure||0.66)));
+        R.toneMappingExposure=RENDER_CONFIG.toneExposure||0.66;
     }
-    // Fog / aerial perspective — always keep a little depth haze for richer scenery
-    if(_hopeHDR){scene.fog=new THREE.FogExp2(0xA9B9C7,0.0021);}
-    else if(st.fog){scene.fog=new THREE.Fog(st.fog,60,180);}
-    else if(currentCityStyle===5){scene.fog=new THREE.Fog(0x070712,260,900);}
-    else if(currentCityStyle===7){scene.fog=new THREE.Fog(0x91A7C9,130,850);}
-    else if(currentCityStyle===0){scene.fog=new THREE.Fog(0xB3D3DC,210,560);}
-    else{scene.fog=new THREE.Fog(_mixHex(st.sky,st.ground||st.path||0xFFFFFF,0.22),140,430);}
+    // Match aerial perspective to the HDRI horizon instead of tinting each city
+    // with an unrelated linear fog color.
+    scene.fog=isMoon?new THREE.FogExp2(0x070712,0.0008):new THREE.FogExp2(RENDER_CONFIG.fogColor,RENDER_CONFIG.fogDensity||0.0021);
     if(typeof rimLight!=='undefined'){
-        rimLight.visible=currentCityStyle!==5;
-        if(currentCityStyle===7){rimLight.color.setHex(0xE3EFFF);rimLight.intensity=0.28;}
-        else if(currentCityStyle===3){rimLight.color.setHex(0xFFC2A6);rimLight.intensity=0.18;}
-        else if(currentCityStyle===2){rimLight.color.setHex(0xE5F6FF);rimLight.intensity=0.24;}
-        else if(currentCityStyle===0){rimLight.color.setHex(0xD8F0FF);rimLight.intensity=_hopeHDR?0.0:0.08;}
-        else{rimLight.color.setHex(0xD0F0FF);rimLight.intensity=0.22;}
+        rimLight.visible=true;rimLight.color.setHex(0xCFEAFF);rimLight.intensity=isMoon?0:0.04;
     }
     if(typeof softFillLight!=='undefined'){
-        softFillLight.visible=currentCityStyle!==5;
-        if(currentCityStyle===0){softFillLight.color.setHex(0xFFE1C9);softFillLight.intensity=_hopeHDR?0.0:0.04;}
-        else if(currentCityStyle===3){softFillLight.color.setHex(0xFF8A55);softFillLight.intensity=0.18;}
-        else{softFillLight.color.setHex(0xFFE3D4);softFillLight.intensity=0.14;}
+        softFillLight.visible=true;softFillLight.color.setHex(0xFFE2CF);softFillLight.intensity=isMoon?0:0.03;
     }
-    // Sun visibility — only in ground cities, not on moon
-    var isMoon=(currentCityStyle===5);
-    if(currentCityStyle===0){RENDER_CONFIG.sunPos.x=88.4;RENDER_CONFIG.sunPos.y=16.0;RENDER_CONFIG.sunPos.z=-79.6;}
-    else{RENDER_CONFIG.sunPos.x=60;RENDER_CONFIG.sunPos.y=80;RENDER_CONFIG.sunPos.z=40;}
-    _sunMesh.visible=!isMoon&&!_hopeHDR;
-    _sunGlow.visible=!isMoon&&!_hopeHDR;
-    sun.visible=!isMoon;
-    // Follow player with shadow camera
-    if(!isMoon){
-        sun.shadow.camera.far=RENDER_CONFIG.shadowFar;
-        if(currentCityStyle===7){
-            // Snow village twilight: bright pale blue ambient (like reflected skylight on snow)
-            sun.intensity=0.48;
-            sun.color.setHex(0xAABBDD);
-            _sunMesh.visible=false;
-            _sunGlow.visible=false;
-            scene.children.forEach(function(c){
-                if(c.isAmbientLight){c.color.setHex(0xB8CBE0);c.intensity=1.15;} // soft pale blue
-                if(c.isHemisphereLight){c.color.setHex(0xD7E6FF);c.groundColor.setHex(0xAFC0D8);c.intensity=0.92;}
-            });
-        } else if(currentCityStyle===0){
-            sun.intensity=5.2;
-            sun.color.setHex(0xFFD9A0);
-            sun.shadow.radius=3;
-            if(sun.shadow.intensity!==undefined)sun.shadow.intensity=0.68;
-            _sunMesh.visible=!_hopeHDR;_sunGlow.visible=!_hopeHDR;
-            scene.children.forEach(function(c){
-                if(c.isAmbientLight){c.color.setHex(0xFFF4E5);c.intensity=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?0.24:0.04;}
-                if(c.isHemisphereLight){c.color.setHex(0xDDEFFF);c.groundColor.setHex(0x596457);c.intensity=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?0.42:0.10;}
-            });
-        } else {
-            sun.intensity=RENDER_CONFIG.sunIntensity;
-            sun.color.setHex(RENDER_CONFIG.sunColor);
-            _sunMesh.visible=true;
-            _sunGlow.visible=true;
-            // Restore default ambient/hemisphere lighting
-            scene.children.forEach(function(c){
-                if(c.isAmbientLight){c.color.setHex(0xffffff);c.intensity=RENDER_CONFIG.ambientIntensity;}
-                if(c.isHemisphereLight){c.color.setHex(RENDER_CONFIG.hemiSkyColor);c.groundColor.setHex(RENDER_CONFIG.hemiGroundColor);c.intensity=RENDER_CONFIG.hemiIntensity;}
-            });
-        }
-    }
+    // Keep the light set stable across themes; changing only intensity avoids the
+    // expensive all-material shader recompile caused by changing light counts.
+    sun.visible=true;
+    sun.intensity=isMoon?0:(RENDER_CONFIG.sunIntensity||5.2);
+    sun.color.setHex(RENDER_CONFIG.sunColor||0xFFD9A0);
+    sun.shadow.camera.far=RENDER_CONFIG.shadowFar;
+    sun.shadow.radius=RENDER_CONFIG.shadowRadius||3;
+    _sunMesh.visible=!isMoon&&!window._danboHDRIBackground;
+    _sunGlow.visible=!isMoon&&!window._danboHDRIBackground;
+    scene.children.forEach(function(c){
+        if(c.isAmbientLight){c.color.setHex(0xffffff);c.intensity=isMoon?0.08:RENDER_CONFIG.ambientIntensity;}
+        if(c.isHemisphereLight){c.color.setHex(RENDER_CONFIG.hemiSkyColor);c.groundColor.setHex(RENDER_CONFIG.hemiGroundColor);c.intensity=isMoon?0.12:RENDER_CONFIG.hemiIntensity;}
+    });
     // Update HUD
     document.getElementById('city-name-hud').textContent=st.name;
     if(typeof _rebuildCityVisualFX==='function')_rebuildCityVisualFX(currentCityStyle,st);
@@ -1062,10 +1296,7 @@ function spawnCityNPCs() {
             // Avoid fountain area (center, radius 10)
             do{
                 nx2=(Math.random()-0.5)*80;nz2=10+(Math.random())*60;
-            }while(
-                DANBO_WASM.len2D(nx2,nz2)<12 ||
-                (currentCityStyle===0 && DANBO_WASM.len2D(nx2-3,nz2-17)<8)
-            );
+            }while(DANBO_WASM.len2D(nx2,nz2)<12);
         }
         const col=AI_COLORS[i%AI_COLORS.length];
         // Weighted character selection: more Zangief
@@ -1087,6 +1318,20 @@ function spawnCityNPCs() {
 // ---- Clouds (can stand on them) ----
 var cityCloudPlatforms=[]; // {group, x, z, y, hw, hd}
 var _cloudWorldPipe=null; // moon pipe in cloud world
+function _citySpecialObjects(){
+    return (window.DANBO_CITY_REGISTRY&&DANBO_CITY_REGISTRY.getSpecialObjects)?DANBO_CITY_REGISTRY.getSpecialObjects(currentCityStyle):[];
+}
+function _citySpecialObject(typeOrId){
+    return (window.DANBO_CITY_REGISTRY&&DANBO_CITY_REGISTRY.getSpecialObject)?DANBO_CITY_REGISTRY.getSpecialObject(currentCityStyle,typeOrId):null;
+}
+function _specialNumber(def,key,fallback){
+    var value=def&&Number(def[key]);return Number.isFinite(value)?value:fallback;
+}
+function _specialNestedNumber(def,group,key,fallback,min,max){
+    var value=def&&def[group]&&Number(def[group][key]);
+    value=Number.isFinite(value)?Math.round(value):fallback;
+    return Math.max(min,Math.min(max,value));
+}
 function _makeCloud(cx,cy,cz,minParts,maxParts,minS,maxS){
     var _cloudHigh=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
     var cg2=new THREE.SphereGeometry(1,_cloudHigh?22:12,_cloudHigh?15:8);
@@ -1124,15 +1369,38 @@ function _makeCloud(cx,cy,cz,minParts,maxParts,minS,maxS){
     return cl;
 }
 function addClouds(){
-    // No clouds on moon, sakura, or snow village
-    if(currentCityStyle===5||currentCityStyle===6||currentCityStyle===7)return;
+    var cloudDef=_citySpecialObject('cloudRealm');
+    // Backward compatibility: old city files did not store cloudRealm yet.
+    // Cities 0-4 keep their legacy cloud world until an exported special
+    // scene asset is placed, at which point that declarative definition wins.
+    if(!cloudDef){
+        if(currentCityStyle===5||currentCityStyle===6||currentCityStyle===7)return;
+        cloudDef={type:'cloudRealm',x:0,y:46,z:0,w:140,d:140,h:32,enabled:true,interaction:{moonPipe:true}};
+    }
+    if(cloudDef.enabled===false)return;
+    var cloudX=_specialNumber(cloudDef,'x',0),cloudY=_specialNumber(cloudDef,'y',46),cloudZ=_specialNumber(cloudDef,'z',0);
+    var cloudGenerator=cloudDef.generator||{};
+    var roofCloudsEnabled=cloudGenerator.roofClouds!==false;
+    var stairColumnCount=_specialNestedNumber(cloudDef,'generator','stairColumns',6,0,16);
+    var stepsPerColumn=_specialNestedNumber(cloudDef,'generator','stepsPerColumn',5,1,12);
+    var centralPlatformCount=_specialNestedNumber(cloudDef,'generator','centralPlatform',1,0,3);
+    var innerRingCount=_specialNestedNumber(cloudDef,'generator','innerRingPlatforms',8,0,24);
+    var outerRingCount=_specialNestedNumber(cloudDef,'generator','outerRingPlatforms',6,0,24);
+    var movingPlatformCount=_specialNestedNumber(cloudDef,'generator','movingPlatforms',12,0,32);
+    var decorativeCloudCount=_specialNestedNumber(cloudDef,'generator','decorativeClouds',10,0,32);
+    var cloudCoinCount=_specialNestedNumber(cloudDef,'gameplay','coins',15,0,60);
+    var cloudChestCount=_specialNestedNumber(cloudDef,'gameplay','treasureChests',10,0,30);
+    var cloudCherubCount=_specialNestedNumber(cloudDef,'gameplay','cherubs',8,0,24);
+    CHEST_CLOUD_TOTAL=cloudChestCount;
     // Cloud above each building roof — reachable with charge jump
     var roofClouds=[];
-    for(var bi=0;bi<cityColliders.length;bi++){
-        var c=cityColliders[bi];
-        var roofTop=(c.h||6)+(c.roofH||3);
-        var rc=_makeCloud(c.x,roofTop+2,c.z,2,3,2,4);
-        roofClouds.push(rc);
+    if(roofCloudsEnabled){
+        for(var bi=0;bi<cityColliders.length;bi++){
+            var c=cityColliders[bi];
+            var roofTop=(c.h||6)+(c.roofH||3);
+            var rc=_makeCloud(c.x,roofTop+2,c.z,2,3,2,4);
+            roofClouds.push(rc);
+        }
     }
     // ---- Staircase clouds from roof level to cloud world ----
     // Tallest roof is about y=19, cloud world at y=42
@@ -1140,15 +1408,15 @@ function addClouds(){
     // Place staircase columns near several buildings
     var stairPositions=[];
     // First staircase near center (close to Babel tower at 12,0)
-    stairPositions.push({x:8,z:8});
-    for(var _si=0;_si<5;_si++){
-        stairPositions.push({x:(Math.random()-0.5)*80,z:(Math.random()-0.5)*80});
+    if(stairColumnCount>0)stairPositions.push({x:cloudX+8,z:cloudZ+8});
+    for(var _si=1;_si<stairColumnCount;_si++){
+        stairPositions.push({x:cloudX+(Math.random()-0.5)*80,z:cloudZ+(Math.random()-0.5)*80});
     }
     window._stairPositions=stairPositions;
     for(var si=0;si<stairPositions.length;si++){
         var sp=stairPositions[si];
         var baseY=22; // just above typical roof clouds
-        var steps=5; // 5 steps to reach cloud world
+        var steps=stepsPerColumn;
         for(var st=0;st<steps;st++){
             var sy=baseY+st*4;
             var sx=sp.x+(Math.random()-0.5)*8;
@@ -1157,28 +1425,33 @@ function addClouds(){
         }
     }
     // ---- Cloud World (y=46) — large platform layer ----
-    var cwY=46;
+    var cwY=cloudY;
     // Central HUGE cloud platform — the highest cloud, moon pipe sits here
     // No other clouds should overlap this one
-    _makeCloud(0,cwY,0,8,10,14,20);
+    for(var cpIndex=0;cpIndex<centralPlatformCount;cpIndex++){
+        var cpAngle=cpIndex/Math.max(1,centralPlatformCount)*Math.PI*2;
+        var cpRadius=cpIndex===0?0:18;
+        _makeCloud(cloudX+Math.cos(cpAngle)*cpRadius,cwY,cloudZ+Math.sin(cpAngle)*cpRadius,8,10,14,20);
+    }
     // Ring of cloud platforms around center — kept away from center (r>35) and lower
-    for(var ai=0;ai<8;ai++){
-        var ang=ai/8*Math.PI*2;
+    for(var ai=0;ai<innerRingCount;ai++){
+        var ang=ai/Math.max(1,innerRingCount)*Math.PI*2;
         var r=38+Math.random()*10;
-        _makeCloud(Math.cos(ang)*r,cwY-4+Math.random()*2,Math.sin(ang)*r,3,4,3,5);
+        _makeCloud(cloudX+Math.cos(ang)*r,cwY-4+Math.random()*2,cloudZ+Math.sin(ang)*r,3,4,3,5);
     }
     // Outer ring — even further
-    for(var oi=0;oi<6;oi++){
-        var oa=oi/6*Math.PI*2;
-        _makeCloud(Math.cos(oa)*60,cwY-3+Math.random()*2,Math.sin(oa)*60,3,4,3,5);
+    for(var oi=0;oi<outerRingCount;oi++){
+        var oa=oi/Math.max(1,outerRingCount)*Math.PI*2;
+        _makeCloud(cloudX+Math.cos(oa)*60,cwY-3+Math.random()*2,cloudZ+Math.sin(oa)*60,3,4,3,5);
     }
     // ---- Moving clouds (platforms that drift back and forth) ----
     // Keep moving clouds away from center (r>30)
-    for(var mi=0;mi<8;mi++){
-        var ma=mi/8*Math.PI*2;
+    var upperMovingCount=Math.round(movingPlatformCount*2/3);
+    for(var mi=0;mi<upperMovingCount;mi++){
+        var ma=mi/Math.max(1,upperMovingCount)*Math.PI*2;
         var mr=30+Math.random()*20;
-        var mx=Math.cos(ma)*mr;
-        var mz=Math.sin(ma)*mr;
+        var mx=cloudX+Math.cos(ma)*mr;
+        var mz=cloudZ+Math.sin(ma)*mr;
         var my=cwY-4+Math.random()*3;
         var mc=_makeCloud(mx,my,mz,2,3,3,5);
         // Mark as moving cloud
@@ -1191,10 +1464,10 @@ function addClouds(){
         mc.baseZ=mz;
     }
     // Some moving clouds in the staircase zone too
-    for(var mi2=0;mi2<4;mi2++){
-        var mx2=(Math.random()-0.5)*60;
-        var mz2=(Math.random()-0.5)*60;
-        var my2=26+Math.random()*12;
+    for(var mi2=0;mi2<movingPlatformCount-upperMovingCount;mi2++){
+        var mx2=cloudX+(Math.random()-0.5)*60;
+        var mz2=cloudZ+(Math.random()-0.5)*60;
+        var my2=cloudY-20+Math.random()*12;
         var mc2=_makeCloud(mx2,my2,mz2,2,3,2,4);
         mc2.moving=true;
         mc2.moveAxis=Math.random()<0.5?'x':'z';
@@ -1205,33 +1478,30 @@ function addClouds(){
         mc2.baseZ=mz2;
     }
     // Random decorative clouds (high, not for standing)
-    for(var di=0;di<10;di++){
-        var dx2=(Math.random()-0.5)*200;
-        var dz2=(Math.random()-0.5)*200;
-        var dy2=50+Math.random()*20;
+    for(var di=0;di<decorativeCloudCount;di++){
+        var dx2=cloudX+(Math.random()-0.5)*200;
+        var dz2=cloudZ+(Math.random()-0.5)*200;
+        var dy2=cloudY+4+Math.random()*20;
         _makeCloud(dx2,dy2,dz2,3,4,3,6);
     }
     // Coins in cloud world
-    var coinGeo=new THREE.CylinderGeometry(0.4,0.4,0.1,12);
-    var coinMat=toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.3});
-    for(var cci=0;cci<15;cci++){
-        var ca=cci/15*Math.PI*2;
+    for(var cci=0;cci<cloudCoinCount;cci++){
+        var ca=cci/Math.max(1,cloudCoinCount)*Math.PI*2;
         var cr=8+Math.random()*20;
         var ccY=cwY+2+Math.random()*2;
-        var coin=new THREE.Mesh(coinGeo,coinMat);
-        coin.position.set(Math.cos(ca)*cr,ccY,Math.sin(ca)*cr);
-        coin.rotation.x=Math.PI/2;
+        var coin=_makeCinematicCoinMesh(1.08);
+        coin.position.set(cloudX+Math.cos(ca)*cr,ccY,cloudZ+Math.sin(ca)*cr);
         scene.add(coin);
         cityCoins.push({mesh:coin,collected:false,baseY:ccY,inScene:true});
     }
-    // Cloud-world treasure chests (10) — sit on the cloud platforms
-    for(var cwc=0;cwc<CHEST_CLOUD_TOTAL;cwc++){
+    // Cloud-world treasure chests — sit on the cloud platforms
+    for(var cwc=0;cwc<cloudChestCount;cwc++){
         var cwa=Math.random()*Math.PI*2, cwr=6+Math.random()*22;
-        var cgx=Math.cos(cwa)*cwr, cgz=Math.sin(cwa)*cwr, cgy=cwY+0.6;
+        var cgx=cloudX+Math.cos(cwa)*cwr, cgz=cloudZ+Math.sin(cwa)*cwr, cgy=cwY+0.6;
         _spawnChest('cloud_'+cwc,'cloud',cgx,cgy,cgz,Math.random()*Math.PI*2,_tierFromRoll(Math.random()),true);
     }
     if(!window._cityAnimals)window._cityAnimals=[];
-    for(var _chi=0;_chi<8;_chi++){
+    for(var _chi=0;_chi<cloudCherubCount;_chi++){
         var cg=new THREE.Group();
         cg.scale.set(3,3,3); // big enough to see in cloud world
         // Round body (chubby)
@@ -1286,9 +1556,9 @@ function addClouds(){
             var carm=new THREE.Mesh(new THREE.SphereGeometry(0.06,4,3),toon(0xFFDDCC));
             carm.position.set(s*0.3,0.05,0.1);carm.scale.set(0.7,1,0.7);cg.add(carm);
         });
-        var ca2=_chi/8*Math.PI*2;
+        var ca2=_chi/Math.max(1,cloudCherubCount)*Math.PI*2;
         var cr2=15+Math.random()*30;
-        var cx2=Math.cos(ca2)*cr2, cz2=Math.sin(ca2)*cr2;
+        var cx2=cloudX+Math.cos(ca2)*cr2, cz2=cloudZ+Math.sin(ca2)*cr2;
         var cy2=cwY+3+Math.random()*6;
         cg.position.set(cx2,cy2,cz2);
         scene.add(cg);
@@ -1300,7 +1570,7 @@ function addClouds(){
     // ---- Moon Warp Pipe in cloud world center ----
     // Place pipe on TOP of central cloud (cloudTop ≈ cwY + maxScale*0.45 ≈ cwY+9)
     var _moonPipeY=cwY+8;
-    _buildCloudWorldMoonPipe(0,_moonPipeY,0);
+    if(centralPlatformCount>0&&(!cloudDef.interaction||cloudDef.interaction.moonPipe!==false))_buildCloudWorldMoonPipe(cloudX,_moonPipeY,cloudZ);
 }
 function _buildCloudWorldMoonPipe(px,py,pz){
     var pColor=0xCCCCFF;

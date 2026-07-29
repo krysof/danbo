@@ -337,10 +337,11 @@ function _decorateHopePremiumBuilding(b,bMeshes,col,i){
 
 function _buildHopeCinematicPlaza(){
     var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
-    var paving=_visualSurfaceMaterial('path',0xA89A84,{worldSpan:34.4,roughness:0.72,normalScale:new THREE.Vector2(0.72,0.72),envMapIntensity:0.34});
-    var edge=_visualSurfaceMaterial('stone',0xC7BBA6,{worldSpan:21,roughness:0.76,normalScale:new THREE.Vector2(0.45,0.45)});
-    var garden=_visualSurfaceMaterial('grass',0x326B39,{worldSpan:34.4,roughness:0.94,normalScale:new THREE.Vector2(0.55,0.55)});
+    var paving=_visualSurfaceMaterial('path',0xA89A84,{roughness:0.72,normalScale:new THREE.Vector2(0.72,0.72),envMapIntensity:0.34});
+    var edge=_visualSurfaceMaterial('stone',0xC7BBA6,{roughness:0.76,normalScale:new THREE.Vector2(0.45,0.45)});
+    var garden=_visualSurfaceMaterial('grass',0x326B39,{roughness:0.94,normalScale:new THREE.Vector2(0.55,0.55)});
     var plaza=new THREE.Mesh(new THREE.CircleGeometry(17.2,high?96:48),paving);
+    if(typeof _visualScaleUVToMeters==='function')_visualScaleUVToMeters(plaza.geometry,34.4,34.4,2.2);
     plaza.rotation.x=-Math.PI/2;plaza.position.y=0.075;plaza.receiveShadow=true;plaza.name='hope-cinematic-stone-plaza';cityGroup.add(plaza);
     var curb=new THREE.Mesh(new THREE.TorusGeometry(17.25,0.24,high?12:7,high?96:48),edge);
     curb.rotation.x=Math.PI/2;curb.position.y=0.13;curb.receiveShadow=true;cityGroup.add(curb);
@@ -395,25 +396,13 @@ function _buildHopeCinematicPlaza(){
     });
     trunks.castShadow=trunks.receiveShadow=crowns.castShadow=true;cityGroup.add(trunks);cityGroup.add(crowns);
 
-    var lampCount=8,poleMat=softPBR(0x2B2A29,{roughness:0.34,metalness:0.62});
-    var bulbMat=new THREE.MeshStandardMaterial({color:0xFFDCA0,roughness:0.34,emissive:0xFFB24E,emissiveIntensity:0.82,toneMapped:true});
-    var lanternGlass=new THREE.MeshPhysicalMaterial({color:0xDCEEFF,roughness:0.12,metalness:0,clearcoat:0.72,clearcoatRoughness:0.12,envMapIntensity:0.58,transparent:true,opacity:0.28,depthWrite:false});
-    var poles=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.055,0.11,4.55,10),poleMat,lampCount);
-    var bulbs=new THREE.InstancedMesh(new THREE.SphereGeometry(0.135,12,8),bulbMat,lampCount);
-    var lanterns=new THREE.InstancedMesh(_visualRoundedBoxGeometry(0.46,0.62,0.46,0.09),lanternGlass,lampCount);
-    var lanternCaps=new THREE.InstancedMesh(_visualRoundedBoxGeometry(0.56,0.085,0.56,0.035),poleMat,lampCount*2);
+    var lampCount=8,poleMat=softPBR(0x2B2A29,{roughness:0.34,metalness:0.62}),bulbMat=new THREE.MeshBasicMaterial({color:0xFFD38A}),poles=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.055,0.11,4.55,10),poleMat,lampCount),bulbs=new THREE.InstancedMesh(new THREE.SphereGeometry(0.22,12,8),bulbMat,lampCount);
     for(var li=0;li<lampCount;li++){
         var lang=li/lampCount*Math.PI*2+Math.PI/8,lr=18.4;
         td.position.set(Math.cos(lang)*lr,2.28,Math.sin(lang)*lr);td.scale.set(1,1,1);td.updateMatrix();poles.setMatrixAt(li,td.matrix);
-        var _lpx=Math.cos(lang)*lr,_lpz=Math.sin(lang)*lr;
-        td.position.set(_lpx,4.65,_lpz);td.scale.set(1,1.08,1);td.updateMatrix();bulbs.setMatrixAt(li,td.matrix);
-        td.position.set(_lpx,4.65,_lpz);td.scale.set(1,1,1);td.updateMatrix();lanterns.setMatrixAt(li,td.matrix);
-        td.position.set(_lpx,4.34,_lpz);td.updateMatrix();lanternCaps.setMatrixAt(li*2,td.matrix);
-        td.position.set(_lpx,4.96,_lpz);td.updateMatrix();lanternCaps.setMatrixAt(li*2+1,td.matrix);
+        td.position.set(Math.cos(lang)*lr,4.65,Math.sin(lang)*lr);td.scale.set(1,1.35,1);td.updateMatrix();bulbs.setMatrixAt(li,td.matrix);
     }
-    poles.castShadow=true;lanterns.castShadow=true;
-    poles.instanceMatrix.needsUpdate=true;bulbs.instanceMatrix.needsUpdate=true;lanterns.instanceMatrix.needsUpdate=true;lanternCaps.instanceMatrix.needsUpdate=true;
-    cityGroup.add(poles);cityGroup.add(lanterns);cityGroup.add(lanternCaps);cityGroup.add(bulbs);
+    poles.castShadow=true;cityGroup.add(poles);cityGroup.add(bulbs);
 }
 
 function buildCity() {
@@ -486,7 +475,8 @@ function buildCity() {
     });
     } else {
     const groundGeo = new THREE.PlaneGeometry(CITY_SIZE*2, CITY_SIZE*2, 32, 32);
-    const groundMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('grass',st.ground,{worldSpan:CITY_SIZE*2,roughness:0.96}):toon(st.ground);
+    if(currentCityStyle===0&&typeof _visualScaleUVToMeters==='function')_visualScaleUVToMeters(groundGeo,CITY_SIZE*2,CITY_SIZE*2,2.07);
+    const groundMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('grass',st.ground,{roughness:0.96}):toon(st.ground);
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
     cityGroup.add(ground);
@@ -498,11 +488,13 @@ function buildCity() {
     var cityPathList=_getCityPaths(currentCityStyle);
     if(cityPathList&&cityPathList.length){
     const pathM = (currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('path',st.path,{roughness:0.90}):toon(st.path);
-    cityPathList.forEach(p=>{
+    cityPathList.forEach((p,pathIndex)=>{
         var pathGeo=(currentCityStyle===0&&typeof _visualRoundedRectGeometry==='function')?_visualRoundedRectGeometry(p.w,p.d,Math.min(1.6,Math.min(p.w,p.d)*0.22)):new THREE.BoxGeometry(p.w,0.06,p.d);
         const path=new THREE.Mesh(pathGeo,pathM);
         if(currentCityStyle===0){path.rotation.x=-Math.PI/2;path.position.set(p.x,0.068,p.z);}
         else path.position.set(p.x,0.03,p.z);
+        path.name='danbo-editor-path-'+pathIndex;
+        path.userData.editorPathIndex=pathIndex;
         path.receiveShadow=true; cityGroup.add(path);
     });
     }
@@ -547,15 +539,18 @@ function buildCity() {
         if(currentCityStyle===6||currentCityStyle===7)return;
         const col = bColors[i%bColors.length];
         var _hopeFacadeColor=currentCityStyle===0?_cityMixHex(col,0xF7E7D2,0.10):col;
-        const bodyMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('facade',_hopeFacadeColor,{roughness:0.84,bumpScale:0.020,envMapIntensity:0.18}):toon(col);
+        const bodyMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('facade',_hopeFacadeColor,{roughness:0.84,bumpScale:0.020,envMapIntensity:0.18,vertexColors:true}):toon(col);
         var useRoundedBody=currentCityStyle===0&&typeof _visualRoundedBoxGeometry==='function'&&!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
-        const bm = new THREE.Mesh(useRoundedBody?_visualRoundedBoxGeometry(b.w,b.h,b.d,0.34):new THREE.BoxGeometry(b.w,b.h,b.d,2,2,2), bodyMat);
+        var _bodyGeo=useRoundedBody?_visualRoundedBoxGeometry(b.w,b.h,b.d,0.34):new THREE.BoxGeometry(b.w,b.h,b.d,2,2,2);
+        if(currentCityStyle===0&&typeof _visualBoxWorldUV==='function')_visualBoxWorldUV(_bodyGeo,3.0);
+        if(currentCityStyle===0&&typeof _visualAddVerticalDirtVertexColors==='function')_visualAddVerticalDirtVertexColors(_bodyGeo,0.18);
+        const bm = new THREE.Mesh(_bodyGeo, bodyMat);
         if(currentCityStyle===0)bm.name='hope-building-body';
         bm.position.set(b.x, b.h/2, b.z); bm.castShadow=true; bm.receiveShadow=true;
         cityGroup.add(bm);
         const bMeshes = [bm]; // collect all meshes for this building
         if(currentCityStyle===0){
-            var _baseMat=_visualSurfaceMaterial('stone',_cityMixHex(col,0xD8D0C4,0.72),{worldSpan:Math.max(b.w+0.52,b.d+0.52),roughness:0.86,normalScale:new THREE.Vector2(0.30,0.30)});
+            var _baseMat=_visualSurfaceMaterial('stone',_cityMixHex(col,0xD8D0C4,0.72),{roughness:0.86,normalScale:new THREE.Vector2(0.30,0.30)});
             var _baseGeo=_visualRoundedBoxGeometry(b.w+0.52,0.48,b.d+0.52,0.18);
             var _foundation=new THREE.Mesh(_baseGeo,_baseMat);_foundation.position.set(b.x,0.24,b.z);_foundation.castShadow=true;_foundation.receiveShadow=true;cityGroup.add(_foundation);bMeshes.push(_foundation);
             var _corniceColor=_cityMixHex(col,0xFFF7EA,0.62);
@@ -581,7 +576,7 @@ function buildCity() {
         } else if(currentCityStyle===0&&typeof _visualGableRoofGeometry==='function'){
         var _hopeRoofPalette=[0xA94C35,0xB96343,0x8E5143,0xC06B45,0x955746];
         var _hopeRoofColor=_cityMixHex(st.roof,_hopeRoofPalette[i%_hopeRoofPalette.length],0.44);
-        var roofMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('roof',_hopeRoofColor,{worldSpan:Math.max(b.w+1.45,b.d+1.45),roughness:0.60,envMapIntensity:0.42}):toon(st.roof);
+        var roofMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('roof',_hopeRoofColor,{roughness:0.60,envMapIntensity:0.42}):toon(st.roof);
         var _roofW=b.w+1.45,_roofD=b.d+1.45,_roofH=BUILDING_CONFIG.roofHeight;
         var _roofTurn=i%3===1;
         const roof = new THREE.Mesh(_roofTurn?_visualGableRoofGeometry(_roofD,_roofW,_roofH):_visualGableRoofGeometry(_roofW,_roofD,_roofH),roofMat);
@@ -671,6 +666,9 @@ function buildCity() {
         else _decorateDefaultBuilding(b,bMeshes,col,st,i);
 
         cityColliders.push({x:b.x, z:b.z, hw:b.w/2+(currentCityStyle===0?0.85:0.5), hd:b.d/2+(currentCityStyle===0?1.05:0.5), h:b.h, roofR:Math.max(b.w,b.d)*BUILDING_CONFIG.roofHeightMul, roofH:BUILDING_CONFIG.roofHeight});
+        for(var _ebi=0;_ebi<bMeshes.length;_ebi++){
+            if(bMeshes[_ebi]&&bMeshes[_ebi].userData)bMeshes[_ebi].userData.editorBuildingIndex=i;
+        }
         cityBuildingMeshes.push({meshes:bMeshes, x:b.x, z:b.z, hw:b.w/2, hd:b.d/2, h:b.h});
     });
 
@@ -804,13 +802,16 @@ function buildCity() {
 
 // ---- Grand Roman Wishing Fountain (Trevi-style) — skip for Sakura City ----
     if(currentCityStyle!==6&&currentCityStyle!==7){
-    var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xC3C6C5,{worldSpan:21,roughness:0.91,bumpScale:0.055,envMapIntensity:0.14}):toon(0xCCBBAA);
-    var stoneD=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x9DA3A3,{worldSpan:21,roughness:0.94,bumpScale:0.060,envMapIntensity:0.10}):toon(0xAA9988);
-    var marbleM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xE3E7E5,{worldSpan:21,roughness:0.72,bumpScale:0.030,envMapIntensity:0.18}):toon(0xEEE8DD);
+    var _hopeFountainLow=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
+    var _hopeFountainHigh=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
+    var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xBDB6A9,{roughness:0.80,bumpScale:0.040,envMapIntensity:0.24}):toon(0xCCBBAA);
+    var stoneD=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x858982,{roughness:0.94,bumpScale:0.050,envMapIntensity:0.12}):toon(0xAA9988);
+    var marbleM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xDDD6C9,{roughness:0.57,bumpScale:0.022,clearcoat:0.08,clearcoatRoughness:0.74,envMapIntensity:0.32}):toon(0xEEE8DD);
+    var _wetStoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x65716E,{roughness:0.48,bumpScale:0.028,clearcoat:0.12,clearcoatRoughness:0.55,envMapIntensity:0.38}):stoneD;
     var _waterSet=currentCityStyle===0&&typeof _visualSurfaceTextureSet==='function'?_visualSurfaceTextureSet('water'):null;
     if(_waterSet)window._danboWaterBump=_waterSet.bumpMap;
-    var waterM=currentCityStyle===0?(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?new THREE.MeshPhongMaterial({color:0x58AFC0,specular:0xD9FCFF,shininess:76,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:0.66,depthWrite:false}):new THREE.MeshPhysicalMaterial({color:0x4FA9BA,roughness:0.075,metalness:0.0,clearcoat:1.0,clearcoatRoughness:0.075,envMapIntensity:0.92,ior:1.333,reflectivity:0.64,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:0.66,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});
-    var goldM=currentCityStyle===0&&typeof softPBR==='function'?softPBR(0xE8B84C,{roughness:0.48,metalness:0.18,emissive:0x5A3100,emissiveIntensity:0.05}):toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.3});
+    var waterM=currentCityStyle===0?(_hopeFountainLow?new THREE.MeshPhongMaterial({color:0x4D9EAE,shininess:78,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:0.56,depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshPhysicalMaterial({color:0x4298AA,roughness:0.085,metalness:0.0,clearcoat:0.82,clearcoatRoughness:0.12,envMapIntensity:0.92,ior:1.333,transmission:0.10,thickness:0.55,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:0.50,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});
+    var goldM=currentCityStyle===0&&typeof softPBR==='function'?softPBR(0xB78C3C,{roughness:0.38,metalness:0.42,envMapIntensity:0.68,emissive:0x2B1700,emissiveIntensity:0.018}):toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.3});
     if(currentCityStyle===0){
         // Broad cut-stone terraces replace the former floating donut silhouette.
         [[10.15,9.70,0.18],[9.45,9.05,0.34],[8.75,8.35,0.50]].forEach(function(ti,idx){
@@ -818,56 +819,110 @@ function buildCity() {
             terrace.position.y=ti[2];terrace.receiveShadow=true;terrace.castShadow=true;cityGroup.add(terrace);
         });
     }
-    // Outer pool — a real annular stone basin in Hope City. The former torus read as a
-    // rubber ring; a beveled top and vertical inner/outer faces now carry architectural mass.
-    var poolOuterGeo=currentCityStyle===0&&typeof _visualAnnularStepGeometry==='function'?_visualAnnularStepGeometry(7.78,6.28,0.74,0.075):new THREE.TorusGeometry(7,0.8,8,24);
-    var poolOuter=new THREE.Mesh(poolOuterGeo,stoneM);
-    poolOuter.name=currentCityStyle===0?'hope-fountain-outer-basin':'';poolOuter.position.y=currentCityStyle===0?0.53:0.4;
-    if(currentCityStyle!==0)poolOuter.rotation.x=Math.PI/2;
-    poolOuter.castShadow=true;poolOuter.receiveShadow=true;cityGroup.add(poolOuter);
+    // Outer pool — a profiled carved basin instead of a smooth inflated torus.
+    var poolOuter;
+    if(currentCityStyle===0){
+        var _outerBasinProfile=[
+            new THREE.Vector2(6.46,0.00),new THREE.Vector2(6.56,0.10),new THREE.Vector2(6.62,0.28),
+            new THREE.Vector2(6.76,0.46),new THREE.Vector2(7.02,0.61),new THREE.Vector2(7.31,0.68),
+            new THREE.Vector2(7.44,0.82),new THREE.Vector2(7.39,0.96),new THREE.Vector2(7.19,1.05),
+            new THREE.Vector2(6.93,1.03),new THREE.Vector2(6.75,0.91),new THREE.Vector2(6.68,0.72)
+        ];
+        poolOuter=new THREE.Mesh(new THREE.LatheGeometry(_outerBasinProfile,_hopeFountainLow?40:96),stoneM);
+        poolOuter.position.y=0.02;
+    }else{
+        poolOuter=new THREE.Mesh(new THREE.TorusGeometry(7,0.8,8,24),stoneM);
+        poolOuter.position.y=0.4;poolOuter.rotation.x=Math.PI/2;
+    }
+    poolOuter.name=currentCityStyle===0?'hope-fountain-outer-basin':'';poolOuter.castShadow=true;poolOuter.receiveShadow=true;cityGroup.add(poolOuter);
     // Pool floor
     var poolFloor=new THREE.Mesh(new THREE.CylinderGeometry(6.5,6.5,0.15,currentCityStyle===0?40:24),currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x6C9FA6,{roughness:0.88,bumpScale:0.045,envMapIntensity:0.10}):toon(0x88BBCC));
-    poolFloor.position.y=0.08;cityGroup.add(poolFloor);
+    poolFloor.position.y=0.08;poolFloor.receiveShadow=true;cityGroup.add(poolFloor);
     // Water surface
-    var poolWater=new THREE.Mesh(new THREE.CylinderGeometry(6.2,6.2,0.2,currentCityStyle===0?64:24),waterM);
-    poolWater.name=currentCityStyle===0?'hope-fountain-main-water':'';poolWater.position.y=0.6;cityGroup.add(poolWater);
+    var poolWater=new THREE.Mesh(currentCityStyle===0?new THREE.CircleGeometry(6.28,_hopeFountainLow?40:96):new THREE.CylinderGeometry(6.2,6.2,0.2,24),waterM);
+    poolWater.name=currentCityStyle===0?'hope-fountain-main-water':'';
+    if(currentCityStyle===0){poolWater.rotation.x=-Math.PI/2;poolWater.position.y=0.69;poolWater.userData.baseY=0.69;}
+    else poolWater.position.y=0.6;
+    poolWater.renderOrder=1;cityGroup.add(poolWater);
     window._fountainPoolWater=poolWater;
     var innerWaterRef=null;
     // Steps around the pool (3 tiers)
-    if(currentCityStyle===0&&typeof _visualAnnularStepGeometry==='function'){
-        [[8.55,7.70,0.34,0.30],[9.42,8.48,0.30,0.12],[10.30,9.34,0.26,-0.04]].forEach(function(sv,si){
-            var step=new THREE.Mesh(_visualAnnularStepGeometry(sv[0],sv[1],sv[2],0.055),si===0?stoneM:stoneD);
-            step.name='hope-fountain-cut-stone-step-'+si;step.position.y=sv[3];step.castShadow=true;step.receiveShadow=true;cityGroup.add(step);
-        });
-        // Fine radial masonry joints make the broad coping read as individual dressed
-        // stones while remaining a single low-cost instanced draw call.
-        var _jointCount=64,_jointMat=_citySharedPBR('fountain-joint',0x807769,{roughness:0.96,envMapIntensity:0.06});
-        var _jointGeo=new THREE.BoxGeometry(0.028,0.020,1.28),_jointMesh=new THREE.InstancedMesh(_jointGeo,_jointMat,_jointCount),_jointDummy=new THREE.Object3D();
-        for(var _ji=0;_ji<_jointCount;_ji++){
-            var _ja=_ji/_jointCount*Math.PI*2;
-            _jointDummy.position.set(Math.sin(_ja)*7.03,0.916,Math.cos(_ja)*7.03);
-            _jointDummy.rotation.set(0,-_ja,0);_jointDummy.scale.set(1,1,1);_jointDummy.updateMatrix();_jointMesh.setMatrixAt(_ji,_jointDummy.matrix);
-        }
-        _jointMesh.name='hope-fountain-coping-joints';_jointMesh.instanceMatrix.needsUpdate=true;cityGroup.add(_jointMesh);
-    }else{
-        for(var si=0;si<3;si++){
-            var stepR=8+si*1.2;
-            var step=new THREE.Mesh(new THREE.TorusGeometry(stepR,0.5,6,24),stoneD);
-            step.position.y=0.15-si*0.12;step.rotation.x=Math.PI/2;cityGroup.add(step);
-        }
+    for(var si=0;si<3;si++){
+        var stepR=8+si*1.2;var stepH=0.2;
+        var step=new THREE.Mesh(new THREE.TorusGeometry(stepR,currentCityStyle===0?0.19:0.5,currentCityStyle===0?10:6,currentCityStyle===0?72:24),si===0?stoneM:stoneD);
+        step.position.y=currentCityStyle===0?0.24-si*0.10:0.15-si*0.12;step.rotation.x=Math.PI/2;
+        step.castShadow=true;step.receiveShadow=true;cityGroup.add(step);
     }
     // Inner raised basin (second tier)
-    var innerRimGeo=currentCityStyle===0&&typeof _visualAnnularStepGeometry==='function'?_visualAnnularStepGeometry(4.02,3.08,0.52,0.065):new THREE.TorusGeometry(3.5,0.5,8,16);
-    var innerRim=new THREE.Mesh(innerRimGeo,marbleM);
-    innerRim.name=currentCityStyle===0?'hope-fountain-inner-basin':'';innerRim.position.y=currentCityStyle===0?1.28:1.2;
-    if(currentCityStyle!==0)innerRim.rotation.x=Math.PI/2;
-    innerRim.castShadow=true;innerRim.receiveShadow=true;cityGroup.add(innerRim);
+    var innerRim;
+    if(currentCityStyle===0){
+        var _innerBasinProfile=[
+            new THREE.Vector2(2.92,0.00),new THREE.Vector2(3.04,0.08),new THREE.Vector2(3.10,0.26),
+            new THREE.Vector2(3.28,0.42),new THREE.Vector2(3.53,0.50),new THREE.Vector2(3.68,0.62),
+            new THREE.Vector2(3.66,0.76),new THREE.Vector2(3.50,0.85),new THREE.Vector2(3.27,0.82),
+            new THREE.Vector2(3.12,0.68),new THREE.Vector2(3.05,0.48)
+        ];
+        innerRim=new THREE.Mesh(new THREE.LatheGeometry(_innerBasinProfile,_hopeFountainLow?32:72),marbleM);
+        innerRim.position.y=0.74;
+    }else{
+        innerRim=new THREE.Mesh(new THREE.TorusGeometry(3.5,0.5,8,16),marbleM);
+        innerRim.position.y=1.2;innerRim.rotation.x=Math.PI/2;
+    }
+    innerRim.name=currentCityStyle===0?'hope-fountain-inner-basin':'';innerRim.castShadow=true;innerRim.receiveShadow=true;cityGroup.add(innerRim);
     var innerFloor=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.2,0.8,currentCityStyle===0?48:16),stoneM);
-    innerFloor.position.y=0.8;cityGroup.add(innerFloor);
-    var innerWater=new THREE.Mesh(new THREE.CylinderGeometry(3,3,0.15,currentCityStyle===0?48:16),waterM);
-    innerWater.position.y=1.35;cityGroup.add(innerWater);
+    innerFloor.position.y=0.8;innerFloor.receiveShadow=true;cityGroup.add(innerFloor);
+    var innerWater=new THREE.Mesh(currentCityStyle===0?new THREE.CircleGeometry(3.04,_hopeFountainLow?32:72):new THREE.CylinderGeometry(3,3,0.15,16),waterM);
+    if(currentCityStyle===0){innerWater.rotation.x=-Math.PI/2;innerWater.position.y=1.48;innerWater.userData.baseY=1.48;}
+    else innerWater.position.y=1.35;
+    innerWater.renderOrder=1;cityGroup.add(innerWater);
     innerWaterRef=innerWater;
     window._fountainInnerWater=innerWater;
+    if(currentCityStyle===0){
+        // Darkened waterlines make the stone read as porous limestone that has
+        // actually been in contact with water, rather than uniformly grey plastic.
+        var _outerWetLine=new THREE.Mesh(new THREE.TorusGeometry(6.70,0.055,8,_hopeFountainLow?40:88),_wetStoneM);
+        _outerWetLine.rotation.x=Math.PI/2;_outerWetLine.position.y=0.70;_outerWetLine.receiveShadow=true;cityGroup.add(_outerWetLine);
+        var _innerWetLine=new THREE.Mesh(new THREE.TorusGeometry(3.10,0.042,8,_hopeFountainLow?32:64),_wetStoneM);
+        _innerWetLine.rotation.x=Math.PI/2;_innerWetLine.position.y=1.46;cityGroup.add(_innerWetLine);
+
+        // Vertical masonry joints and a thin carved band break the overly smooth
+        // silhouette while remaining one instanced draw call.
+        var _jointCount=_hopeFountainLow?16:32;
+        var _jointGeo=new THREE.BoxGeometry(0.026,0.22,0.040);
+        var _jointMesh=new THREE.InstancedMesh(_jointGeo,stoneD,_jointCount);
+        var _jointDummy=new THREE.Object3D();
+        for(var _ji=0;_ji<_jointCount;_ji++){
+            var _ja=_ji/_jointCount*Math.PI*2;
+            _jointDummy.position.set(Math.cos(_ja)*7.39,0.82,Math.sin(_ja)*7.39);
+            _jointDummy.rotation.set(0,-_ja,0);_jointDummy.updateMatrix();
+            _jointMesh.setMatrixAt(_ji,_jointDummy.matrix);
+        }
+        _jointMesh.name='hope-fountain-basin-masonry-joints';_jointMesh.castShadow=true;_jointMesh.receiveShadow=true;cityGroup.add(_jointMesh);
+        var _carvedBand=new THREE.Mesh(new THREE.TorusGeometry(7.34,0.052,8,_hopeFountainLow?48:96),marbleM);
+        _carvedBand.rotation.x=Math.PI/2;_carvedBand.position.y=0.89;_carvedBand.castShadow=true;cityGroup.add(_carvedBand);
+
+        // A restrained procedural reflection layer adds moving sky streaks and
+        // fine concentric distortion without turning the water into blue plastic.
+        var _waterHighlightCanvas=document.createElement('canvas');_waterHighlightCanvas.width=_waterHighlightCanvas.height=_hopeFountainLow?128:256;
+        var _whc=_waterHighlightCanvas.getContext('2d'),_whs=_waterHighlightCanvas.width;
+        _whc.clearRect(0,0,_whs,_whs);
+        var _whg=_whc.createRadialGradient(_whs*0.46,_whs*0.42,_whs*0.05,_whs*0.5,_whs*0.5,_whs*0.48);
+        _whg.addColorStop(0,'rgba(232,252,255,.22)');_whg.addColorStop(.38,'rgba(187,235,244,.08)');_whg.addColorStop(1,'rgba(255,255,255,0)');
+        _whc.fillStyle=_whg;_whc.fillRect(0,0,_whs,_whs);
+        _whc.strokeStyle='rgba(225,251,255,.28)';_whc.lineWidth=_hopeFountainLow?1:1.35;
+        for(var _wsi=0;_wsi<(_hopeFountainLow?9:18);_wsi++){
+            var _wsr=_whs*(0.10+_wsi*0.018),_wsa=(_wsi*1.71)%6.28;
+            _whc.beginPath();_whc.arc(_whs*.5,_whs*.5,_wsr,_wsa,_wsa+0.65+(_wsi%4)*0.18);_whc.stroke();
+        }
+        var _waterHighlightTex=new THREE.CanvasTexture(_waterHighlightCanvas);_waterHighlightTex.colorSpace=THREE.SRGBColorSpace;
+        window._fountainWaterHighlights=[];
+        [[6.18,0.713,0.14],[2.98,1.502,0.12]].forEach(function(_hi,_hii){
+            var _hm=new THREE.MeshBasicMaterial({map:_waterHighlightTex,color:0xD9F8FF,transparent:true,opacity:_hi[2],depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,toneMapped:false});
+            var _hmesh=new THREE.Mesh(new THREE.CircleGeometry(_hi[0],_hopeFountainLow?32:72),_hm);
+            _hmesh.rotation.x=-Math.PI/2;_hmesh.position.y=_hi[1];_hmesh.renderOrder=2;_hmesh.userData._phase=_hii*.5;
+            cityGroup.add(_hmesh);window._fountainWaterHighlights.push(_hmesh);
+        });
+    }
     // Central pillar — preserve the original landmark but rebuild its silhouette in high mode.
     if(currentCityStyle===0){
         var _columnProfile=[
@@ -883,18 +938,35 @@ function buildCity() {
             var groove=new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.045,3.56,8),stoneD);
             groove.position.set(Math.cos(fa)*0.585,3.84,Math.sin(fa)*0.585);groove.castShadow=true;cityGroup.add(groove);
         }
+        [2.08,5.02].forEach(function(_bandY,_bandIndex){
+            var _columnBand=new THREE.Mesh(new THREE.TorusGeometry(_bandIndex?0.69:0.80,_bandIndex?0.055:0.075,10,_hopeFountainLow?28:56),_bandIndex?marbleM:stoneM);
+            _columnBand.rotation.x=Math.PI/2;_columnBand.position.y=_bandY;_columnBand.castShadow=true;cityGroup.add(_columnBand);
+        });
+        var _reliefCount=_hopeFountainLow?4:8;
+        for(var _rli=0;_rli<_reliefCount;_rli++){
+            var _rla=_rli/_reliefCount*Math.PI*2;
+            var _relief=new THREE.Mesh(new THREE.SphereGeometry(0.15,_hopeFountainLow?8:14,_hopeFountainLow?5:8),stoneM);
+            _relief.scale.set(1.0,0.76,0.36);_relief.position.set(Math.cos(_rla)*1.16,1.80,Math.sin(_rla)*1.16);
+            _relief.lookAt(0,1.80,0);_relief.castShadow=true;cityGroup.add(_relief);
+        }
         var _bowlProfile=[new THREE.Vector2(0.30,0),new THREE.Vector2(0.40,0.08),new THREE.Vector2(0.58,0.17),new THREE.Vector2(0.82,0.27),new THREE.Vector2(0.86,0.38),new THREE.Vector2(0.66,0.48),new THREE.Vector2(0.34,0.56)];
         var _topBowl=new THREE.Mesh(new THREE.LatheGeometry(_bowlProfile,40),marbleM);_topBowl.name='hope-fountain-upper-bowl';_topBowl.position.y=6.66;_topBowl.castShadow=true;cityGroup.add(_topBowl);
+        var _topWater=new THREE.Mesh(new THREE.CircleGeometry(0.71,_hopeFountainLow?20:40),waterM);
+        _topWater.rotation.x=-Math.PI/2;_topWater.position.y=7.10;_topWater.renderOrder=2;cityGroup.add(_topWater);
         // A second sculpted spill tray strengthens the silhouette and gives the
         // falling water a believable stone edge instead of a bare shaft.
         var _spillProfile=[new THREE.Vector2(0.42,0),new THREE.Vector2(0.72,0.10),new THREE.Vector2(1.16,0.20),new THREE.Vector2(1.48,0.30),new THREE.Vector2(1.54,0.42),new THREE.Vector2(1.35,0.52),new THREE.Vector2(0.78,0.59)];
         var _spillBowl=new THREE.Mesh(new THREE.LatheGeometry(_spillProfile,48),marbleM);
         _spillBowl.name='hope-fountain-middle-spill-bowl';_spillBowl.position.y=5.62;_spillBowl.castShadow=true;_spillBowl.receiveShadow=true;cityGroup.add(_spillBowl);
+        var _spillWater=new THREE.Mesh(new THREE.CircleGeometry(1.35,_hopeFountainLow?24:56),waterM);
+        _spillWater.rotation.x=-Math.PI/2;_spillWater.position.y=6.12;_spillWater.renderOrder=2;cityGroup.add(_spillWater);
         var _spillShadow=new THREE.Mesh(new THREE.TorusGeometry(1.43,0.055,10,56),stoneD);
         _spillShadow.name='hope-fountain-carved-lip';_spillShadow.rotation.x=Math.PI/2;_spillShadow.position.y=5.98;cityGroup.add(_spillShadow);
         var _finialStem=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.34,0.72,20),marbleM);_finialStem.position.y=7.72;_finialStem.castShadow=true;cityGroup.add(_finialStem);
         var statueHead=new THREE.Mesh(new THREE.SphereGeometry(0.29,20,14),marbleM);statueHead.position.y=8.18;statueHead.castShadow=true;cityGroup.add(statueHead);
-        var shell=new THREE.Mesh(new THREE.SphereGeometry(0.48,20,10,0,Math.PI*2,0,Math.PI/2),goldM);shell.position.y=8.36;shell.rotation.x=Math.PI;cityGroup.add(shell);
+        var shell=new THREE.Mesh(new THREE.SphereGeometry(0.48,20,10,0,Math.PI*2,0,Math.PI/2),goldM);shell.position.y=8.36;shell.rotation.x=Math.PI;shell.castShadow=true;cityGroup.add(shell);
+        var _finialPearl=new THREE.Mesh(new THREE.SphereGeometry(0.15,_hopeFountainLow?10:18,_hopeFountainLow?7:12),marbleM);
+        _finialPearl.position.y=8.66;_finialPearl.castShadow=true;cityGroup.add(_finialPearl);
     }else{
         var colBase=new THREE.Mesh(new THREE.CylinderGeometry(1,1.2,0.6,8),marbleM);
         colBase.position.y=1.6;cityGroup.add(colBase);
@@ -915,9 +987,9 @@ function buildCity() {
         shell.position.y=8.2;shell.rotation.x=Math.PI;cityGroup.add(shell);
     }
     if(currentCityStyle===0){
-        var _foamMat=new THREE.MeshBasicMaterial({color:0xE7FBFF,transparent:true,opacity:0.30,depthWrite:false,blending:THREE.NormalBlending});
-        var _foamOuter=new THREE.Mesh(new THREE.TorusGeometry(6.12,0.075,8,72),_foamMat);_foamOuter.rotation.x=Math.PI/2;_foamOuter.position.y=0.73;cityGroup.add(_foamOuter);
-        var _foamInner=new THREE.Mesh(new THREE.TorusGeometry(2.94,0.060,8,56),_foamMat);_foamInner.rotation.x=Math.PI/2;_foamInner.position.y=1.45;cityGroup.add(_foamInner);
+        var _foamMat=new THREE.MeshBasicMaterial({color:0xE7FBFF,transparent:true,opacity:0.28,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+        var _foamOuter=new THREE.Mesh(new THREE.TorusGeometry(6.12,0.065,8,72),_foamMat);_foamOuter.rotation.x=Math.PI/2;_foamOuter.position.y=0.72;cityGroup.add(_foamOuter);
+        var _foamInner=new THREE.Mesh(new THREE.TorusGeometry(2.94,0.052,8,56),_foamMat);_foamInner.rotation.x=Math.PI/2;_foamInner.position.y=1.50;cityGroup.add(_foamInner);
         window._fountainRipples=[];
         var _rippleMat=new THREE.MeshBasicMaterial({color:0xDDFBFF,transparent:true,opacity:0.18,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
         var _rippleCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?6:12;
@@ -925,18 +997,65 @@ function buildCity() {
             var _rpa=_rpi/_rippleCount*Math.PI*2,_rr=_rpi%3===0?4.75:2.72;
             var _ripple=new THREE.Mesh(new THREE.TorusGeometry(0.23+(_rpi%2)*0.08,0.018,6,24),_rippleMat.clone());
             _ripple.name='hope-fountain-water-ripple';_ripple.rotation.x=Math.PI/2;
-            _ripple.position.set(Math.cos(_rpa)*_rr,_rr>3?0.725:1.465,Math.sin(_rpa)*_rr);
+            _ripple.position.set(Math.cos(_rpa)*_rr,_rr>3?0.724:1.512,Math.sin(_rpa)*_rr);
             _ripple.userData._phase=_rpi/_rippleCount;cityGroup.add(_ripple);window._fountainRipples.push(_ripple);
         }
-        var _fallMat=new THREE.MeshPhysicalMaterial({color:0xB8EFF4,roughness:0.10,clearcoat:0.45,clearcoatRoughness:0.18,transparent:true,opacity:0.34,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
-        var _arcCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?4:8;
+        var _fallMat=new THREE.MeshPhysicalMaterial({color:0xB8F1F6,roughness:0.06,metalness:0,clearcoat:0.72,clearcoatRoughness:0.10,envMapIntensity:0.86,ior:1.333,transmission:_hopeFountainLow?0:0.12,thickness:0.18,transparent:true,opacity:_hopeFountainLow?0.34:0.32,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
+        var _flowHighlightMat=new THREE.MeshBasicMaterial({color:0xE9FDFF,transparent:true,opacity:0.22,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+        var _arcCount=_hopeFountainLow?4:(_hopeFountainHigh?8:6);
+        var _mainArcCurves=[];
         for(var _wai=0;_wai<_arcCount;_wai++){
             var _waa=_wai/_arcCount*Math.PI*2;
-            var _curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(Math.cos(_waa)*0.26,8.22,Math.sin(_waa)*0.26),new THREE.Vector3(Math.cos(_waa)*2.1,9.55,Math.sin(_waa)*2.1),new THREE.Vector3(Math.cos(_waa)*2.72,1.54,Math.sin(_waa)*2.72));
-            var _arc=new THREE.Mesh(new THREE.TubeGeometry(_curve,24,0.032,7,false),_fallMat);_arc.name='hope-fountain-water-arc';_arc.renderOrder=3;cityGroup.add(_arc);
+            var _curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(Math.cos(_waa)*0.24,8.54,Math.sin(_waa)*0.24),new THREE.Vector3(Math.cos(_waa)*2.45,9.38,Math.sin(_waa)*2.45),new THREE.Vector3(Math.cos(_waa)*4.78,0.77,Math.sin(_waa)*4.78));
+            _mainArcCurves.push(_curve);
+            var _arc=new THREE.Mesh(new THREE.TubeGeometry(_curve,_hopeFountainLow?20:36,_hopeFountainLow?0.042:0.038,_hopeFountainLow?6:10,false),_fallMat);_arc.name='hope-fountain-water-arc';_arc.renderOrder=3;cityGroup.add(_arc);
+            if(!_hopeFountainLow){
+                var _arcHighlight=new THREE.Mesh(new THREE.TubeGeometry(_curve,36,0.010,6,false),_flowHighlightMat);
+                _arcHighlight.name='hope-fountain-water-highlight';_arcHighlight.renderOrder=4;cityGroup.add(_arcHighlight);
+            }
+        }
+        var _dropletsPerArc=_hopeFountainLow?3:(_hopeFountainHigh?6:4),_dropletCount=_arcCount*_dropletsPerArc;
+        var _dropletMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(_hopeFountainLow?0.042:0.036,_hopeFountainLow?5:8,_hopeFountainLow?4:6),_flowHighlightMat,_dropletCount);
+        var _dropletDummy=new THREE.Object3D(),_dropletIndex=0;
+        for(var _dai=0;_dai<_mainArcCurves.length;_dai++){
+            for(var _di=0;_di<_dropletsPerArc;_di++){
+                var _dt=0.17+(_di+0.35+(_dai%3)*0.13)/_dropletsPerArc*0.75;
+                _dropletDummy.position.copy(_mainArcCurves[_dai].getPoint(Math.min(0.94,_dt)));
+                var _ds=0.72+((_dai+_di)%3)*0.16;_dropletDummy.scale.set(_ds,_ds*1.55,_ds);
+                _dropletDummy.updateMatrix();_dropletMesh.setMatrixAt(_dropletIndex++,_dropletDummy.matrix);
+            }
+        }
+        _dropletMesh.name='hope-fountain-arc-droplets';_dropletMesh.renderOrder=4;cityGroup.add(_dropletMesh);
+        // A slim upward crown jet sells the pressure source; the existing droplets
+        // then break it into spray at the apex.
+        var _crownCurve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,8.50,0),new THREE.Vector3(0.10,9.24,-0.06),new THREE.Vector3(0.02,9.68,0.02));
+        var _crownJet=new THREE.Mesh(new THREE.TubeGeometry(_crownCurve,_hopeFountainLow?12:24,0.036,_hopeFountainLow?6:10,false),_fallMat);
+        _crownJet.name='hope-fountain-crown-jet';_crownJet.renderOrder=3;cityGroup.add(_crownJet);
+
+        // Discrete spill streams reveal the middle bowl and create layered water
+        // motion. A single transparent cylinder looked like a glass sleeve.
+        var _spillStreamCount=_hopeFountainLow?4:(_hopeFountainHigh?12:8);
+        for(var _ssi=0;_ssi<_spillStreamCount;_ssi++){
+            var _ssa=_ssi/_spillStreamCount*Math.PI*2;
+            var _spillCurve=new THREE.QuadraticBezierCurve3(
+                new THREE.Vector3(Math.cos(_ssa)*1.30,6.10,Math.sin(_ssa)*1.30),
+                new THREE.Vector3(Math.cos(_ssa)*1.82,5.70,Math.sin(_ssa)*1.82),
+                new THREE.Vector3(Math.cos(_ssa)*2.68,1.54,Math.sin(_ssa)*2.68)
+            );
+            var _spillStream=new THREE.Mesh(new THREE.TubeGeometry(_spillCurve,_hopeFountainLow?14:24,_hopeFountainLow?0.032:0.030,_hopeFountainLow?5:8,false),_fallMat);
+            _spillStream.name='hope-fountain-spill-stream';_spillStream.renderOrder=3;cityGroup.add(_spillStream);
         }
         var _curtain=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.93,5.05,40,1,true),_fallMat.clone());
-        _curtain.material.opacity=0.10;_curtain.position.y=4.10;_curtain.renderOrder=2;cityGroup.add(_curtain);
+        _curtain.material.opacity=0.035;_curtain.position.y=4.10;_curtain.renderOrder=2;cityGroup.add(_curtain);
+
+        // Soft impact crowns where the main arcs meet the outer pool.
+        var _impactCount=_arcCount;
+        for(var _ici=0;_ici<_impactCount;_ici++){
+            var _ica=_ici/_impactCount*Math.PI*2;
+            var _impactFoam=new THREE.Mesh(new THREE.RingGeometry(0.16,0.34,_hopeFountainLow?12:24),_foamMat.clone());
+            _impactFoam.rotation.x=-Math.PI/2;_impactFoam.position.set(Math.cos(_ica)*4.78,0.731,Math.sin(_ica)*4.78);
+            _impactFoam.material.opacity=0.18;_impactFoam.renderOrder=3;cityGroup.add(_impactFoam);
+        }
     }
     // 4 lion head spouts around inner basin
     for(var li=0;li<4;li++){
@@ -944,10 +1063,20 @@ function buildCity() {
         var lx2=Math.cos(la)*3.3,lz2=Math.sin(la)*3.3;
         // Sculpted spout replaces the old box while keeping the same position and gameplay.
         if(currentCityStyle===0){
-            var _spoutG=new THREE.Group();_spoutG.position.set(lx2,1.58,lz2);_spoutG.lookAt(0,1.48,0);
+            var _spoutG=new THREE.Group();_spoutG.position.set(lx2,1.58,lz2);_spoutG.lookAt(lx2*2,1.48,lz2*2);
             _spoutG.name='hope-fountain-lion-spout';
             var lionMane=new THREE.Mesh(new THREE.SphereGeometry(0.39,18,12),stoneM);lionMane.scale.set(1.0,1.08,0.62);lionMane.castShadow=true;_spoutG.add(lionMane);
             var lionHead=new THREE.Mesh(new THREE.SphereGeometry(0.25,16,10),marbleM);lionHead.position.z=0.25;lionHead.scale.set(0.90,0.76,1.12);lionHead.castShadow=true;_spoutG.add(lionHead);
+            for(var _lei=-1;_lei<=1;_lei+=2){
+                var _lionEar=new THREE.Mesh(new THREE.SphereGeometry(0.105,_hopeFountainLow?8:12,_hopeFountainLow?5:8),stoneM);
+                _lionEar.position.set(_lei*0.22,0.13,0.19);_lionEar.scale.set(0.86,1.10,0.56);_lionEar.castShadow=true;_spoutG.add(_lionEar);
+                if(!_hopeFountainLow){
+                    var _lionBrow=new THREE.Mesh(new THREE.SphereGeometry(0.055,10,7),stoneD);
+                    _lionBrow.position.set(_lei*0.09,0.065,0.465);_lionBrow.scale.set(1.35,0.54,0.50);_spoutG.add(_lionBrow);
+                }
+            }
+            var _lionNose=new THREE.Mesh(new THREE.SphereGeometry(0.085,_hopeFountainLow?8:14,_hopeFountainLow?5:8),stoneD);
+            _lionNose.position.set(0,-0.005,0.49);_lionNose.scale.set(1.18,0.68,0.72);_spoutG.add(_lionNose);
             var _muzzle=new THREE.Mesh(new THREE.CylinderGeometry(0.105,0.15,0.28,14),stoneD);_muzzle.rotation.x=Math.PI/2;_muzzle.position.set(0,-0.06,0.48);_spoutG.add(_muzzle);
             cityGroup.add(_spoutG);
         }else{
@@ -957,13 +1086,13 @@ function buildCity() {
             lionMane.position.set(lx2,1.6,lz2);cityGroup.add(lionMane);
         }
         // Curved water jet from each lion mouth, landing with its own ripple.
-        var jetDir={x:-Math.cos(la),z:-Math.sin(la)};
+        var jetDir=currentCityStyle===0?{x:Math.cos(la),z:Math.sin(la)}:{x:-Math.cos(la),z:-Math.sin(la)};
         var jet;
         if(currentCityStyle===0){
             var _jetCurve=new THREE.QuadraticBezierCurve3(
                 new THREE.Vector3(lx2+jetDir.x*0.42,1.50,lz2+jetDir.z*0.42),
-                new THREE.Vector3(lx2+jetDir.x*1.14,1.74,lz2+jetDir.z*1.14),
-                new THREE.Vector3(lx2+jetDir.x*1.82,0.74,lz2+jetDir.z*1.82)
+                new THREE.Vector3(lx2+jetDir.x*1.04,1.88,lz2+jetDir.z*1.04),
+                new THREE.Vector3(lx2+jetDir.x*1.82,0.73,lz2+jetDir.z*1.82)
             );
             jet=new THREE.Mesh(new THREE.TubeGeometry(_jetCurve,20,0.040,7,false),_fallMat);
             jet.name='hope-fountain-spout-water';jet.renderOrder=3;
@@ -973,23 +1102,35 @@ function buildCity() {
             jet.rotation.z=Math.PI/2*Math.sign(jetDir.x||0.1);jet.rotation.x=Math.atan2(jetDir.z,jetDir.x);
         }
         cityGroup.add(jet);
+        if(currentCityStyle===0){
+            var _lionImpact=new THREE.Mesh(new THREE.RingGeometry(0.12,0.27,_hopeFountainLow?12:22),_foamMat.clone());
+            _lionImpact.rotation.x=-Math.PI/2;_lionImpact.position.set(lx2+jetDir.x*1.82,0.734,lz2+jetDir.z*1.82);
+            _lionImpact.material.opacity=0.17;_lionImpact.renderOrder=3;cityGroup.add(_lionImpact);
+        }
     }
     // 8 small decorative columns around outer rim
     for(var ci2=0;ci2<8;ci2++){
         var ca=ci2/8*Math.PI*2;
         var cx2=Math.cos(ca)*7.5,cz2=Math.sin(ca)*7.5;
-        var miniCol=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.18,2,currentCityStyle===0?16:6),marbleM);
-        miniCol.position.set(cx2,1,cz2);cityGroup.add(miniCol);
-        var miniCap=new THREE.Mesh(new THREE.SphereGeometry(0.22,currentCityStyle===0?14:6,currentCityStyle===0?10:4),stoneM);
-        miniCap.position.set(cx2,2.1,cz2);cityGroup.add(miniCap);
+        var miniCol=new THREE.Mesh(new THREE.CylinderGeometry(currentCityStyle===0?0.13:0.15,currentCityStyle===0?0.19:0.18,currentCityStyle===0?1.48:2,currentCityStyle===0?16:6),marbleM);
+        miniCol.position.set(cx2,currentCityStyle===0?1.18:1,cz2);miniCol.castShadow=true;cityGroup.add(miniCol);
+        if(currentCityStyle===0){
+            var _balBase=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.29,0.16,_hopeFountainLow?10:16),stoneM);
+            _balBase.position.set(cx2,0.46,cz2);_balBase.castShadow=true;cityGroup.add(_balBase);
+            var _balNeck=new THREE.Mesh(new THREE.TorusGeometry(0.18,0.036,6,_hopeFountainLow?12:20),stoneD);
+            _balNeck.rotation.x=Math.PI/2;_balNeck.position.set(cx2,1.78,cz2);cityGroup.add(_balNeck);
+        }
+        var miniCap=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.19:0.22,currentCityStyle===0?14:6,currentCityStyle===0?10:4),stoneM);
+        miniCap.position.set(cx2,currentCityStyle===0?1.91:2.1,cz2);miniCap.castShadow=true;cityGroup.add(miniCap);
     }
     // Scattered gold coins in the water
     for(var gi=0;gi<20;gi++){
         var ga=Math.random()*Math.PI*2;
         var gr=Math.random()*5.5;
-        var coin=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.03,8),goldM);
+        var coin=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.31):
+            new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.03,8),goldM);
         coin.position.set(Math.cos(ga)*gr,0.55+Math.random()*0.15,Math.sin(ga)*gr);
-        coin.rotation.x=Math.PI/2+(Math.random()-0.5)*0.5;
+        coin.rotation.x=-Math.PI/2+(Math.random()-0.5)*0.35;
         coin.rotation.z=Math.random()*Math.PI;
         cityGroup.add(coin);
     }
@@ -1013,14 +1154,15 @@ function buildCity() {
     for(var lli=0;lli<4;lli++){
         var lla=lli/4*Math.PI*2;
         var llx=Math.cos(lla)*3.3,llz=Math.sin(lla)*3.3;
-        var jdx=-Math.cos(lla)*0.1,jdz=-Math.sin(lla)*0.1;
+        var _lionFlowSign=currentCityStyle===0?1:-1;
+        var jdx=Math.cos(lla)*0.1*_lionFlowSign,jdz=Math.sin(lla)*0.1*_lionFlowSign;
         for(var lpi=0;lpi<(currentCityStyle===0?(_fountainLow?4:8):20);lpi++){
             var lp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.050:0.18,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fwMat);
             lp.visible=false;
             cityGroup.add(lp);
             _fwParticles.push({mesh:lp,type:'lion',life:Math.floor(Math.random()*40),maxLife:40+Math.random()*20,
                 vx:jdx+(Math.random()-0.5)*0.03,vy:0.02+Math.random()*0.03,vz:jdz+(Math.random()-0.5)*0.03,
-                ox:llx,oy:1.4,oz:llz,_lionAngle:lla});
+                ox:llx+jdx*4.2,oy:1.50,oz:llz+jdz*4.2,_lionAngle:lla});
         }
     }
     // Store reference for animation

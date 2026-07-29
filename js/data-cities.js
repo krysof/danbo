@@ -25,9 +25,9 @@ var CITY_CONFIG={
 
 // ---- City style themes ----
 var CITY_THEME_DATA=[
-    {id:0,nameKey:'city0',ground:0x5F9C68,path:0xD8C49C,sky:0x80BFE8,
-     bColors:[0x5D8D67,0x6F9EAD,0xD6A64F,0xA85E72,0xC77656,0x7B6FA6,0xC57A98,0x4F9288],
-     roof:0xB85A4D,tree:0x467C42,fog:0xC4DFED},
+    {id:0,nameKey:'city0',ground:0x7ADDA5,path:0xFFE8B8,sky:0x9FDBFF,
+     bColors:[0xFF9FC6,0x82D0FF,0xFFE88A,0xB9EA95,0xFFC6A6,0xCDB8FF,0xFFB8DE,0x9BEAE2],
+     roof:0xFF85AD,tree:0x70D878,fog:0xDFF7FF},
     {id:1,nameKey:'city1',ground:0xDDCC88,path:0xCCBB77,sky:0xFFCC66,
      bColors:[0xDDAA66,0xCC9955,0xEEBB77,0xBB8844,0xDDCC88,0xCCAA55,0xEECC99,0xBB9966],
      roof:0xAA6633,tree:0x88AA44,fog:0xFFEECC},
@@ -78,21 +78,27 @@ var CLOUD_CONFIG={
 var CAMERA_CONFIG={
     zoomMin:0.04, zoomMax:1000,
     followSmooth:0.08, minHeight:3,
-    yOffset:4.3, zOffset:7.8,
+    yOffset:10, zOffset:14,
     shakeMultX:2, shakeMultY:1.5, shakeMultZ:2
 };
 
 // ---- Renderer / lighting parameters ----
 var RENDER_CONFIG={
-    fogNear:80, fogFar:400, fogDensity:0.0021,
-    fogColor:0xA9B9C7,
+    fogColor:0x8EB3C4, fogDensity:0.0021,
+    hdri:'assets/hdri/farm_sunset_1k.hdr',
+    environmentIntensity:0.9, backgroundIntensity:0.85,
     sunColor:0xFFD9A0, sunIntensity:5.2,
-    // Matches the rotated low sun in kloppenheim_06_puresky.
-    sunPos:{x:88.4,y:16.0,z:-79.6},
-    shadowMapSize:4096, shadowBias:-0.0005,
-    shadowRange:55, shadowNear:1, shadowFar:360,
-    ambientIntensity:0.04,
-    hemiSkyColor:0xD8E8F0, hemiGroundColor:0x48534A, hemiIntensity:0.10,
+    // Small Harbour Sunset has a low golden-hour sun. Keep the physical
+    // direction and the visible background aligned (about 7.6 degrees high).
+    // Farm Sunset's solar disc sits at roughly 37 degrees azimuth. Keep the key
+    // light on that same bearing and at the measured low sunset elevation.
+    sunPos:{x:79.4,y:13.34,z:60.0},
+    shadowMapSize:4096, shadowBias:-0.0005, shadowNormalBias:0.03,
+    shadowRange:55, shadowNear:1, shadowFar:360, shadowRadius:3, shadowIntensity:0.68,
+    // HDRI supplies the broad sky illumination. These legacy fills stay deliberately
+    // low so non-PBR/toon props remain readable without flattening contact shadows.
+    ambientIntensity:0.08,
+    hemiSkyColor:0xD9EFFF, hemiGroundColor:0x59675A, hemiIntensity:0.18,
     pixelRatioMin:1.0, pixelRatioMax:2.0,
     toneExposure:0.66
 };

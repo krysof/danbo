@@ -44,9 +44,12 @@
     // Candy unchanged, Star unchanged, Rock=Lava, Wind=Desert.
     var CHARACTER_SELECT_CITY_MAP=[6,7,2,0,4,5,3,1];
     window.DANBO_CHARACTER_SELECT_CITY_MAP=CHARACTER_SELECT_CITY_MAP.slice();
+    var quality=window.DANBO_VISUAL_QUALITY||{};
     var renderer;
     try{
-        renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low),powerPreference:'high-performance',premultipliedAlpha:true,stencil:false});
+        // Keep silhouette anti-aliasing even on the low path. Expensive shadows,
+        // map segments and refresh frequency are reduced instead.
+        renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true,powerPreference:'high-performance',premultipliedAlpha:true,preserveDrawingBuffer:true,stencil:false});
     }catch(err){console.warn('3D character select fallback',err);screen.classList.add('select-3d-fallback');return;}
     renderer.setClearColor(0x000000,0);
     renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -57,10 +60,18 @@
     renderer.shadowMap.type=THREE.PCFSoftShadowMap;
     // The hero gently turns and floats, so its turntable shadow must follow every frame.
     renderer.shadowMap.autoUpdate=true;
-    var quality=window.DANBO_VISUAL_QUALITY||{};
-    var ratioCap=quality.high?1.8:(quality.low?1.1:1.45);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,ratioCap));
+    var ratioCap=quality.high?2.5:(quality.low?1.5:2.0);
+    var selectPixelRatio=Math.min(window.devicePixelRatio||1,ratioCap);
+    renderer.setPixelRatio(selectPixelRatio);
     renderer.autoClear=false;
+    window.DANBO_SELECT_QUALITY={
+        pixelRatio:selectPixelRatio,
+        ratioCap:ratioCap,
+        antialias:true,
+        heroDetail:'high',
+        cardFps:quality.low?10:15,
+        mapFps:quality.low?15:30
+    };
 
     function pbr(color,roughness,metalness){
         return new THREE.MeshStandardMaterial({color:color,roughness:roughness,metalness:metalness||0,envMapIntensity:.42});
@@ -90,7 +101,14 @@
         lightRing.name='select-accent-light-ring';lightRing.rotation.x=Math.PI/2;lightRing.position.y=.041;stage.add(lightRing);
         var contact=new THREE.Mesh(new THREE.PlaneGeometry(1.55,1.0),new THREE.MeshBasicMaterial({map:_selectShadowTex,color:0x17353d,transparent:true,opacity:.42,depthWrite:false}));
         contact.name='select-soft-contact-shadow';contact.rotation.x=-Math.PI/2;contact.position.y=.044;stage.add(contact);
-        var model=createEggMesh(ch.color,ch.accent,ch.type);model.position.y=.06;stage.add(model);
+        // The face and silhouette are the focus of this page. Build the character
+        // with the high-detail geometry path even when gameplay is in balanced or
+        // low quality; the static roster cards are throttled below to pay for it.
+        var oldHigh=quality.high,oldLow=quality.low,model;
+        quality.high=true;quality.low=false;
+        try{model=createEggMesh(ch.color,ch.accent,ch.type);}
+        finally{quality.high=oldHigh;quality.low=oldLow;}
+        model.position.y=.06;stage.add(model);
         // Facial meshes no longer cast tiny self-shadows onto the body. The body and
         // silhouette pieces still cast one clean, soft shadow onto the turntable.
         model.traverse(function(o){if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});
@@ -98,10 +116,14 @@
         if(model.userData.body)model.userData.body.castShadow=true;
         (model.userData.feet||[]).forEach(markCaster);
         (model.userData._decorArms||[]).forEach(markCaster);
+        (model.userData._angelWings||[]).forEach(markCaster);
+        (model.userData._crystalEars||[]).forEach(markCaster);
         (model.userData._candyEars||[]).forEach(markCaster);
+        (model.userData._flowerDetails||[]).forEach(markCaster);
         (model.userData._forestLeaves||[]).forEach(markCaster);
         (model.userData._rockDetails||[]).forEach(markCaster);
         (model.userData._starDetails||[]).forEach(markCaster);
+        (model.userData._windDetails||[]).forEach(markCaster);
 
         // One fixed warm key light defines the character. Ambient sky light only
         // prevents crushed blacks; there are no moving fill/rim lights.
@@ -466,8 +488,17 @@
     var stages=[],mapStages=[];
     try{for(var i=0;i<CHARACTERS.length;i++){stages.push(makeStage(CHARACTERS[i],i));mapStages.push(makeCuteSceneMap(i));}}
     catch(buildErr){console.error('Unable to build 3D roster',buildErr);renderer.dispose();screen.classList.add('select-3d-fallback');return;}
+    var _selectProofBody=stages[0]&&stages[0].model&&stages[0].model.userData.body;
+    window.DANBO_SELECT_QUALITY.heroBodySegments=_selectProofBody&&_selectProofBody.geometry&&_selectProofBody.geometry.parameters?_selectProofBody.geometry.parameters.widthSegments:0;
+    window.DANBO_SELECT_QUALITY.preserveCards=true;
     screen.classList.add('select-3d-ready');
     var selected=0,lastW=0,lastH=0,launching=false;
+    var cardsDirty=true,mapDirty=true,wasActive=false,lastCardsAt=-1e9,lastMapAt=-1e9;
+    // The roster and hero share each stage/model to keep mobile GPU memory low.
+    // Each short card gesture is therefore applied only while that small card is
+    // drawn, then restored before the large hero is rendered again.
+    var cardGestureIndex=-1,cardGestureStart=-1,cardGestureDuration=1.42;
+    var cardGestureKinds=['flower-wave','forest-sway','crystal-skip','angel-flutter','candy-bounce','star-hop','rock-nod','wind-float'];
     function hex6(n){return '#'+('000000'+Number(n||0).toString(16)).slice(-6);}
     function setSelected(idx){
         selected=Math.max(0,Math.min(CHARACTERS.length-1,Number(idx)||0));
@@ -489,8 +520,21 @@
         if(archetype)archetype.textContent=copy[0];if(desc)desc.textContent=copy[1];if(count)count.textContent=String(selected+1).padStart(2,'0');if(name)name.textContent=ch.name;
         document.querySelectorAll('.char-cell').forEach(function(cell,j){cell.classList.toggle('selected',j===selected);cell.setAttribute('aria-pressed',j===selected?'true':'false');});
         stages[selected].turnStart=(typeof performance!=='undefined'?performance.now():Date.now())*.001;
+        cardsDirty=true;mapDirty=true;
     }
     window._update3DCharacterSelect=setSelected;
+    window._play3DSelectCardGesture=function(idx){
+        idx=Number(idx);
+        if(idx<0||idx>=stages.length||!stages[idx])return false;
+        cardGestureIndex=idx;
+        cardGestureStart=(typeof performance!=='undefined'?performance.now():Date.now())*.001;
+        cardsDirty=true;
+        window.DANBO_SELECT_CARD_GESTURE={index:idx,kind:cardGestureKinds[idx],start:cardGestureStart,duration:cardGestureDuration,active:true};
+        // Kept as a compatibility proof for the previously released flower-only effect.
+        window.DANBO_SELECT_CARD_WAVE=window.DANBO_SELECT_CARD_GESTURE;
+        return true;
+    };
+    window._play3DSelectCardWave=window._play3DSelectCardGesture;
     window._startSelect3DTransition=function(done){
         if(launching)return;launching=true;screen.classList.add('select-launching');
         setTimeout(function(){if(typeof done==='function')done();screen.classList.remove('select-launching');launching=false;},680);
@@ -498,7 +542,10 @@
 
     function resize(){
         var w=Math.max(1,screen.clientWidth),h=Math.max(1,screen.clientHeight);
-        if(w!==lastW||h!==lastH){lastW=w;lastH=h;renderer.setSize(w,h,false);}
+        if(w!==lastW||h!==lastH){
+            lastW=w;lastH=h;renderer.setSize(w,h,false);cardsDirty=true;mapDirty=true;return true;
+        }
+        return false;
     }
     function renderRect(el,item,hero,t){
         if(!el||!item)return;
@@ -516,12 +563,119 @@
         item.model.rotation.z=0;
         item.key.castShadow=!quality.low&&hero;
         if(typeof _animateCuteCharacterDetails==='function')_animateCuteCharacterDetails(item.model,t);
+        var gestureAge=(!hero&&item.index===cardGestureIndex)?t-cardGestureStart:-1;
+        var gestureActive=gestureAge>=0&&gestureAge<cardGestureDuration;
+        var savedGesturePose=null;
+        if(gestureActive){
+            var ud=item.model.userData,arms=ud._decorArms||[];
+            var detailLists=[
+                ud._flowerDetails||[],ud._forestLeaves||[],ud._crystalSparkles||[],ud._angelWings||[],
+                ud._candyEars||[],ud._starDetails||[],ud._rockDetails||[],ud._windDetails||[]
+            ];
+            var details=detailLists[item.index]||[];
+            savedGesturePose={
+                modelPosition:item.model.position.clone(),
+                modelRotation:item.model.rotation.clone(),
+                arms:arms.map(function(arm){return{
+                    arm:arm,rotation:arm.rotation.clone(),
+                    handScale:arm.userData._hand?arm.userData._hand.scale.clone():null
+                };}),
+                details:details.map(function(detail){return{
+                    detail:detail,rotation:detail.rotation.clone(),scale:detail.scale.clone()
+                };})
+            };
+            var p=Math.max(0,Math.min(1,gestureAge/cardGestureDuration));
+            var envelope;
+            if(p<0.18){var rise=p/0.18;envelope=rise*rise*(3-2*rise);}
+            else if(p<0.78)envelope=1;
+            else{var fall=(p-0.78)/0.22;fall=Math.max(0,Math.min(1,fall));envelope=1-fall*fall*(3-2*fall);}
+            var wave=Math.sin(Math.max(0,gestureAge-0.18)*Math.PI*6.0)*envelope;
+            var sway=Math.sin(p*Math.PI*2)*envelope;
+            var doubleBounce=Math.pow(Math.sin(p*Math.PI*2),2)*envelope;
+            function spreadArms(amount,flutter){
+                for(var ai=0;ai<arms.length;ai++){
+                    var arm=arms[ai],side=arm.userData._side||((ai===0)?-1:1);
+                    var rest=arm.userData._restZ===undefined?side*0.48:arm.userData._restZ;
+                    arm.rotation.z=rest+side*amount*envelope+side*(flutter||0)*sway;
+                    arm.rotation.x=savedGesturePose.arms[ai].rotation.x+(flutter||0)*0.35*sway;
+                    if(arm.userData._hand)arm.userData._hand.scale.setScalar(1+envelope*0.025);
+                }
+            }
+            function waveHand(side,target,amount){
+                var arm=null;
+                for(var wi=0;wi<arms.length;wi++){
+                    if((arms[wi].userData._side||((wi===0)?-1:1))===side){arm=arms[wi];break;}
+                }
+                if(!arm)arm=side>0?(arms[1]||arms[0]):arms[0];
+                if(!arm)return;
+                var armIndex=arms.indexOf(arm),rest=arm.userData._restZ===undefined?side*0.48:arm.userData._restZ;
+                var raisedTarget=side*Math.abs(target);
+                arm.rotation.z=rest+(raisedTarget-rest)*envelope+side*wave*amount;
+                arm.rotation.x=savedGesturePose.arms[armIndex].rotation.x+wave*amount*0.62;
+                if(arm.userData._hand)arm.userData._hand.scale.setScalar(1+envelope*0.045);
+            }
+            if(item.index===0){
+                waveHand(-1,2.58,0.17);
+                item.model.position.y+=Math.sin(p*Math.PI)*0.035;
+                item.model.rotation.z=0.045*envelope;
+                for(var fdi=0;fdi<details.length;fdi++)details[fdi].rotation.z+=Math.sin(gestureAge*8+fdi*.7)*0.055*envelope;
+            }else if(item.index===1){
+                spreadArms(0.20,0.05);
+                item.model.position.y+=Math.sin(p*Math.PI)*0.024;
+                item.model.rotation.z=sway*0.042;
+                for(var fli=0;fli<details.length;fli++)details[fli].rotation.z+=Math.sin(gestureAge*6+fli*.8)*0.035*envelope;
+            }else if(item.index===2){
+                spreadArms(0.18,0.03);
+                item.model.position.y+=doubleBounce*0.085;
+                for(var cdi=0;cdi<details.length;cdi++)details[cdi].scale.multiplyScalar(1+envelope*(0.035+0.035*Math.sin(gestureAge*9+cdi)));
+            }else if(item.index===3){
+                spreadArms(0.16,0.025);
+                item.model.position.y+=Math.sin(p*Math.PI)*0.038;
+                for(var awi=0;awi<details.length;awi++){
+                    var wingSide=details[awi].userData._side||((awi===0)?-1:1);
+                    details[awi].rotation.z+=wingSide*Math.sin(p*Math.PI*4)*0.085*envelope;
+                    details[awi].rotation.y-=wingSide*Math.sin(p*Math.PI*4)*0.045*envelope;
+                }
+            }else if(item.index===4){
+                spreadArms(0.10,0.11);
+                item.model.position.y+=doubleBounce*0.075;
+                item.model.rotation.z=sway*0.026;
+                for(var cei=0;cei<details.length;cei++)details[cei].rotation.z+=((cei===0)?-1:1)*sway*0.040;
+            }else if(item.index===5){
+                waveHand(1,2.30,0.12);
+                item.model.position.y+=Math.sin(p*Math.PI)*0.095;
+                item.model.rotation.z=-0.025*envelope;
+                for(var sdi=0;sdi<details.length;sdi++)details[sdi].scale.multiplyScalar(1+envelope*(0.035+0.040*Math.sin(gestureAge*8+sdi)));
+            }else if(item.index===6){
+                spreadArms(0.16,0.025);
+                item.model.position.y+=doubleBounce*0.017;
+                item.model.rotation.x+=sway*0.050;
+                for(var rdi=0;rdi<details.length;rdi++)details[rdi].rotation.y+=sway*0.025*((rdi%2)?-1:1);
+            }else{
+                waveHand(-1,2.20,0.10);
+                item.model.position.y+=Math.sin(p*Math.PI)*0.035;
+                item.model.rotation.z=-sway*0.040;
+                for(var wdi=0;wdi<details.length;wdi++)details[wdi].rotation.z+=Math.sin(gestureAge*7+wdi)*0.045*envelope;
+            }
+        }
         var blink=(t+item.index*.31)%4.6>4.46,lids=item.model.userData._blinkLids||[];
         for(var li=0;li<lids.length;li++)lids[li].visible=blink;
         item.camera.fov=hero?(compactHero?34:32):39;item.camera.aspect=w/h;
         item.camera.position.set(hero ? .08 : 0,hero ? .80 : .76,hero ? (compactHero?5.35:5.12) : 4.45);
         item.camera.lookAt(0,hero ? .80 : .76,0);item.camera.updateProjectionMatrix();
         renderer.render(item.scene,item.camera);
+        if(savedGesturePose){
+            item.model.position.copy(savedGesturePose.modelPosition);
+            item.model.rotation.copy(savedGesturePose.modelRotation);
+            for(var ari=0;ari<savedGesturePose.arms.length;ari++){
+                var armPose=savedGesturePose.arms[ari];armPose.arm.rotation.copy(armPose.rotation);
+                if(armPose.handScale&&armPose.arm.userData._hand)armPose.arm.userData._hand.scale.copy(armPose.handScale);
+            }
+            for(var dri=0;dri<savedGesturePose.details.length;dri++){
+                var detailPose=savedGesturePose.details[dri];
+                detailPose.detail.rotation.copy(detailPose.rotation);detailPose.detail.scale.copy(detailPose.scale);
+            }
+        }
     }
     function renderSceneMap(t){
         var item=mapStages[selected];if(!mapViewport||!item)return;
@@ -544,14 +698,29 @@
     }
     function frame(now){
         requestAnimationFrame(frame);
-        if(!screen.classList.contains('active'))return;
-        resize();
-        renderer.setScissorTest(false);renderer.setViewport(0,0,lastW,lastH);renderer.clear(true,true,true);
+        if(!screen.classList.contains('active')){wasActive=false;return;}
+        var resized=resize();
+        if(!wasActive||resized){
+            renderer.setScissorTest(false);renderer.setViewport(0,0,lastW,lastH);renderer.clear(true,true,true);
+            cardsDirty=true;mapDirty=true;wasActive=true;
+        }
         var t=now*.001;
+        if(cardGestureIndex>=0&&t-cardGestureStart>=cardGestureDuration){
+            cardGestureIndex=-1;cardsDirty=true;
+            if(window.DANBO_SELECT_CARD_GESTURE)window.DANBO_SELECT_CARD_GESTURE.active=false;
+        }
         renderRect(heroViewport,stages[selected],true,t);
-        renderSceneMap(t);
+        var mapInterval=1000/window.DANBO_SELECT_QUALITY.mapFps;
+        if(mapDirty||now-lastMapAt>=mapInterval){renderSceneMap(t);lastMapAt=now;mapDirty=false;}
+        var cardInterval=1000/window.DANBO_SELECT_QUALITY.cardFps;
         var cells=document.querySelectorAll('.char-cell');
-        for(var i=0;i<cells.length&&i<stages.length;i++)renderRect(cells[i],stages[i],false,t);
+        if(cardsDirty||now-lastCardsAt>=cardInterval){
+            for(var i=0;i<cells.length&&i<stages.length;i++)renderRect(cells[i],stages[i],false,t);
+            lastCardsAt=now;cardsDirty=false;
+        }else if(cardGestureIndex>=0&&cells[cardGestureIndex]){
+            // Redraw only the animated card at display refresh rate.
+            renderRect(cells[cardGestureIndex],stages[cardGestureIndex],false,t);
+        }
         renderer.setScissorTest(false);
     }
     canvas.addEventListener('webglcontextlost',function(e){e.preventDefault();screen.classList.remove('select-3d-ready');screen.classList.add('select-3d-fallback');});

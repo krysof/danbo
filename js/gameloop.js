@@ -197,16 +197,81 @@ function updateCity(){
     // Animate portals
     const t=Date.now()*0.001;
     if(typeof _updateVisualFX==='function')_updateVisualFX(px,py,pz,t);
+    var _nearestPortalLight=null,_nearestPortalLightDistance=Infinity;
     for(const p of portals){
-        p.ring.rotation.z=t*0.5;
-        p.inner.rotation.z=-t*0.8;
-        // Particles orbit
-        p.mesh.children.forEach(ch=>{
-            if(ch.userData.orbitPhase!==undefined){
-                const a=ch.userData.orbitPhase+t*1.5;
-                ch.position.set(Math.cos(a)*1.8, 2.5+Math.sin(a*2)*0.5, Math.sin(a)*1.8);
+        var pv=p._visual;
+        if(pv){
+            var vt=t%1000;
+            var pulse=0.96+Math.sin(vt*2.1+p.raceIndex)*0.04;
+            pv.energyRing.scale.setScalar(pulse);
+            pv.energyRing.material.opacity=0.63+Math.sin(vt*2.6+p.raceIndex)*0.13;
+            pv.groundHalo.material.opacity=0.13+Math.sin(vt*1.7+p.raceIndex)*0.055;
+            pv.runeRing.rotation.z=vt*(pv.theme.kind==='fire'?0.24:-0.16);
+            if(pv.inner.material.uniforms&&pv.inner.material.uniforms.uTime)pv.inner.material.uniforms.uTime.value=vt;
+            pv.inner.rotation.z=-vt*0.075;
+            var pa=pv.particles.geometry.attributes.position,arr=pa.array,count=pv.phases.length;
+            for(var pvi=0;pvi<count;pvi++){
+                var phase=pv.phases[pvi],band=pv.bands[pvi],ix=pvi*3;
+                if(pv.theme.kind==='fire'){
+                    var lift=(band+vt*0.19+pvi*0.037)%1;
+                    arr[ix]=Math.cos(phase+vt*0.48)*(0.92+lift*1.38);
+                    arr[ix+1]=0.58+lift*4.35;
+                    arr[ix+2]=0.10+Math.sin(phase*1.7+vt)*0.22;
+                }else if(pv.theme.kind==='ice'){
+                    var fall=(band+vt*0.075+pvi*0.021)%1;
+                    arr[ix]=Math.cos(phase-vt*0.20)*(1.55+0.62*Math.sin(fall*Math.PI));
+                    arr[ix+1]=4.92-fall*4.05;
+                    arr[ix+2]=0.10+Math.sin(phase*2.-vt*0.4)*0.24;
+                }else{
+                    var a=phase+vt*(pv.theme.kind==='sky'?0.38:0.55);
+                    var orbit=2.05+Math.sin(vt*0.7+phase*2.)*0.22;
+                    arr[ix]=Math.cos(a)*orbit;
+                    arr[ix+1]=PORTAL_CONFIG.baseHeight+Math.sin(a)*orbit;
+                    arr[ix+2]=0.10+Math.sin(a*2.)*0.24;
+                }
             }
-        });
+            pa.needsUpdate=true;
+            for(var ti=0;ti<pv.themed.length;ti++){
+                var deco=pv.themed[ti];
+                if(deco.userData.portalFlamePhase!==undefined){
+                    var fp=deco.userData.portalFlamePhase;
+                    var fs=0.92+Math.sin(vt*4.3+fp)*0.12;
+                    deco.scale.set(0.72*fs,1.26*(1.02+Math.sin(vt*3.7+fp)*0.10),1);
+                    deco.material.opacity=0.55+Math.sin(vt*4.8+fp)*0.13;
+                }else if(deco.userData.portalMistPhase!==undefined){
+                    var mp=deco.userData.portalMistPhase;
+                    deco.position.x+=Math.sin(vt*0.55+mp)*0.0015;
+                    deco.material.opacity=0.10+Math.sin(vt*0.8+mp)*0.035;
+                }
+            }
+            if(pv.light){
+                var ld=DANBO_WASM.len2D(px-p.x,pz-p.z);
+                if(ld<_nearestPortalLightDistance){
+                    _nearestPortalLightDistance=ld;
+                    _nearestPortalLight={light:pv.light,portal:p,visual:pv,time:vt};
+                }
+            }
+        }else{
+            if(p.ring&&p.ring.rotation)p.ring.rotation.z=t*0.5;
+            if(p.inner&&p.inner.rotation)p.inner.rotation.z=-t*0.8;
+            // Compatibility animation for lightweight plugin entrances.
+            p.mesh.children.forEach(ch=>{
+                if(ch.userData.orbitPhase!==undefined){
+                    const a=ch.userData.orbitPhase+t*1.5;
+                    ch.position.set(Math.cos(a)*1.8,2.5+Math.sin(a*2)*0.5,Math.sin(a)*1.8);
+                }
+            });
+        }
+    }
+    if(window._danboEffectLightPool&&window._danboEffectLightPool[0]){
+        var _portalEffectLight=window._danboEffectLightPool[0];
+        _portalEffectLight.visible=true;
+        if(_nearestPortalLight&&_nearestPortalLightDistance<19){
+            var _lightPortal=_nearestPortalLight.portal,_lightVisual=_nearestPortalLight.visual;
+            _portalEffectLight.color.setHex(_lightVisual.theme.b);
+            _portalEffectLight.position.set(_lightPortal.x,(_lightPortal.y||0)+2.35,_lightPortal.z+1.25);
+            _portalEffectLight.intensity=_lightVisual.baseLightIntensity*(1-_nearestPortalLightDistance/19)*(0.90+Math.sin(_nearestPortalLight.time*2.2+_lightPortal.raceIndex)*0.10);
+        }else _portalEffectLight.intensity=0;
     }
 
     // ---- Unified projectile update (all projectiles via moves.js) ----
@@ -222,12 +287,25 @@ function updateCity(){
     // ---- Fountain water animation ----
     if(window._fountainPoolWater){
         var wt=Date.now()*0.002;
-        window._fountainPoolWater.position.y=0.6+Math.sin(wt)*0.03;
-        window._fountainPoolWater.rotation.y=wt*0.1;
+        var _poolBaseY=window._fountainPoolWater.userData.baseY===undefined?0.6:window._fountainPoolWater.userData.baseY;
+        window._fountainPoolWater.position.y=_poolBaseY+Math.sin(wt)*0.012;
+        window._fountainPoolWater.rotation.z=wt*0.018;
     }
     if(window._fountainInnerWater){
         var wt2=Date.now()*0.003;
-        window._fountainInnerWater.position.y=1.35+Math.sin(wt2+1)*0.02;
+        var _innerBaseY=window._fountainInnerWater.userData.baseY===undefined?1.35:window._fountainInnerWater.userData.baseY;
+        window._fountainInnerWater.position.y=_innerBaseY+Math.sin(wt2+1)*0.009;
+        window._fountainInnerWater.rotation.z=-wt2*0.012;
+    }
+    if(window._fountainWaterHighlights){
+        var _wht=Date.now()*0.00022;
+        for(var _whi=0;_whi<window._fountainWaterHighlights.length;_whi++){
+            var _wh=window._fountainWaterHighlights[_whi],_whPhase=_wht+(_wh.userData._phase||0);
+            _wh.rotation.z=_whi?-_whPhase*0.42:_whPhase*0.30;
+            var _whPulse=1+Math.sin(_whPhase*Math.PI*2)*0.007;
+            _wh.scale.set(_whPulse,_whPulse,_whPulse);
+            _wh.material.opacity=(_whi?0.095:0.115)+Math.sin(_whPhase*Math.PI*2+_whi)*0.022;
+        }
     }
     if(window._fountainRipples){
         var _rt=Date.now()*0.00032;
@@ -377,9 +455,10 @@ function updateCity(){
                     fp.maxLife=70+Math.random()*40;
                 } else {
                     var lla2=fp._lionAngle||0;
-                    fp.vx=-Math.cos(lla2)*0.1+(Math.random()-0.5)*0.03;
+                    var _lionFlowSign2=currentCityStyle===0?1:-1;
+                    fp.vx=Math.cos(lla2)*0.1*_lionFlowSign2+(Math.random()-0.5)*0.03;
                     fp.vy=0.02+Math.random()*0.03;
-                    fp.vz=-Math.sin(lla2)*0.1+(Math.random()-0.5)*0.03;
+                    fp.vz=Math.sin(lla2)*0.1*_lionFlowSign2+(Math.random()-0.5)*0.03;
                     fp.maxLife=40+Math.random()*20;
                 }
             }
@@ -392,7 +471,7 @@ function updateCity(){
                 fp.vy-=0.003;
             }
             // Hit water surface — hide and respawn next frame
-            if(fp.mesh.position.y<0.65){fp.mesh.visible=false;}
+            if(fp.mesh.position.y<0.68){fp.mesh.visible=false;}
             var fAlpha=1-fp.life/fp.maxLife;
             fp.mesh.material.opacity=Math.max(0.05,0.7*fAlpha);
         }
@@ -2277,6 +2356,13 @@ function hidePortalConfirm(){
     _portalPromptPortal=null;
     document.getElementById('portal-confirm').style.display='none';
 }
+function cancelPortalConfirm(){
+    // Babel has its own proximity prompt loop. Mark it dismissed before
+    // closing, otherwise the next frame immediately opens the dialog again.
+    // The flag is cleared after the player walks away from the tower door.
+    if(_portalConfirmHidden==='babel')_babylonPromptDismissed=true;
+    hidePortalConfirm();
+}
 function confirmPortalEnter(){
     var ri=_portalConfirmRace;
     var ts=_portalConfirmTarget;
@@ -2341,7 +2427,7 @@ function confirmPortalEnter(){
     else if(ts>=0){ switchCity(ts); }
 }
 document.getElementById('portal-yes').addEventListener('click',function(){confirmPortalEnter();});
-document.getElementById('portal-no').addEventListener('click',function(){hidePortalConfirm();});
+document.getElementById('portal-no').addEventListener('click',function(){cancelPortalConfirm();});
 document.getElementById('portal-prompt').addEventListener('click',function(){_danboOpenPortalPrompt();});
 document.getElementById('portal-prompt').addEventListener('touchend',function(e){e.preventDefault();_danboOpenPortalPrompt();},{passive:false});
 
@@ -2367,8 +2453,8 @@ addEventListener('keydown',function(e){
     if(!_portalConfirmOpen)return;
     if(e.code==='ArrowLeft'||e.code==='KeyA'){e.preventDefault();_portalSel=(_portalSel+1)%2;_updatePortalSel();}
     if(e.code==='ArrowRight'||e.code==='KeyD'){e.preventDefault();_portalSel=(_portalSel+1)%2;_updatePortalSel();}
-    if(e.code==='Enter'||e.code==='Space'||e.code==='KeyY'||e.code==='KeyR'||e.code==='KeyT'||e.code==='KeyF'||e.code==='KeyG'){e.preventDefault();if(_portalSel===0)confirmPortalEnter();else hidePortalConfirm();}
-    if(e.code==='Escape'||e.code==='KeyN'){e.preventDefault();hidePortalConfirm();}
+    if(e.code==='Enter'||e.code==='Space'||e.code==='KeyY'||e.code==='KeyR'||e.code==='KeyT'||e.code==='KeyF'||e.code==='KeyG'){e.preventDefault();if(_portalSel===0)confirmPortalEnter();else cancelPortalConfirm();}
+    if(e.code==='Escape'||e.code==='KeyN'){e.preventDefault();cancelPortalConfirm();}
 });
 // Result screen — Enter/Space to go back to city
 addEventListener('keydown',function(e){
@@ -2449,10 +2535,6 @@ function enterCity(spawnX,spawnZ){
     if(currentCityStyle===5){
         if(sx===0&&sz===5){sx=50;sz=0;}
         sy=0.5;
-    } else if(currentCityStyle===0&&sx===0&&sz===0){
-        // Begin in front of the landmark rather than dropping the hero onto its roof.
-        // The first playable frame now presents character, fountain and skyline together.
-        sx=3.0;sz=17.0;sy=0.55;
     } else if(sx===0&&sz===0){
         sy=15; // above fountain, land on pillar top
     }

@@ -55,7 +55,7 @@ var _visualFlareTex=_visualCreateFlareTexture();
 var _visualSurfaceTextures={};
 var _visualSurfaceTextureSets={};
 var _visualSurfaceMaterials={};
-var _visualGeometryCache={roundedRect:{},roundedBox:{},gable:{},annularStep:{}};
+var _visualGeometryCache={roundedRect:{},roundedBox:{},gable:{}};
 
 function _visualSeededRandom(seed){
     var s=seed>>>0;
@@ -77,35 +77,23 @@ function _visualExternalSurfaceTextureSet(kind){
     // materials where the pattern has a real scale (roof tiles, paving, stone and grass).
     var ids={grass:'leafy_grass',roof:'clay_roof_tiles_02',path:'rectangular_paving',stone:'marble_01'};
     var id=ids[kind];if(!id)return null;
-    var metersPerTile={grass:2.07,roof:0.5,path:2.2,stone:2.0}[kind]||2.0;
-    // Fallback repeat represents a 24m reference patch. Materials attached to known
-    // large surfaces pass worldSpan and are recalculated in real-world metres below.
-    var repeat=24/metersPerTile;
+    // Geometry UVs carry the real-world scale; authored textures remain at 1× repeat.
+    var repeat=1;
     var suffix=(window.DANBO_ASSET_VERSION?'?'+window.DANBO_ASSET_VERSION:'');
     var loader=new THREE.TextureLoader();
     function load(channel,isColor){
-        var base='assets/pbr/'+id+'_'+channel+'.jpg';
-        var cached=window.DANBO_PRELOADED_TEXTURES&&window.DANBO_PRELOADED_TEXTURES[base];
-        var tex=cached?cached.clone():loader.load(base+suffix);
-        if(cached)tex.needsUpdate=true;
+        var tex=loader.load('assets/pbr/'+id+'_'+channel+'.jpg'+suffix);
         tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(repeat,repeat);
         tex.minFilter=THREE.LinearMipmapLinearFilter;tex.magFilter=THREE.LinearFilter;
         tex.anisotropy=Math.min(16,(typeof R!=='undefined'&&R.capabilities)?R.capabilities.getMaxAnisotropy():4);
-        tex.channel=0;
         if(isColor&&THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
         else if(THREE.NoColorSpace!==undefined)tex.colorSpace=THREE.NoColorSpace;
         return tex;
     }
     var low=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
     var arm=low?null:load('arm',false);
-    return {
-        map:load('diff',true),
-        normalMap:low?null:load('normal',false),
-        armMap:arm,
-        roughnessMap:arm,
-        metersPerTile:metersPerTile,
-        external:true
-    };
+    if(arm)arm.channel=0;
+    return {map:load('diff',true),normalMap:low?null:load('normal',false),armMap:arm,roughnessMap:arm,external:true};
 }
 function _visualSurfaceTextureSet(kind){
     if(_visualSurfaceTextureSets[kind])return _visualSurfaceTextureSets[kind];
@@ -188,7 +176,7 @@ function _visualSurfaceTextureSet(kind){
         ac.strokeStyle='rgba(48,30,18,.28)';hc.strokeStyle='rgba(224,224,224,.45)';
         for(var bi=0;bi<120;bi++){var bx=rnd()*size;ac.lineWidth=.5+rnd()*2;hc.lineWidth=1;ac.beginPath();hc.beginPath();ac.moveTo(bx,0);hc.moveTo(bx,0);for(var by=0;by<=size;by+=28){bx+=(rnd()-.5)*7;ac.lineTo(bx,by);hc.lineTo(bx,by);}ac.stroke();hc.stroke();}
     }
-    var repeat=kind==='grass'?20:(kind==='path'?8:(kind==='roof'?5:(kind==='facade'?2:(kind==='bark'?3:6))));
+    var repeat=kind==='grass'?20:(kind==='path'?8:(kind==='roof'?5:(kind==='facade'?1:(kind==='bark'?3:6))));
     var set={map:_visualCanvasTexture(albedo,true,repeat),bumpMap:_visualCanvasTexture(height,false,repeat),roughnessMap:_visualCanvasTexture(rough,false,repeat)};
     _visualSurfaceTextureSets[kind]=set;_visualSurfaceTextures[kind]=set.map;
     return set;
@@ -196,38 +184,19 @@ function _visualSurfaceTextureSet(kind){
 function _visualSurfaceTexture(kind){return _visualSurfaceTextureSet(kind).map;}
 function _visualSurfaceMaterial(kind,color,opts){
     opts=opts||{};
-    var worldSpan=Number(opts.worldSpan||0);
-    if(opts.worldSpan!==undefined){opts=Object.assign({},opts);delete opts.worldSpan;}
     var optKey=Object.keys(opts).sort().map(function(k){var v=opts[k];return k+'='+(v&&v.isVector2?(v.x+','+v.y):String(v));}).join(';');
-    var materialKey=kind+'|'+String(color)+'|'+worldSpan.toFixed(3)+'|'+optKey+'|'+((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced');
+    var materialKey=kind+'|'+String(color)+'|'+optKey+'|'+((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced');
     if(_visualSurfaceMaterials[materialKey])return _visualSurfaceMaterials[materialKey];
     var set=_visualSurfaceTextureSet(kind);
-    function surfaceTexture(tex){
-        if(!tex)return null;
-        if(!worldSpan||!set.metersPerTile)return tex;
-        var clone=tex.clone(),tiles=Math.max(1,worldSpan/set.metersPerTile);
-        clone.wrapS=clone.wrapT=THREE.RepeatWrapping;clone.repeat.set(tiles,tiles);
-        clone.needsUpdate=true;return clone;
-    }
-    var map=surfaceTexture(set.map),arm=surfaceTexture(set.armMap||set.roughnessMap);
-    var base={
-        map:map,
-        roughnessMap:arm||set.roughnessMap,
-        roughness:set.external?1:(kind==='roof'?0.62:(kind==='facade'?0.76:0.94)),
-        metalness:set.external?1:0,
-        envMapIntensity:kind==='roof'?0.78:(kind==='facade'?0.50:0.68)
-    };
-    if(arm){base.aoMap=arm;base.metalnessMap=arm;base.aoMapIntensity=0.76;}
-    if(set.normalMap){var ns=kind==='grass'?0.46:(kind==='roof'?0.68:(kind==='path'?0.40:(kind==='stone'?0.30:0.34)));base.normalMap=surfaceTexture(set.normalMap);base.normalScale=new THREE.Vector2(ns,ns);}
+    var base={map:set.map,roughnessMap:set.roughnessMap,roughness:set.external?1:(kind==='roof'?0.62:(kind==='facade'?0.76:0.94)),metalness:set.external?1:0,envMapIntensity:kind==='roof'?0.46:(kind==='facade'?0.18:0.24)};
+    if(set.armMap){base.aoMap=set.armMap;base.metalnessMap=set.armMap;base.aoMapIntensity=0.72;}
+    if(set.normalMap){var ns=kind==='grass'?0.46:(kind==='roof'?0.68:(kind==='path'?0.40:(kind==='stone'?0.30:0.34)));base.normalMap=set.normalMap;base.normalScale=new THREE.Vector2(ns,ns);}
     else{base.bumpMap=set.bumpMap;base.bumpScale=kind==='grass'?0.12:(kind==='facade'?0.034:(kind==='roof'?0.18:0.10));}
     if(set.external&&typeof _mixHex==='function'){
         var tintLift=kind==='grass'?0.34:(kind==='facade'?0.22:(kind==='roof'?0.12:(kind==='path'?0.38:0.44)));
         color=_mixHex(color,0xFFFFFF,tintLift);
     }
     for(var k in opts)base[k]=opts[k];
-    // Authored ARM controls roughness/metalness completely; B is black for these
-    // non-metal surfaces, while R/G carry AO and roughness.
-    if(set.external&&arm){base.roughness=1;base.metalness=1;}
     var mat=typeof softPBR==='function'?softPBR(color,base):toon(color,base);
     if(set.external){
         var blend=kind==='grass'?0.48:(kind==='roof'?0.72:(kind==='path'?0.44:0.38));
@@ -248,6 +217,52 @@ function _visualSurfaceMaterial(kind,color,opts){
     _visualSurfaceMaterials[materialKey]=mat;
     return mat;
 }
+function _visualScaleUVToMeters(geometry,width,depth,tileMeters){
+    if(!geometry||!geometry.attributes||!geometry.attributes.uv)return geometry;
+    var key=[Number(width).toFixed(3),Number(depth).toFixed(3),Number(tileMeters).toFixed(3)].join('|');
+    if(geometry.userData.danboWorldUV===key)return geometry;
+    var uv=geometry.attributes.uv,sx=Math.max(0.001,width/tileMeters),sy=Math.max(0.001,depth/tileMeters);
+    for(var i=0;i<uv.count;i++){uv.setXY(i,uv.getX(i)*sx,uv.getY(i)*sy);}
+    uv.needsUpdate=true;geometry.userData.danboWorldUV=key;
+    return geometry;
+}
+function _visualPlanarUVFromXY(geometry,tileMeters){
+    if(!geometry||!geometry.attributes||!geometry.attributes.position)return geometry;
+    var position=geometry.attributes.position,uv=new Float32Array(position.count*2);
+    for(var i=0;i<position.count;i++){uv[i*2]=position.getX(i)/tileMeters;uv[i*2+1]=position.getY(i)/tileMeters;}
+    geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+    geometry.userData.danboWorldUV='xy|'+tileMeters;
+    return geometry;
+}
+function _visualAddVerticalDirtVertexColors(geometry,strength){
+    if(!geometry||!geometry.attributes||!geometry.attributes.position)return geometry;
+    strength=strength===undefined?0.22:strength;
+    if(geometry.userData.danboVerticalDirt===strength)return geometry;
+    geometry.computeBoundingBox();
+    var position=geometry.attributes.position,box=geometry.boundingBox,range=Math.max(0.001,box.max.y-box.min.y),colors=new Float32Array(position.count*3);
+    for(var i=0;i<position.count;i++){
+        var height=(position.getY(i)-box.min.y)/range;
+        var shade=1-strength*Math.pow(1-height,2.2);
+        colors[i*3]=shade;colors[i*3+1]=shade;colors[i*3+2]=shade;
+    }
+    geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    geometry.userData.danboVerticalDirt=strength;
+    return geometry;
+}
+function _visualBoxWorldUV(geometry,tileMeters){
+    if(!geometry||!geometry.attributes||!geometry.attributes.position||!geometry.attributes.normal)return geometry;
+    var position=geometry.attributes.position,normal=geometry.attributes.normal,uv=new Float32Array(position.count*2);
+    for(var i=0;i<position.count;i++){
+        var nx=Math.abs(normal.getX(i)),ny=Math.abs(normal.getY(i)),nz=Math.abs(normal.getZ(i)),u,v;
+        if(nx>=ny&&nx>=nz){u=position.getZ(i);v=position.getY(i);}
+        else if(ny>=nx&&ny>=nz){u=position.getX(i);v=position.getZ(i);}
+        else{u=position.getX(i);v=position.getY(i);}
+        uv[i*2]=u/tileMeters;uv[i*2+1]=v/tileMeters;
+    }
+    geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+    geometry.userData.danboWorldUV='box|'+tileMeters;
+    return geometry;
+}
 function _visualRoundedRectGeometry(w,d,r){
     r=Math.max(0.1,Math.min(r===undefined?1.1:r,w*0.48,d*0.48));
     var cacheKey=[w,d,r].map(function(v){return Number(v).toFixed(3);}).join('|');
@@ -257,7 +272,10 @@ function _visualRoundedRectGeometry(w,d,r){
     s.lineTo(x+w,z+d-r);s.quadraticCurveTo(x+w,z+d,x+w-r,z+d);
     s.lineTo(x+r,z+d);s.quadraticCurveTo(x,z+d,x,z+d-r);
     s.lineTo(x,z+r);s.quadraticCurveTo(x,z,x+r,z);
-    var geo=new THREE.ShapeGeometry(s,4);_visualGeometryCache.roundedRect[cacheKey]=geo;return geo;
+    var geo=new THREE.ShapeGeometry(s,4);
+    // Rectangular paving is authored at 2.2 metres per texture tile.
+    _visualPlanarUVFromXY(geo,2.2);
+    _visualGeometryCache.roundedRect[cacheKey]=geo;return geo;
 }
 function _visualRoundedBoxGeometry(w,h,d,r){
     r=Math.max(0.12,Math.min(r===undefined?0.48:r,w*0.22,h*0.22));
@@ -273,40 +291,6 @@ function _visualRoundedBoxGeometry(w,h,d,r){
     var geo=new THREE.ExtrudeGeometry(s,{depth:Math.max(0.1,d-bevel*2),steps:1,curveSegments:high?6:3,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:high?4:2});
     geo.center();geo.computeVertexNormals();
     _visualGeometryCache.roundedBox[cacheKey]=geo;return geo;
-}
-// Architectural annular step with real top, inner wall and outer wall.  Unlike a torus,
-// this keeps fountain terraces crisp and weight-bearing while a small bevel catches the
-// sun like dressed stone.
-function _visualAnnularStepGeometry(outerRadius,innerRadius,height,bevel){
-    outerRadius=Math.max(0.3,outerRadius);
-    innerRadius=Math.max(0.05,Math.min(innerRadius,outerRadius-0.12));
-    height=Math.max(0.08,height);
-    bevel=Math.max(0,Math.min(bevel===undefined?0.06:bevel,height*0.32,(outerRadius-innerRadius)*0.18));
-    var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
-    var segments=high?96:((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?40:64);
-    var cacheKey=[outerRadius,innerRadius,height,bevel,segments].map(function(v){return Number(v).toFixed(3);}).join('|');
-    if(_visualGeometryCache.annularStep[cacheKey])return _visualGeometryCache.annularStep[cacheKey];
-    var shape=new THREE.Shape();
-    shape.absarc(0,0,outerRadius,0,Math.PI*2,false);
-    var hole=new THREE.Path();
-    hole.absarc(0,0,innerRadius,0,Math.PI*2,true);
-    shape.holes.push(hole);
-    var geo=new THREE.ExtrudeGeometry(shape,{
-        depth:height,
-        steps:1,
-        curveSegments:segments,
-        bevelEnabled:bevel>0,
-        bevelThickness:bevel,
-        bevelSize:bevel,
-        bevelOffset:-bevel*0.18,
-        bevelSegments:high?3:2
-    });
-    geo.rotateX(-Math.PI/2);
-    geo.translate(0,-height*0.5,0);
-    geo.computeVertexNormals();
-    geo.computeBoundingSphere();
-    _visualGeometryCache.annularStep[cacheKey]=geo;
-    return geo;
 }
 function _visualGableRoofGeometry(w,d,h){
     var cacheKey=[w,d,h].map(function(v){return Number(v).toFixed(3);}).join('|');
@@ -333,6 +317,7 @@ function _visualGableRoofGeometry(w,d,h){
     geo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
     geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
     geo.setIndex(idx);geo.computeVertexNormals();geo.computeBoundingSphere();
+    _visualScaleUVToMeters(geo,w,d,2.0);
     _visualGeometryCache.gable[cacheKey]=geo;return geo;
 }
 
@@ -410,7 +395,6 @@ function _visualMat(color,opacity,additive,tex){
 }
 function _visualAddGlow(x,y,z,color,w,h,opacity,phase,tex){
     var sp=new THREE.Sprite(_visualMat(color,opacity,true,tex));
-    sp.userData.noAO=true;
     sp.position.set(x,y,z);sp.scale.set(w,h,1);sp.renderOrder=-5;
     _visualFXGroup.add(sp);
     _visualFXState.glows.push({sprite:sp,baseW:w,baseH:h,baseOpacity:opacity,phase:phase||Math.random()*Math.PI*2,pulse:0.06+Math.random()*0.08});
@@ -481,26 +465,22 @@ function _visualAddPuffyClouds(){
 
 function _visualAddHorizon(style,st,mood){
     if(style===5)return;
-    var isHope=style===0;
-    var radius=isHope?235:(style===7?250:(style===6?265:230));
-    var count=isHope?20:(style===1?22:28);
-    var baseColor=isHope?0x668B78:((style===3)?0x2A1410:(style===1?0xD9A35B:(style===4?0xFF9AC9:(style===7?0x23334E:mood.horizon))));
-    var mat=new THREE.MeshBasicMaterial({color:baseColor,transparent:true,opacity:isHope?0.46:(style===3?0.62:0.48),depthWrite:false,fog:true});
-    // Hope uses broad rounded coastal hills rather than generic pointed cones. They sit
-    // beyond the playable city and give low cameras a soft, layered horizon.
-    var geo=isHope?new THREE.IcosahedronGeometry(1,2):((style===4)?new THREE.SphereGeometry(1,10,6):new THREE.ConeGeometry(1,1,5));
+    var radius=style===7?250:(style===6?265:230);
+    var count=style===1?22:28;
+    var baseColor=(style===3)?0x2A1410:(style===1?0xD9A35B:(style===4?0xFF9AC9:(style===7?0x23334E:mood.horizon)));
+    var mat=new THREE.MeshBasicMaterial({color:baseColor,transparent:true,opacity:style===3?0.62:0.48,depthWrite:false,fog:true});
+    var geo=(style===4)?new THREE.SphereGeometry(1,10,6):new THREE.ConeGeometry(1,1,5);
     var dummy=new THREE.Object3D();
     var mesh=new THREE.InstancedMesh(geo,mat,count);
     mesh.name='horizon-silhouette';mesh.frustumCulled=false;
     for(var i=0;i<count;i++){
         var a=i/count*Math.PI*2+(Math.random()-0.5)*0.08;
         var r=radius+Math.random()*50;
-        var h=isHope?(24+Math.random()*25):((style===1?12:28)+Math.random()*(style===1?10:38));
+        var h=(style===1?12:28)+Math.random()*(style===1?10:38);
         if(style===7)h=35+Math.random()*55;
         if(style===4)h=10+Math.random()*16;
         dummy.position.set(Math.cos(a)*r,h*0.5-2,Math.sin(a)*r);
-        if(isHope)dummy.scale.set(34+Math.random()*44,h*0.68,24+Math.random()*32);
-        else if(style===4)dummy.scale.set(14+Math.random()*16,h*0.42,14+Math.random()*16);
+        if(style===4)dummy.scale.set(14+Math.random()*16,h*0.42,14+Math.random()*16);
         else dummy.scale.set(22+Math.random()*35,h,22+Math.random()*35);
         dummy.rotation.set(0,-a+Math.PI/2,0);
         dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
@@ -566,22 +546,7 @@ function _visualAddPointsCloud(name,count,style,bounds,colorA,colorB,size,opts){
         fog:opts.fog!==false
     });
     var pts=new THREE.Points(geo,mat);
-    pts.userData.noAO=true;
     pts.name=name;pts.frustumCulled=false;
-    // Cheap depth fade keeps distant motes from turning into a flat sparkly veil.
-    mat.onBeforeCompile=function(shader){
-        shader.vertexShader='varying float vDanboParticleDepth;\n'+shader.vertexShader;
-        shader.vertexShader=shader.vertexShader.replace(
-            '#include <project_vertex>',
-            '#include <project_vertex>\n  vDanboParticleDepth=max(0.0,-mvPosition.z);'
-        );
-        shader.fragmentShader='varying float vDanboParticleDepth;\n'+shader.fragmentShader;
-        shader.fragmentShader=shader.fragmentShader.replace(
-            '#include <premultiplied_alpha_fragment>',
-            'diffuseColor.a*=1.0-smoothstep(90.0,280.0,vDanboParticleDepth);\n#include <premultiplied_alpha_fragment>'
-        );
-    };
-    mat.customProgramCacheKey=function(){return 'danbo-depth-faded-points-v1';};
     _visualFXGroup.add(pts);
     _visualFXState.particles.push({points:pts,pos:pos,vel:vel,phase:phase,bounds:bounds,opts:opts,baseOpacity:mat.opacity});
     return pts;
@@ -751,8 +716,8 @@ function _visualAddCitySpecific(style,st,mood){
     var range=(style===5?MOON_CITY_SIZE:CITY_SIZE);
     if(style===0){
         _visualAddHopeGroundPatches();
-        var _dustCount=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high&&!DANBO_VISUAL_QUALITY.realMobile)?1400:((window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?220:620);
-        _visualAddPointsCloud('hope-volumetric-dust',_dustCount,style,{xMin:-82,xMax:82,zMin:-82,zMax:82,yMin:0.6,yMax:18},0xFFE1A0,0xFFFFFF,0.68,{opacity:0.32,vx:0.004,vxRand:0.008,vy:0.002,vyRand:0.004,vzRand:0.008,wrap:true,twinkle:true,additive:true});
+        var dustCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?420:1400;
+        _visualAddPointsCloud('hope-volumetric-dust',dustCount,style,{xMin:-110,xMax:110,zMin:-110,zMax:110,yMin:0.5,yMax:20},0xFFE6A7,0xFFFFFF,0.68,{opacity:0.30,vx:0.006,vxRand:0.008,vy:0.002,vyRand:0.005,vzRand:0.008,wrap:true,twinkle:true,additive:true,followPlayer:true});
         for(var hi=0;hi<10;hi++){
             var ha=hi/10*Math.PI*2+0.18,hr=18+hi%2*9;
             _visualAddGlow(Math.cos(ha)*hr,4.4,Math.sin(ha)*hr,0xFFD08A,3.8,3.8,0.075,hi*0.45,_visualFlareTex);
@@ -804,7 +769,7 @@ function _rebuildCityVisualFX(style,st){
         document.body.style.setProperty('--city-accent',_visualColorToCss(mood.accent));
     }
     _visualAddPlayerShadow(style);
-    _visualAddHorizon(style,st,mood);
+    if(style!==0)_visualAddHorizon(style,st,mood);
     _visualAddAtmosphericClouds(style,mood);
     _visualAddGroundInstanced(style,st,mood);
     if(style===0)_visualAddBuildingContactShadows(style);

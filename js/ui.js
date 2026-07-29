@@ -261,6 +261,7 @@ CHARACTERS.forEach((ch,i) => {
         cell.classList.add('selected');
         selectedChar = i;
         _updateSF2Select(i);
+        if(typeof window._play3DSelectCardGesture==='function')window._play3DSelectCardGesture(i);
         playMenuMove();
     });
     cell.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();cell.click();}});

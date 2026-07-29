@@ -176,8 +176,9 @@ function _pfBuildLevel(){try{
     // 10 bonus coins inside cave
     for(var cvi=0;cvi<10;cvi++){
         var cvx=caveX-T*1.5+cvi*(T*3)/9;
-        var cc=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        cc.position.set(cvx,1.5,-D*0.3);cc.rotation.x=Math.PI/2;
+        var cc=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
+            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
+        cc.position.set(cvx,1.5,-D*0.3);
         raceGroup.add(cc);
         cityCoins.push({mesh:cc,collected:false});
     }
@@ -448,8 +449,9 @@ function _pfBuildLevel(){try{
         var c1InGap=false;
         for(var c1g=0;c1g<z1Gaps.length;c1g++){if(c1x/T>=z1Gaps[c1g][0]&&c1x/T<z1Gaps[c1g][1])c1InGap=true;}
         if(c1InGap){c1i--;continue;}
-        var c1=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        c1.position.set(c1x,1.2+Math.random()*3,0);c1.rotation.x=Math.PI/2;
+        var c1=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
+            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
+        c1.position.set(c1x,1.2+Math.random()*3,0);
         raceGroup.add(c1);
         cityCoins.push({mesh:c1,collected:false});
     }
@@ -459,8 +461,9 @@ function _pfBuildLevel(){try{
         var c2InGap=false;
         for(var c2g=0;c2g<z2Gaps.length;c2g++){if(c2x/T>=z2Gaps[c2g][0]&&c2x/T<z2Gaps[c2g][1])c2InGap=true;}
         if(c2InGap){c2i--;continue;}
-        var c2=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        c2.position.set(c2x,1.2+Math.random()*2,0);c2.rotation.x=Math.PI/2;
+        var c2=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
+            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
+        c2.position.set(c2x,1.2+Math.random()*2,0);
         raceGroup.add(c2);
         cityCoins.push({mesh:c2,collected:false});
     }
@@ -469,8 +472,9 @@ function _pfBuildLevel(){try{
         var c3idx=Math.floor(Math.random()*skyPlats.length);
         var c3p=skyPlats[c3idx];
         var c3x=c3p[0]*T+Math.random()*(c3p[1]-c3p[0])*T;
-        var c3=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        c3.position.set(c3x,c3p[2]+2+Math.random()*2,0);c3.rotation.x=Math.PI/2;
+        var c3=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
+            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
+        c3.position.set(c3x,c3p[2]+2+Math.random()*2,0);
         raceGroup.add(c3);
         cityCoins.push({mesh:c3,collected:false});
     }
