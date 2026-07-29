@@ -10,7 +10,9 @@ function _markCityVisited(key){ if(_mapVisited[key])return; _mapVisited[key]=tru
 // ---- mini map state ----
 var _miniCanvas=null,_miniCtx=null,_miniSize=216,_miniDpr=1,_miniLastDraw=0;
 var _miniRanges=[25,50,100], _miniRangeIdx=1;     // default 50m
-var _miniFollow=true;                              // default: rotate with player
+// Navigation rule: the top of the mini-map is always geographic north.
+// The map never rotates; only the player arrow shows the current heading.
+var _miniFollow=false;
 window._worldMapOpen=false;
 
 function _isMobileMap(){ return (window.innerWidth||1024)<700; }
@@ -41,15 +43,16 @@ function _initMapUI(){
     if(_miniCanvas)return;
     _miniSize=_mapMiniSize();
     // mini-map
-    var wrap=document.createElement('div');wrap.id='minimap-wrap';wrap.title='Mini Map';
+    var wrap=document.createElement('div');wrap.id='minimap-wrap';wrap.title='Mini Map · North Up';
     wrap.style.cssText='position:fixed;top:'+_mapMiniTop()+'px;right:'+(_isMobileMap()?8:10)+'px;z-index:54;width:'+_miniSize+'px;height:'+_miniSize+'px;'+
         'border-radius:50%;box-sizing:border-box;box-shadow:0 10px 28px rgba(20,31,45,.35),0 2px 7px rgba(0,0,0,.30),inset 0 2px 2px rgba(255,255,255,.85);'+
         'border:3px solid rgba(255,250,232,.96);background:linear-gradient(145deg,#F7E7B4 0%,#B47B3B 48%,#603A25 100%);cursor:pointer;overflow:hidden;';
     var cv=document.createElement('canvas');cv.style.cssText='width:100%;height:100%;display:block;border-radius:50%;';
     wrap.appendChild(cv);document.body.appendChild(wrap);
     _miniCanvas=cv;_miniCtx=cv.getContext('2d');
-    // click = toggle follow/north rotation mode
-    wrap.addEventListener('click',function(){_miniFollow=!_miniFollow;});
+    // North-up is intentionally locked. Clicking the map cycles its range instead
+    // of rotating the world, which keeps navigation orientation predictable.
+    wrap.addEventListener('click',function(){_miniFollow=false;_miniRangeIdx=(_miniRangeIdx+1)%_miniRanges.length;});
     // wheel = zoom 25/50/100
     wrap.addEventListener('wheel',function(e){e.preventDefault();_miniRangeIdx=(_miniRangeIdx+(e.deltaY>0?1:-1)+_miniRanges.length)%_miniRanges.length;},{passive:false});
 
@@ -168,7 +171,10 @@ function _updateMiniMap(){
     if(!_miniCanvas)_initMapUI();
     if(!_miniCanvas||typeof playerEgg==='undefined'||!playerEgg||!playerEgg.mesh)return;
     var drawNow=(typeof performance!=='undefined'?performance.now():Date.now());
-    var drawInterval=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?100:50;
+    // The map is a navigation instrument, not a second game renderer. Ten updates
+    // per second look continuous at this size and avoid rebuilding thousands of
+    // canvas paths every other game frame.
+    var drawInterval=100;
     if(drawNow-_miniLastDraw<drawInterval)return;
     _miniLastDraw=drawNow;
     var desired=_mapMiniSize(),desiredDpr=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?1:Math.min(2,window.devicePixelRatio||1);

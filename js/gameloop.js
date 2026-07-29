@@ -2611,6 +2611,7 @@ function animate(now){
     if(typeof _updateRenderQuality==='function')_updateRenderQuality(_elapsed);
     if(typeof _updateSunShadowFocus==='function')_updateSunShadowFocus();
     if(typeof _syncVisualFXVisibility==='function')_syncVisualFXVisibility();
+    if(typeof _syncDynamicCityInstances==='function')_syncDynamicCityInstances();
     if(typeof _renderCinematicFrame==='function')_renderCinematicFrame();
     else R.render(scene,camera);
 }

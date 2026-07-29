@@ -878,6 +878,7 @@ function clearCity(){
     for(var chi=0;chi<cityChests.length;chi++){if(cityChests[chi].inScene&&cityChests[chi].group)scene.remove(cityChests[chi].group);}
     cityChests.length=0;
     cityProps.length=0;
+    window.DANBO_DYNAMIC_CITY_INSTANCES=[];
     warpPipeMeshes.length=0;
     window._fountainParticles=null;
     window._fountainSplashParticles=null;
@@ -1177,6 +1178,7 @@ function updatePipeTravel(){
         buildCityCoins();
         buildCityChests();
         buildWarpPipes();
+        _optimizeCityInstances();
         addClouds();
         spawnCityNPCs();
         applyCityTheme();
@@ -1231,6 +1233,7 @@ function switchCity(targetStyle){
     buildCityCoins();
     buildCityChests();
     buildWarpPipes();
+    _optimizeCityInstances();
     addClouds();
     spawnCityNPCs();
     applyCityTheme();

@@ -7,6 +7,7 @@ buildPortals();
 buildCityCoins();
 buildCityChests();
 buildWarpPipes();
+_optimizeCityInstances();
 applyCityTheme();
 // Initial portrait draw (after entity.js loaded)
 if(typeof _updateSF2Select==='function')_updateSF2Select(0);

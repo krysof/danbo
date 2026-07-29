@@ -93,6 +93,160 @@ function _cityCanvasSign(text,bg,fg){
     var tex=new THREE.CanvasTexture(c);tex.minFilter=THREE.LinearFilter;tex.magFilter=THREE.LinearFilter;
     return tex;
 }
+
+// Reuse identical geometry/material pairs through InstancedMesh. Unlike lowering
+// DPR, texture size, model detail or shadow quality, this changes only how the
+// same pixels are submitted to WebGL. Buildings are instanced independently so
+// the existing near-camera fade can still operate per building.
+function _optimizeCityInstances(){
+    if(!cityGroup||typeof THREE.InstancedMesh!=='function')return;
+    window.DANBO_DYNAMIC_CITY_INSTANCES=[];
+    cityGroup.updateMatrixWorld(true);
+    var cityInverse=new THREE.Matrix4().copy(cityGroup.matrixWorld).invert();
+    var buildingMembers=new Set();
+    var propRootByMesh=new Map();
+    var excluded=new Set();
+    var stats={drawsBefore:0,drawsAfter:0,instances:0,dynamicInstances:0};
+
+    function markTree(root,set){
+        if(!root||!root.isObject3D)return;
+        root.traverse(function(child){set.add(child);});
+    }
+    function eligible(mesh){
+        return !!(mesh&&mesh.parent&&mesh.isMesh&&!mesh.isInstancedMesh&&!mesh.isBatchedMesh&&
+            !mesh.isSkinnedMesh&&mesh.visible&&mesh.geometry&&mesh.material&&
+            !Array.isArray(mesh.material)&&!mesh.material.transparent&&mesh.material.opacity>=1&&
+            mesh.material.blending===THREE.NormalBlending&&mesh.renderOrder===0&&
+            (!mesh.children||mesh.children.length===0)&&
+            (!mesh.geometry.morphAttributes||Object.keys(mesh.geometry.morphAttributes).length===0)&&
+            !(mesh.userData&&mesh.userData.noAO)&&
+            !/(?:portal|coin|chest|water|ripple|foam|stream|droplet|glow|effect|fish|wheel)/i.test(mesh.name||''));
+    }
+    function groupKey(mesh){
+        return mesh.geometry.uuid+'|'+mesh.material.uuid+'|'+
+            (mesh.castShadow?1:0)+'|'+(mesh.receiveShadow?1:0)+'|'+mesh.layers.mask;
+    }
+    function buildGroups(candidates,label,onCreated){
+        var groups=new Map();
+        candidates.forEach(function(mesh){
+            if(!eligible(mesh))return;
+            var key=groupKey(mesh);
+            if(!groups.has(key))groups.set(key,[]);
+            groups.get(key).push(mesh);
+        });
+        groups.forEach(function(items){
+            if(items.length<2)return;
+            var first=items[0],instanced;
+            try{
+                instanced=new THREE.InstancedMesh(first.geometry,first.material,items.length);
+                instanced.name='danbo-'+label+'-instances';
+                instanced.castShadow=first.castShadow;
+                instanced.receiveShadow=first.receiveShadow;
+                instanced.layers.mask=first.layers.mask;
+                instanced.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                var dynamic=false;
+                for(var i=0;i<items.length;i++){
+                    var source=items[i];
+                    source.updateWorldMatrix(true,false);
+                    var matrix=new THREE.Matrix4().multiplyMatrices(cityInverse,source.matrixWorld);
+                    instanced.setMatrixAt(i,matrix);
+                    var propRoot=propRootByMesh.get(source);
+                    if(propRoot){
+                        dynamic=true;
+                        source.visible=false;
+                        window.DANBO_DYNAMIC_CITY_INSTANCES.push({
+                            source:source,root:propRoot,mesh:instanced,index:i,matrix:new THREE.Matrix4()
+                        });
+                        stats.dynamicInstances++;
+                    }else if(source.parent){
+                        source.parent.remove(source);
+                    }
+                }
+                instanced.instanceMatrix.needsUpdate=true;
+                instanced.frustumCulled=!dynamic;
+                instanced.computeBoundingBox();
+                instanced.computeBoundingSphere();
+                cityGroup.add(instanced);
+                stats.drawsBefore+=items.length;
+                stats.drawsAfter++;
+                stats.instances+=items.length;
+                if(onCreated)onCreated(items,instanced);
+            }catch(error){
+                if(instanced&&instanced.dispose)instanced.dispose();
+                console.warn('City instance group skipped:',error);
+            }
+        });
+    }
+
+    // Track every building member up front so the global pass cannot combine
+    // separate buildings and accidentally tie their occlusion fades together.
+    if(typeof cityBuildingMeshes!=='undefined')cityBuildingMeshes.forEach(function(building){
+        (building.meshes||[]).forEach(function(root){markTree(root,buildingMembers);});
+    });
+    if(typeof cityProps!=='undefined')cityProps.forEach(function(item){
+        var root=item&&(item.group||item.mesh);
+        if(root&&root.isObject3D)root.traverse(function(child){
+            if(child.isMesh)propRootByMesh.set(child,root);
+        });
+    });
+    if(typeof cityCoins!=='undefined')cityCoins.forEach(function(item){markTree(item&&item.mesh,excluded);});
+    if(typeof cityChests!=='undefined')cityChests.forEach(function(item){markTree(item&&(item.group||item.mesh),excluded);});
+    if(typeof portals!=='undefined')portals.forEach(function(item){
+        markTree(item&&(item.group||item.mesh),excluded);markTree(item&&item.glow,excluded);
+    });
+    if(typeof warpPipeMeshes!=='undefined')warpPipeMeshes.forEach(function(item){markTree(item&&(item.group||item.mesh),excluded);});
+    [
+        '_fountainPoolWater','_fountainInnerWater','_fountainTopWater','_fountainSpillWater',
+        '_fountainWaterHighlights','_fountainRipples','_waterWheels','_moonEarth'
+    ].forEach(function(key){
+        var value=window[key];
+        if(value&&value.isObject3D)markTree(value,excluded);
+        else if(Array.isArray(value))value.forEach(function(item){markTree(item&&(item.group||item.mesh||item),excluded);});
+    });
+
+    // Preserve per-building material fade by creating separate instance groups.
+    if(typeof cityBuildingMeshes!=='undefined')cityBuildingMeshes.forEach(function(building){
+        var unique=new Set();
+        (building.meshes||[]).forEach(function(root){if(root&&root.isObject3D)root.traverse(function(child){unique.add(child);});});
+        buildGroups(Array.from(unique),'building',function(items,instanced){
+            var removed=new Set(items);
+            building.meshes=(building.meshes||[]).filter(function(mesh){return !removed.has(mesh);});
+            building.meshes.push(instanced);
+        });
+    });
+
+    // Props and other repeated non-building geometry may share one draw. Movable
+    // props keep invisible source nodes whose matrices are mirrored each frame.
+    var globalCandidates=[];
+    cityGroup.traverse(function(object){
+        if(!buildingMembers.has(object)&&!excluded.has(object)&&eligible(object))globalCandidates.push(object);
+    });
+    buildGroups(globalCandidates,'city');
+    window.DANBO_CITY_INSTANCE_STATS=stats;
+}
+
+function _syncDynamicCityInstances(){
+    var bindings=window.DANBO_DYNAMIC_CITY_INSTANCES;
+    if(!bindings||!bindings.length||!cityGroup)return;
+    cityGroup.updateWorldMatrix(true,false);
+    var inverse=_syncDynamicCityInstances._inverse||(_syncDynamicCityInstances._inverse=new THREE.Matrix4());
+    inverse.copy(cityGroup.matrixWorld).invert();
+    var roots=_syncDynamicCityInstances._roots||(_syncDynamicCityInstances._roots=new Set());
+    var touched=_syncDynamicCityInstances._touched||(_syncDynamicCityInstances._touched=new Set());
+    roots.clear();touched.clear();
+    for(var i=0;i<bindings.length;i++){
+        var binding=bindings[i];
+        if(!binding.mesh.parent)continue;
+        if(!roots.has(binding.root)){
+            binding.root.updateMatrixWorld(true);
+            roots.add(binding.root);
+        }
+        binding.matrix.multiplyMatrices(inverse,binding.source.matrixWorld);
+        binding.mesh.setMatrixAt(binding.index,binding.matrix);
+        touched.add(binding.mesh);
+    }
+    touched.forEach(function(mesh){mesh.instanceMatrix.needsUpdate=true;});
+}
 function _decorateDefaultBuilding(b,bMeshes,col,st,i){
     var dark=_cityMixHex(col,0x151515,0.32);
     var light=_cityMixHex(col,0xFFFFFF,0.26);
