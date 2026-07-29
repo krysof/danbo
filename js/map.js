@@ -171,10 +171,9 @@ function _updateMiniMap(){
     if(!_miniCanvas)_initMapUI();
     if(!_miniCanvas||typeof playerEgg==='undefined'||!playerEgg||!playerEgg.mesh)return;
     var drawNow=(typeof performance!=='undefined'?performance.now():Date.now());
-    // The map is a navigation instrument, not a second game renderer. Ten updates
-    // per second look continuous at this size and avoid rebuilding thousands of
-    // canvas paths every other game frame.
-    var drawInterval=100;
+    // Preserve the original refresh rate: performance gains come from WebGL
+    // submission batching, not from reducing the map's temporal quality.
+    var drawInterval=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?100:50;
     if(drawNow-_miniLastDraw<drawInterval)return;
     _miniLastDraw=drawNow;
     var desired=_mapMiniSize(),desiredDpr=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)?1:Math.min(2,window.devicePixelRatio||1);
