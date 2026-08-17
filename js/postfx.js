@@ -1,5 +1,7 @@
 // postfx.js — DANBO World / Three.js r180
-// Fixed cinematic chain: Render → GTAO → Bloom → Output → Grade → SMAA.
+// Linear cinematic chain: Render → GTAO → Bloom → Grade → SMAA → Output.
+// Keep tone mapping / sRGB conversion last: SMAA operates in linear-sRGB and
+// grading an already encoded image was the main cause of the milky grey look.
 /* global THREE, R, scene, camera, EffectComposer, RenderPass, GTAOPass,
           UnrealBloomPass, OutputPass, ShaderPass, SMAAPass */
 
@@ -24,12 +26,14 @@ var _cinematicGradeShader={
         vignette:{value:1.05},
         grain:{value:0.055},
         chroma:{value:0.0016},
-        saturation:{value:0.86},
-        contrast:{value:1.13},
-        lift:{value:0.012},
-        shadowColor:{value:new THREE.Color(0.12,0.34,0.42)},
-        highlightColor:{value:new THREE.Color(1.0,0.72,0.38)},
-        splitAmount:{value:0.20}
+        saturation:{value:1.02},
+        // Grade runs before OutputPass in linear space, so use a low contrast
+        // offset to retain mobile shadow detail instead of crushing near-black.
+        contrast:{value:1.06},
+        lift:{value:0.020},
+        shadowColor:{value:new THREE.Color(0.38,0.43,0.46)},
+        highlightColor:{value:new THREE.Color(1.0,0.90,0.72)},
+        splitAmount:{value:0.08}
     },
     vertexShader:[
         'varying vec2 vUv;',
@@ -134,9 +138,9 @@ function _initCinematicPostFX(){
     _postFXComposer.addPass(_postFXRenderPass);
     _postFXComposer.addPass(_postFXGTAO);
     _postFXComposer.addPass(_postFXBloom);
-    _postFXComposer.addPass(_postFXOutput);
     _postFXComposer.addPass(_postFXGrade);
     _postFXComposer.addPass(_postFXSMAA);
+    _postFXComposer.addPass(_postFXOutput);
 
     var quality=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'high';
     _postFXGTAO.enabled=quality!=='low';
@@ -156,7 +160,8 @@ function _initCinematicPostFX(){
         bloomPass:_postFXBloom,
         outputPass:_postFXOutput,
         gradePass:_postFXGrade,
-        smaaPass:_postFXSMAA
+        smaaPass:_postFXSMAA,
+        chain:'Render → GTAO → Bloom → Grade → SMAA → Output'
     };
 }
 
