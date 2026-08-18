@@ -206,9 +206,13 @@ function updateCity(){
             pv.energyRing.scale.setScalar(pulse);
             pv.energyRing.material.opacity=0.63+Math.sin(vt*2.6+p.raceIndex)*0.13;
             pv.groundHalo.material.opacity=0.13+Math.sin(vt*1.7+p.raceIndex)*0.055;
-            pv.runeRing.rotation.z=vt*(pv.theme.kind==='fire'?0.24:-0.16);
+            // The shell-gem frame breathes in place rather than orbiting like a
+            // conventional vortex.  The egg silhouette always remains readable.
+            var framePulse=1+Math.sin(vt*1.35+p.raceIndex)*0.025;
+            pv.runeRing.scale.set(framePulse,framePulse,1);
             if(pv.inner.material.uniforms&&pv.inner.material.uniforms.uTime)pv.inner.material.uniforms.uTime.value=vt;
-            pv.inner.rotation.z=-vt*0.075;
+            pv.inner.rotation.z=0;
+            pv.inner.material.opacity=0.88+Math.sin(vt*1.15+p.raceIndex)*0.055;
             var pa=pv.particles.geometry.attributes.position,arr=pa.array,count=pv.phases.length;
             for(var pvi=0;pvi<count;pvi++){
                 var phase=pv.phases[pvi],band=pv.bands[pvi],ix=pvi*3;
@@ -223,11 +227,10 @@ function updateCity(){
                     arr[ix+1]=4.92-fall*4.05;
                     arr[ix+2]=0.10+Math.sin(phase*2.-vt*0.4)*0.24;
                 }else{
-                    var a=phase+vt*(pv.theme.kind==='sky'?0.38:0.55);
-                    var orbit=2.05+Math.sin(vt*0.7+phase*2.)*0.22;
-                    arr[ix]=Math.cos(a)*orbit;
-                    arr[ix+1]=PORTAL_CONFIG.baseHeight+Math.sin(a)*orbit;
-                    arr[ix+2]=0.10+Math.sin(a*2.)*0.24;
+                    var rise=(band+vt*(pv.theme.kind==='sky'?0.055:0.085)+pvi*0.031)%1;
+                    arr[ix]=Math.sin(phase*1.7+vt*0.42)*(0.62+rise*1.12);
+                    arr[ix+1]=0.62+rise*4.28;
+                    arr[ix+2]=0.10+Math.sin(phase*2.3+vt*0.28)*0.20;
                 }
             }
             pa.needsUpdate=true;
@@ -1112,19 +1115,26 @@ function updateCity(){
             }
         }
     }
-    // Cherub (cloud world angel) animation — not in Sakura City
-    if(window._cityAnimals&&currentCityStyle!==6)for(var _ai3=0;_ai3<window._cityAnimals.length;_ai3++){
+    // Cherub animation. Individually placed editor cherubs can exist in any city.
+    if(window._cityAnimals)for(var _ai3=0;_ai3<window._cityAnimals.length;_ai3++){
         var ca=window._cityAnimals[_ai3];
         if(ca.type!=='cherub')continue;
-        ca.flapPhase+=0.15;
+        ca.flapPhase+=0.15*(ca.flapSpeed||1);
         // Wing flap
         for(var _cwi=0;_cwi<ca.group.children.length;_cwi++){
             var cwc=ca.group.children[_cwi];
             if(cwc.userData._side){cwc.rotation.z=cwc.userData._side*Math.sin(ca.flapPhase)*0.4;}
         }
+        // Individually authored cherubs hover at their exact editor transform.
+        if(ca.editorStatic){
+            ca.y=ca.baseY+Math.sin(ca.flapPhase*0.3)*(Number.isFinite(ca.floatHeight)?ca.floatHeight:0.6);
+            ca.group.rotation.y=ca.rotationY||0;
+            ca.group.position.set(ca.x,ca.y,ca.z);
+            continue;
+        }
         // Gentle floating + circle flight
         ca.x+=ca.vx;ca.z+=ca.vz;
-        ca.y=ca.baseY+Math.sin(ca.flapPhase*0.3)*1.5;
+        ca.y=ca.baseY+Math.sin(ca.flapPhase*0.3)*(Number.isFinite(ca.floatHeight)?ca.floatHeight:1.5);
         var _caRot=DANBO_WASM.rotateKeepSpeed2D(ca.vx,ca.vz,0.01);
         ca.vx=_caRot[0];ca.vz=_caRot[1];
         ca.group.rotation.y=Math.atan2(ca.vx,ca.vz);

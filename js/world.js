@@ -116,12 +116,40 @@ function _danboPortalGeometry(){
     if(!window._danboPortalGeometryCache)window._danboPortalGeometryCache={};
     var low=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low),key=low?'low':'full';
     if(window._danboPortalGeometryCache[key])return window._danboPortalGeometryCache[key];
-    var radial=low?7:12,tubular=low?28:56,sides=low?16:32;
+    var radial=low?6:10,tubular=low?28:52,sides=low?16:32;
+    // The gate uses DANBO's own soft egg silhouette instead of the familiar
+    // circular sci-fi ring.  All three outlines share the same cached curve so
+    // the richer shape is still inexpensive when the city contains many gates.
+    function eggCurve(scale){
+        var points=[
+            new THREE.Vector3(0,2.30,0),
+            new THREE.Vector3(-1.18,1.92,0),
+            new THREE.Vector3(-1.83,0.78,0),
+            new THREE.Vector3(-1.88,-0.44,0),
+            new THREE.Vector3(-1.30,-1.66,0),
+            new THREE.Vector3(0,-2.08,0),
+            new THREE.Vector3(1.30,-1.66,0),
+            new THREE.Vector3(1.88,-0.44,0),
+            new THREE.Vector3(1.83,0.78,0),
+            new THREE.Vector3(1.18,1.92,0)
+        ];
+        for(var i=0;i<points.length;i++)points[i].multiplyScalar(scale);
+        return new THREE.CatmullRomCurve3(points,true,'catmullrom',0.42);
+    }
+    function eggSurface(scale){
+        var shape=new THREE.Shape();
+        shape.moveTo(0,-2.08*scale);
+        shape.bezierCurveTo(-1.18*scale,-2.02*scale,-1.82*scale,-1.02*scale,-1.82*scale,-0.25*scale);
+        shape.bezierCurveTo(-1.82*scale,0.86*scale,-1.20*scale,2.08*scale,0,2.30*scale);
+        shape.bezierCurveTo(1.20*scale,2.08*scale,1.82*scale,0.86*scale,1.82*scale,-0.25*scale);
+        shape.bezierCurveTo(1.82*scale,-1.02*scale,1.18*scale,-2.02*scale,0,-2.08*scale);
+        return new THREE.ShapeGeometry(shape,low?5:10);
+    }
     var geo={
-        arch:new THREE.TorusGeometry(PORTAL_CONFIG.ringRadius,0.36,radial,tubular),
-        outer:new THREE.TorusGeometry(2.39,0.10,low?6:8,tubular),
-        energy:new THREE.TorusGeometry(1.72,0.075,low?6:8,tubular),
-        surface:new THREE.CircleGeometry(1.69,low?28:64),
+        arch:new THREE.TubeGeometry(eggCurve(1.0),tubular,0.34,radial,true),
+        outer:new THREE.TubeGeometry(eggCurve(1.14),tubular,0.12,low?5:8,true),
+        energy:new THREE.TubeGeometry(eggCurve(0.84),tubular,0.07,low?5:8,true),
+        surface:eggSurface(0.82),
         base1:new THREE.CylinderGeometry(2.72,2.96,0.28,sides),
         base2:new THREE.CylinderGeometry(2.42,2.66,0.28,sides),
         halo:new THREE.CircleGeometry(2.52,low?28:56),
@@ -133,46 +161,51 @@ function _danboPortalGeometry(){
     window._danboPortalGeometryCache[key]=geo;return geo;
 }
 
-function _danboPortalVortexTexture(theme){
-    if(!window._danboPortalVortexTextures)window._danboPortalVortexTextures={};
+function _danboPortalCurtainTexture(theme){
+    if(!window._danboPortalCurtainTextures)window._danboPortalCurtainTextures={};
     var key=theme.kind+'-'+theme.a+'-'+theme.b;
-    if(window._danboPortalVortexTextures[key])return window._danboPortalVortexTextures[key];
-    var c=document.createElement('canvas'),size=256;c.width=c.height=size;
+    if(window._danboPortalCurtainTextures[key])return window._danboPortalCurtainTextures[key];
+    var c=document.createElement('canvas'),size=256;c.width=size;c.height=320;
     var x=c.getContext('2d'),ca=new THREE.Color(theme.a),cb=new THREE.Color(theme.b),cc=new THREE.Color(theme.core);
     function rgb(col,a){return 'rgba('+Math.round(col.r*255)+','+Math.round(col.g*255)+','+Math.round(col.b*255)+','+a+')';}
-    x.clearRect(0,0,size,size);
-    var bg=x.createRadialGradient(128,128,8,128,128,127);
-    bg.addColorStop(0,rgb(cc,0.96));bg.addColorStop(0.22,rgb(ca,0.96));
-    bg.addColorStop(0.70,rgb(ca,0.92));bg.addColorStop(1,rgb(ca,0.74));
-    x.fillStyle=bg;x.beginPath();x.arc(128,128,127,0,Math.PI*2);x.fill();
+    x.clearRect(0,0,c.width,c.height);
+    // A vertical aurora curtain replaces the generic spiral/vortex motif.
+    var bg=x.createLinearGradient(0,0,0,c.height);
+    bg.addColorStop(0,rgb(cb,0.82));bg.addColorStop(0.38,rgb(ca,0.92));
+    bg.addColorStop(0.74,rgb(ca,0.82));bg.addColorStop(1,rgb(cb,0.68));
+    x.fillStyle=bg;x.fillRect(0,0,c.width,c.height);
     x.save();x.globalCompositeOperation='lighter';x.lineCap='round';
-    for(var arm=0;arm<5;arm++){
+    for(var ribbon=0;ribbon<5;ribbon++){
+        var bx=24+ribbon*52;
         x.beginPath();
-        for(var s=0;s<=92;s++){
-            var n=s/92,r=10+n*112,a=arm*Math.PI*2/5+n*4.55;
-            var px=128+Math.cos(a)*r,py=128+Math.sin(a)*r;
-            if(s===0)x.moveTo(px,py);else x.lineTo(px,py);
-        }
-        x.strokeStyle=rgb(cb,0.34);x.lineWidth=24;x.stroke();
-        x.strokeStyle=rgb(cc,0.68);x.lineWidth=7;x.stroke();
+        x.moveTo(bx-15,330);
+        x.bezierCurveTo(bx+30,245,bx-34,165,bx+12,82);
+        x.bezierCurveTo(bx+30,48,bx+18,18,bx+26,-12);
+        x.strokeStyle=rgb(cb,0.18);x.lineWidth=30;x.stroke();
+        x.strokeStyle=rgb(cc,0.48);x.lineWidth=6;x.stroke();
+    }
+    for(var spark=0;spark<22;spark++){
+        var sx=(spark*83)%238+9,sy=(spark*137)%300+10,sr=1.5+(spark%4)*0.75;
+        x.fillStyle=rgb(cc,0.35+(spark%3)*0.16);
+        x.beginPath();x.moveTo(sx,sy-sr*2.4);x.lineTo(sx+sr,sy);x.lineTo(sx,sy+sr*2.4);x.lineTo(sx-sr,sy);x.closePath();x.fill();
     }
     x.globalCompositeOperation='source-over';
-    var core=x.createRadialGradient(128,128,0,128,128,53);
-    core.addColorStop(0,rgb(cc,0.96));core.addColorStop(0.28,rgb(cb,0.34));core.addColorStop(1,rgb(cb,0));
-    x.fillStyle=core;x.beginPath();x.arc(128,128,54,0,Math.PI*2);x.fill();
-    var shade=x.createRadialGradient(128,128,84,128,128,128);
-    shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(16,10,28,.38)');
-    x.fillStyle=shade;x.beginPath();x.arc(128,128,127,0,Math.PI*2);x.fill();x.restore();
+    var center=x.createLinearGradient(0,0,c.width,0);
+    center.addColorStop(0,'rgba(255,255,255,0)');center.addColorStop(.5,rgb(cc,0.28));center.addColorStop(1,'rgba(255,255,255,0)');
+    x.fillStyle=center;x.fillRect(0,0,c.width,c.height);
+    var shade=x.createRadialGradient(128,154,30,128,154,178);
+    shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(1,'rgba(12,10,32,.35)');
+    x.fillStyle=shade;x.fillRect(0,0,c.width,c.height);x.restore();
     var tex=new THREE.CanvasTexture(c);
     if(THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
     tex.minFilter=THREE.LinearMipmapLinearFilter;tex.magFilter=THREE.LinearFilter;
     if(typeof R!=='undefined'&&R.capabilities&&R.capabilities.getMaxAnisotropy)tex.anisotropy=Math.min(4,R.capabilities.getMaxAnisotropy());
-    window._danboPortalVortexTextures[key]=tex;return tex;
+    window._danboPortalCurtainTextures[key]=tex;return tex;
 }
 
 function _danboPortalSurfaceMaterial(theme){
     return new THREE.MeshBasicMaterial({
-        map:_danboPortalVortexTexture(theme),color:0xFFFFFF,transparent:true,opacity:0.98,
+        map:_danboPortalCurtainTexture(theme),color:0xFFFFFF,transparent:true,opacity:0.94,
         depthWrite:true,side:THREE.DoubleSide,blending:THREE.NormalBlending,toneMapped:false
     });
 }
@@ -208,9 +241,13 @@ function _danboBuildRacePortal(race,index){
     });
     var runeCount=low?6:10,runeMat=new THREE.MeshBasicMaterial({color:theme.core,transparent:true,opacity:0.78,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
     var runeRing=new THREE.Group(),runes=new THREE.InstancedMesh(geo.rune,runeMat,runeCount);
+    var runeSpots=[
+        [-1.98,-1.18,-0.38],[-2.18,-0.28,-0.18],[-2.05,0.72,0.08],[-1.60,1.60,0.28],[-0.74,2.28,0.45],
+        [0.74,2.28,-0.45],[1.60,1.60,-0.28],[2.05,0.72,-0.08],[2.18,-0.28,0.18],[1.98,-1.18,0.38]
+    ];
     for(var ri=0;ri<runeCount;ri++){
-        var ra=Math.PI*2*ri/runeCount,rr=2.37;
-        sm.compose(new THREE.Vector3(Math.cos(ra)*rr,Math.sin(ra)*rr,0.08),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,ra)),new THREE.Vector3(1,1,1));
+        var rsp=runeSpots[low?Math.floor(ri*10/runeCount):ri],ra=(ri<runeCount/2?-1:1)*(0.18+(ri%3)*0.14);
+        sm.compose(new THREE.Vector3(rsp[0],rsp[1],0.10),new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,ra)),new THREE.Vector3(0.72,1.25,0.72));
         runes.setMatrixAt(ri,sm);
     }
     runes.renderOrder=52;runeRing.position.y=PORTAL_CONFIG.baseHeight;runeRing.add(runes);g.add(runeRing);
@@ -1335,7 +1372,7 @@ function _specialNestedNumber(def,group,key,fallback,min,max){
     value=Number.isFinite(value)?Math.round(value):fallback;
     return Math.max(min,Math.min(max,value));
 }
-function _makeCloud(cx,cy,cz,minParts,maxParts,minS,maxS){
+function _makeCloud(cx,cy,cz,minParts,maxParts,minS,maxS,cloudKey){
     var _cloudHigh=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
     var cg2=new THREE.SphereGeometry(1,_cloudHigh?22:12,_cloudHigh?15:8);
     // Matte PBR lobes receive warm sunlight and cool sky fill. Overlapping rounded
@@ -1364,36 +1401,133 @@ function _makeCloud(cx,cy,cz,minParts,maxParts,minS,maxS){
     var halfW=maxW*0.5;
     for(var ci2=0;ci2<g.children.length;ci2++){g.children[ci2].position.x-=halfW;}
     g.name='danbo-soft-cloud-platform';
+    if(cloudKey)g.userData.danboCloudKey=cloudKey;
     g.position.set(cx,cy,cz);
     scene.add(g);
     // Wider collision area than visual to prevent falling through edges
-    var cl={group:g,x:cx,z:cz,y:cy,hw:halfW+maxSc+1,hd:Math.max(maxD,maxSc*0.7,halfW*0.6)+1,top:maxTop,_origScaleY:1};
+    var cl={group:g,x:cx,z:cz,y:cy,hw:halfW+maxSc+1,hd:Math.max(maxD,maxSc*0.7,halfW*0.6)+1,top:maxTop,_origScaleY:1,editorKey:cloudKey||''};
     cityCloudPlatforms.push(cl);
     return cl;
 }
+function _createCloudCherub(options){
+    options=options||{};
+    var cg=new THREE.Group();
+    var cherubScale=Number(options.scale);
+    if(!Number.isFinite(cherubScale)||cherubScale<=0)cherubScale=3;
+    cg.scale.set(cherubScale,cherubScale,cherubScale);
+    // Round body (chubby)
+    var cbody=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6),toon(0xFFDDCC));
+    cbody.scale.set(1,0.9,0.8);cbody.position.y=0;cg.add(cbody);
+    // Head
+    var chead=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,6),toon(0xFFDDCC));
+    chead.position.set(0,0.35,0.05);cg.add(chead);
+    // Curly golden hair
+    for(var _chc=0;_chc<6;_chc++){
+        var cha=_chc/6*Math.PI*2;
+        var curl=new THREE.Mesh(new THREE.SphereGeometry(0.07,4,3),toon(0xFFDD44));
+        curl.position.set(Math.cos(cha)*0.15,0.5+Math.sin(cha)*0.05,Math.sin(cha)*0.12);
+        cg.add(curl);
+    }
+    // Eyes (cute big)
+    [-1,1].forEach(function(s){
+        var ceye=new THREE.Mesh(new THREE.SphereGeometry(0.05,4,3),toon(0x4488CC));
+        ceye.position.set(s*0.1,0.38,0.2);cg.add(ceye);
+        var cshine=new THREE.Mesh(new THREE.SphereGeometry(0.02,3,2),toon(0xFFFFFF));
+        cshine.position.set(s*0.1+s*0.02,0.4,0.22);cg.add(cshine);
+    });
+    // Smile and blush
+    var csmile=new THREE.Mesh(new THREE.TorusGeometry(0.05,0.012,4,8,Math.PI),toon(0xFF8888));
+    csmile.position.set(0,0.3,0.2);csmile.rotation.x=Math.PI;cg.add(csmile);
+    [-1,1].forEach(function(s){
+        var cblush=new THREE.Mesh(new THREE.SphereGeometry(0.04,4,3),toon(0xFF9999,{transparent:true,opacity:0.4}));
+        cblush.position.set(s*0.15,0.32,0.18);cg.add(cblush);
+    });
+    // Wings (feathery, translucent white)
+    [-1,1].forEach(function(s){
+        var wing=new THREE.Group();
+        for(var fi=0;fi<4;fi++){
+            var feather=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),toon(0xFFFFFF,{transparent:true,opacity:0.7}));
+            feather.scale.set(0.4,0.15,1);
+            feather.position.set(s*(0.15+fi*0.08),0.05-fi*0.03,-fi*0.06);
+            feather.rotation.z=s*(0.2+fi*0.15);wing.add(feather);
+        }
+        wing.position.set(s*0.2,0.15,-0.1);wing.userData._side=s;cg.add(wing);
+    });
+    // Halo and arms
+    var halo=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.02,6,16),toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.5}));
+    halo.position.set(0,0.6,0.05);halo.rotation.x=Math.PI/2;cg.add(halo);
+    [-1,1].forEach(function(s){
+        var carm=new THREE.Mesh(new THREE.SphereGeometry(0.06,4,3),toon(0xFFDDCC));
+        carm.position.set(s*0.3,0.05,0.1);carm.scale.set(0.7,1,0.7);cg.add(carm);
+    });
+    var cx=Number(options.x)||0,cy=Number(options.y)||0,cz=Number(options.z)||0;
+    var rotationY=Number(options.rotationY)||0;
+    cg.position.set(cx,cy,cz);cg.rotation.y=rotationY*Math.PI/180;
+    if(options.editorSpecialIndex!==undefined)cg.userData.editorSpecialIndex=Number(options.editorSpecialIndex);
+    if(options.instanceId)cg.userData.editorInstanceId=String(options.instanceId);
+    scene.add(cg);
+    if(!window._cityAnimals)window._cityAnimals=[];
+    var flapSpeed=Number(options.flapSpeed);if(!Number.isFinite(flapSpeed)||flapSpeed<=0)flapSpeed=1;
+    var floatHeight=Number(options.floatHeight);if(!Number.isFinite(floatHeight)||floatHeight<0)floatHeight=1.5;
+    var animal={
+        group:cg,type:'cherub',x:cx,y:cy,z:cz,
+        vx:Number(options.vx)||0,vy:0,vz:Number(options.vz)||0,
+        state:'fly',stateTimer:200+Math.floor(Math.random()*200),
+        flapPhase:Number.isFinite(Number(options.phase))?Number(options.phase):Math.random()*Math.PI*2,
+        flapSpeed:flapSpeed,floatHeight:floatHeight,baseY:cy,_inScene:true,
+        editorStatic:!!options.editorStatic,rotationY:rotationY*Math.PI/180,
+        editorSpecialIndex:options.editorSpecialIndex
+    };
+    window._cityAnimals.push(animal);return animal;
+}
 function addClouds(){
+    var allSpecialDefs=_citySpecialObjects();
+    var singleCherubDefs=[];
+    for(var _sdi=0;_sdi<allSpecialDefs.length;_sdi++)if(allSpecialDefs[_sdi]&&allSpecialDefs[_sdi].type==='cloudCherub')singleCherubDefs.push({def:allSpecialDefs[_sdi],index:_sdi});
     var cloudDef=_citySpecialObject('cloudRealm');
+    var cherubDef=_citySpecialObject('cloudCherubs');
+    var moonPipeDef=_citySpecialObject('cloudMoonPipe');
     // Backward compatibility: old city files did not store cloudRealm yet.
     // Cities 0-4 keep their legacy cloud world until an exported special
     // scene asset is placed, at which point that declarative definition wins.
     if(!cloudDef){
-        if(currentCityStyle===5||currentCityStyle===6||currentCityStyle===7)return;
-        cloudDef={type:'cloudRealm',x:0,y:46,z:0,w:140,d:140,h:32,enabled:true,interaction:{moonPipe:true}};
+        if(!cherubDef&&!singleCherubDefs.length&&!moonPipeDef){
+            if(currentCityStyle===5||currentCityStyle===6||currentCityStyle===7)return;
+            cloudDef={type:'cloudRealm',x:0,y:46,z:0,w:140,d:140,h:32,enabled:true,interaction:{moonPipe:true}};
+        }else{
+            // A split material can be previewed or placed on its own without
+            // silently recreating the entire cloud realm around it.
+            var splitAnchor=cherubDef||(singleCherubDefs[0]&&singleCherubDefs[0].def)||moonPipeDef;
+            cloudDef={
+                type:'cloudRealm',x:_specialNumber(splitAnchor,'x',0),y:_specialNumber(splitAnchor,'y',46),
+                z:_specialNumber(splitAnchor,'z',0),w:1,d:1,h:1,enabled:false,
+                generator:{roofClouds:false,stairColumns:0,centralPlatform:0,innerRingPlatforms:0,outerRingPlatforms:0,movingPlatforms:0,decorativeClouds:0},
+                gameplay:{coins:0,treasureChests:0,cherubs:0},interaction:{moonPipe:false}
+            };
+        }
     }
-    if(cloudDef.enabled===false)return;
+    var cloudLayerEnabled=cloudDef.enabled!==false;
+    if(!cloudLayerEnabled&&!cherubDef&&!singleCherubDefs.length&&!moonPipeDef)return;
     var cloudX=_specialNumber(cloudDef,'x',0),cloudY=_specialNumber(cloudDef,'y',46),cloudZ=_specialNumber(cloudDef,'z',0);
     var cloudGenerator=cloudDef.generator||{};
-    var roofCloudsEnabled=cloudGenerator.roofClouds!==false;
-    var stairColumnCount=_specialNestedNumber(cloudDef,'generator','stairColumns',6,0,16);
+    var roofCloudsEnabled=cloudLayerEnabled&&cloudGenerator.roofClouds!==false;
+    var stairColumnCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'generator','stairColumns',6,0,16):0;
     var stepsPerColumn=_specialNestedNumber(cloudDef,'generator','stepsPerColumn',5,1,12);
-    var centralPlatformCount=_specialNestedNumber(cloudDef,'generator','centralPlatform',1,0,3);
-    var innerRingCount=_specialNestedNumber(cloudDef,'generator','innerRingPlatforms',8,0,24);
-    var outerRingCount=_specialNestedNumber(cloudDef,'generator','outerRingPlatforms',6,0,24);
-    var movingPlatformCount=_specialNestedNumber(cloudDef,'generator','movingPlatforms',12,0,32);
-    var decorativeCloudCount=_specialNestedNumber(cloudDef,'generator','decorativeClouds',10,0,32);
-    var cloudCoinCount=_specialNestedNumber(cloudDef,'gameplay','coins',15,0,60);
-    var cloudChestCount=_specialNestedNumber(cloudDef,'gameplay','treasureChests',10,0,30);
-    var cloudCherubCount=_specialNestedNumber(cloudDef,'gameplay','cherubs',8,0,24);
+    var centralPlatformCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'generator','centralPlatform',1,0,3):0;
+    var innerRingCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'generator','innerRingPlatforms',8,0,24):0;
+    var outerRingCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'generator','outerRingPlatforms',6,0,24):0;
+    var movingPlatformCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'generator','movingPlatforms',12,0,32):0;
+    var decorativeCloudCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'generator','decorativeClouds',10,0,32):0;
+    var cloudCoinCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'gameplay','coins',15,0,60):0;
+    var cloudChestCount=cloudLayerEnabled?_specialNestedNumber(cloudDef,'gameplay','treasureChests',10,0,30):0;
+    var cloudCherubCount=singleCherubDefs.length?0:(cherubDef
+        ?(cherubDef.enabled===false?0:_specialNestedNumber(cherubDef,'gameplay','cherubs',_specialNumber(cherubDef,'count',8),0,24))
+        :_specialNestedNumber(cloudDef,'gameplay','cherubs',8,0,24));
+    var cherubX=cherubDef?_specialNumber(cherubDef,'x',cloudX):cloudX;
+    var cherubY=cherubDef?_specialNumber(cherubDef,'y',cloudY):cloudY;
+    var cherubZ=cherubDef?_specialNumber(cherubDef,'z',cloudZ):cloudZ;
+    var cherubRadius=cherubDef?_specialNumber(cherubDef,'radius',30):30;
+    var cherubScale=cherubDef?_specialNumber(cherubDef,'scale',3):3;
     CHEST_CLOUD_TOTAL=cloudChestCount;
     // Cloud above each building roof — reachable with charge jump
     var roofClouds=[];
@@ -1401,7 +1535,7 @@ function addClouds(){
         for(var bi=0;bi<cityColliders.length;bi++){
             var c=cityColliders[bi];
             var roofTop=(c.h||6)+(c.roofH||3);
-            var rc=_makeCloud(c.x,roofTop+2,c.z,2,3,2,4);
+            var rc=_makeCloud(c.x,roofTop+2,c.z,2,3,2,4,'roof-'+bi);
             roofClouds.push(rc);
         }
     }
@@ -1424,7 +1558,7 @@ function addClouds(){
             var sy=baseY+st*4;
             var sx=sp.x+(Math.random()-0.5)*8;
             var sz=sp.z+(Math.random()-0.5)*8;
-            _makeCloud(sx,sy,sz,2,3,2,4);
+            _makeCloud(sx,sy,sz,2,3,2,4,'stair-'+si+'-'+st);
         }
     }
     // ---- Cloud World (y=46) — large platform layer ----
@@ -1434,18 +1568,18 @@ function addClouds(){
     for(var cpIndex=0;cpIndex<centralPlatformCount;cpIndex++){
         var cpAngle=cpIndex/Math.max(1,centralPlatformCount)*Math.PI*2;
         var cpRadius=cpIndex===0?0:18;
-        _makeCloud(cloudX+Math.cos(cpAngle)*cpRadius,cwY,cloudZ+Math.sin(cpAngle)*cpRadius,8,10,14,20);
+        _makeCloud(cloudX+Math.cos(cpAngle)*cpRadius,cwY,cloudZ+Math.sin(cpAngle)*cpRadius,8,10,14,20,'central-'+cpIndex);
     }
     // Ring of cloud platforms around center — kept away from center (r>35) and lower
     for(var ai=0;ai<innerRingCount;ai++){
         var ang=ai/Math.max(1,innerRingCount)*Math.PI*2;
         var r=38+Math.random()*10;
-        _makeCloud(cloudX+Math.cos(ang)*r,cwY-4+Math.random()*2,cloudZ+Math.sin(ang)*r,3,4,3,5);
+        _makeCloud(cloudX+Math.cos(ang)*r,cwY-4+Math.random()*2,cloudZ+Math.sin(ang)*r,3,4,3,5,'inner-'+ai);
     }
     // Outer ring — even further
     for(var oi=0;oi<outerRingCount;oi++){
         var oa=oi/Math.max(1,outerRingCount)*Math.PI*2;
-        _makeCloud(cloudX+Math.cos(oa)*60,cwY-3+Math.random()*2,cloudZ+Math.sin(oa)*60,3,4,3,5);
+        _makeCloud(cloudX+Math.cos(oa)*60,cwY-3+Math.random()*2,cloudZ+Math.sin(oa)*60,3,4,3,5,'outer-'+oi);
     }
     // ---- Moving clouds (platforms that drift back and forth) ----
     // Keep moving clouds away from center (r>30)
@@ -1456,7 +1590,7 @@ function addClouds(){
         var mx=cloudX+Math.cos(ma)*mr;
         var mz=cloudZ+Math.sin(ma)*mr;
         var my=cwY-4+Math.random()*3;
-        var mc=_makeCloud(mx,my,mz,2,3,3,5);
+        var mc=_makeCloud(mx,my,mz,2,3,3,5,'moving-upper-'+mi);
         // Mark as moving cloud
         mc.moving=true;
         mc.moveAxis=Math.random()<0.5?'x':'z'; // drift direction
@@ -1471,7 +1605,7 @@ function addClouds(){
         var mx2=cloudX+(Math.random()-0.5)*60;
         var mz2=cloudZ+(Math.random()-0.5)*60;
         var my2=cloudY-20+Math.random()*12;
-        var mc2=_makeCloud(mx2,my2,mz2,2,3,2,4);
+        var mc2=_makeCloud(mx2,my2,mz2,2,3,2,4,'moving-stair-'+mi2);
         mc2.moving=true;
         mc2.moveAxis=Math.random()<0.5?'x':'z';
         mc2.moveSpeed=0.008+Math.random()*0.015;
@@ -1485,7 +1619,20 @@ function addClouds(){
         var dx2=cloudX+(Math.random()-0.5)*200;
         var dz2=cloudZ+(Math.random()-0.5)*200;
         var dy2=cloudY+4+Math.random()*20;
-        _makeCloud(dx2,dy2,dz2,3,4,3,6);
+        _makeCloud(dx2,dy2,dz2,3,4,3,6,'decorative-'+di);
+    }
+    // Per-cloud editor overrides are stored relative to the cloud-realm anchor,
+    // so a hand-positioned cloud keeps its layout when the whole material is moved.
+    var cloudOverrides=cloudDef.cloudOverrides&&typeof cloudDef.cloudOverrides==='object'?cloudDef.cloudOverrides:{};
+    for(var _coi=0;_coi<cityCloudPlatforms.length;_coi++){
+        var _cop=cityCloudPlatforms[_coi],_cov=_cop.editorKey&&cloudOverrides[_cop.editorKey];
+        if(!_cov||typeof _cov!=='object')continue;
+        var _cox=cloudX+_specialNumber(_cov,'x',_cop.x-cloudX);
+        var _coy=cloudY+_specialNumber(_cov,'y',_cop.y-cloudY);
+        var _coz=cloudZ+_specialNumber(_cov,'z',_cop.z-cloudZ);
+        _cop.x=_cox;_cop.y=_coy;_cop.z=_coz;
+        _cop.group.position.set(_cox,_coy,_coz);
+        if(_cop.moving){_cop.baseX=_cox;_cop.baseZ=_coz;}
     }
     // Coins in cloud world
     for(var cci=0;cci<cloudCoinCount;cci++){
@@ -1505,75 +1652,38 @@ function addClouds(){
     }
     if(!window._cityAnimals)window._cityAnimals=[];
     for(var _chi=0;_chi<cloudCherubCount;_chi++){
-        var cg=new THREE.Group();
-        cg.scale.set(3,3,3); // big enough to see in cloud world
-        // Round body (chubby)
-        var cbody=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6),toon(0xFFDDCC));
-        cbody.scale.set(1,0.9,0.8);cbody.position.y=0;cg.add(cbody);
-        // Head
-        var chead=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,6),toon(0xFFDDCC));
-        chead.position.set(0,0.35,0.05);cg.add(chead);
-        // Curly golden hair
-        for(var _chi2=0;_chi2<6;_chi2++){
-            var cha=_chi2/6*Math.PI*2;
-            var curl=new THREE.Mesh(new THREE.SphereGeometry(0.07,4,3),toon(0xFFDD44));
-            curl.position.set(Math.cos(cha)*0.15,0.5+Math.sin(cha)*0.05,Math.sin(cha)*0.12);
-            cg.add(curl);
-        }
-        // Eyes (cute big)
-        [-1,1].forEach(function(s){
-            var ceye=new THREE.Mesh(new THREE.SphereGeometry(0.05,4,3),toon(0x4488CC));
-            ceye.position.set(s*0.1,0.38,0.2);cg.add(ceye);
-            var cshine=new THREE.Mesh(new THREE.SphereGeometry(0.02,3,2),toon(0xFFFFFF));
-            cshine.position.set(s*0.1+s*0.02,0.4,0.22);cg.add(cshine);
-        });
-        // Smile
-        var csmile=new THREE.Mesh(new THREE.TorusGeometry(0.05,0.012,4,8,Math.PI),toon(0xFF8888));
-        csmile.position.set(0,0.3,0.2);csmile.rotation.x=Math.PI;cg.add(csmile);
-        // Blush
-        [-1,1].forEach(function(s){
-            var cblush=new THREE.Mesh(new THREE.SphereGeometry(0.04,4,3),toon(0xFF9999,{transparent:true,opacity:0.4}));
-            cblush.position.set(s*0.15,0.32,0.18);cg.add(cblush);
-        });
-        // Wings (feathery, translucent white)
-        [-1,1].forEach(function(s){
-            var wing=new THREE.Group();
-            for(var fi=0;fi<4;fi++){
-                var feather=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),
-                    toon(0xFFFFFF,{transparent:true,opacity:0.7}));
-                feather.scale.set(0.4,0.15,1);
-                feather.position.set(s*(0.15+fi*0.08),0.05-fi*0.03,-fi*0.06);
-                feather.rotation.z=s*(0.2+fi*0.15);
-                wing.add(feather);
-            }
-            wing.position.set(s*0.2,0.15,-0.1);
-            wing.userData._side=s;
-            cg.add(wing);
-        });
-        // Halo
-        var halo=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.02,6,16),
-            toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.5}));
-        halo.position.set(0,0.6,0.05);halo.rotation.x=Math.PI/2;cg.add(halo);
-        // Small chubby arms
-        [-1,1].forEach(function(s){
-            var carm=new THREE.Mesh(new THREE.SphereGeometry(0.06,4,3),toon(0xFFDDCC));
-            carm.position.set(s*0.3,0.05,0.1);carm.scale.set(0.7,1,0.7);cg.add(carm);
-        });
         var ca2=_chi/Math.max(1,cloudCherubCount)*Math.PI*2;
-        var cr2=15+Math.random()*30;
-        var cx2=cloudX+Math.cos(ca2)*cr2, cz2=cloudZ+Math.sin(ca2)*cr2;
-        var cy2=cwY+3+Math.random()*6;
-        cg.position.set(cx2,cy2,cz2);
-        scene.add(cg);
-        window._cityAnimals.push({group:cg,type:'cherub',x:cx2,y:cy2,z:cz2,
+        var cr2=Math.max(2,cherubRadius*0.45)+Math.random()*Math.max(2,cherubRadius*0.55);
+        var cx2=cherubX+Math.cos(ca2)*cr2, cz2=cherubZ+Math.sin(ca2)*cr2;
+        var cy2=cherubY+3+Math.random()*6;
+        _createCloudCherub({x:cx2,y:cy2,z:cz2,scale:cherubScale,
             vx:Math.sin(ca2+Math.PI/2)*0.04,vy:0,vz:Math.cos(ca2+Math.PI/2)*0.04,
-            state:'fly',stateTimer:200+Math.floor(Math.random()*200),
-            flapPhase:Math.random()*Math.PI*2,baseY:cy2,_inScene:true});
+            phase:Math.random()*Math.PI*2,flapSpeed:1,floatHeight:1.5});
+    }
+    // Individually placed cherubs are independent editor entities. They hover
+    // in place so position and rotation remain exactly as authored.
+    for(var _sci=0;_sci<singleCherubDefs.length;_sci++){
+        var _scEntry=singleCherubDefs[_sci],_scd=_scEntry.def;
+        if(_scd.enabled===false)continue;
+        var _sca=_scd.animation&&typeof _scd.animation==='object'?_scd.animation:{};
+        _createCloudCherub({
+            x:_specialNumber(_scd,'x',0),y:_specialNumber(_scd,'y',52),z:_specialNumber(_scd,'z',0),
+            scale:_specialNumber(_scd,'scale',3),rotationY:_specialNumber(_scd,'rotationY',0),
+            phase:_specialNumber(_sca,'phase',Math.random()*Math.PI*2),
+            flapSpeed:_specialNumber(_sca,'flapSpeed',1),floatHeight:_specialNumber(_sca,'floatHeight',0.6),
+            editorStatic:true,editorSpecialIndex:_scEntry.index,instanceId:_scd.instanceId||''
+        });
     }
     // ---- Moon Warp Pipe in cloud world center ----
     // Place pipe on TOP of central cloud (cloudTop ≈ cwY + maxScale*0.45 ≈ cwY+9)
     var _moonPipeY=cwY+8;
-    if(centralPlatformCount>0&&(!cloudDef.interaction||cloudDef.interaction.moonPipe!==false))_buildCloudWorldMoonPipe(cloudX,_moonPipeY,cloudZ);
+    if(moonPipeDef){
+        if(moonPipeDef.enabled!==false)_buildCloudWorldMoonPipe(
+            _specialNumber(moonPipeDef,'x',cloudX),_specialNumber(moonPipeDef,'y',_moonPipeY),_specialNumber(moonPipeDef,'z',cloudZ)
+        );
+    }else if(centralPlatformCount>0&&(!cloudDef.interaction||cloudDef.interaction.moonPipe!==false)){
+        _buildCloudWorldMoonPipe(cloudX,_moonPipeY,cloudZ);
+    }
 }
 function _buildCloudWorldMoonPipe(px,py,pz){
     var pColor=0xCCCCFF;
