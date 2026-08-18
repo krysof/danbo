@@ -314,15 +314,20 @@ function updateEggPhysics(egg, isCity){
         if(egg.isPlayer){
             // Cloud world moon pipe — proximity prompt
             if(_cloudWorldPipe&&!_pipeTraveling&&!_portalConfirmOpen&&!_spinDashing){
-                var mp=_cloudWorldPipe;
-                var mdx=egg.mesh.position.x-mp.x,mdz=egg.mesh.position.z-mp.z;
-                var mdist=DANBO_WASM.dist2D(egg.mesh.position.x,egg.mesh.position.z,mp.x,mp.z);
+                var _pipeList=(typeof _cloudWorldPipes!=='undefined'&&_cloudWorldPipes.length)?_cloudWorldPipes:[_cloudWorldPipe];
                 var mrange=(typeof _danboPortalConfirmRange==='function')?_danboPortalConfirmRange(PORTAL_CONFIG.confirmDist,true):(PORTAL_CONFIG.confirmDist+1.6);
-                if(mdist<mrange&&egg.mesh.position.y>=mp.y-5&&egg.mesh.position.y<=mp.y+15&&!mp._cooldown){
-                    mp._cooldown=true;
-                    _showMoonPipePrompt();
+                for(var _mpi=0;_mpi<_pipeList.length;_mpi++){
+                    var mp=_pipeList[_mpi];
+                    if(!mp)continue;
+                    var mdist=DANBO_WASM.dist2D(egg.mesh.position.x,egg.mesh.position.z,mp.x,mp.z);
+                    if(mdist<mrange&&egg.mesh.position.y>=mp.y-5&&egg.mesh.position.y<=mp.y+15&&!mp._cooldown){
+                        mp._cooldown=true;
+                        _cloudWorldPipe=mp; // remember which independently placed pipe opened the prompt
+                        _showMoonPipePrompt();
+                        break;
+                    }
+                    if(mdist>PORTAL_CONFIG.triggerDist){mp._cooldown=false;}
                 }
-                if(mdist>PORTAL_CONFIG.triggerDist){mp._cooldown=false;}
             }
         }
 } else {

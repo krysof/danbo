@@ -65,6 +65,51 @@ function _getCityFlora(style){
 function _cityLayoutHasFeature(layout,name){
     return !!(layout&&layout.features&&layout.features.indexOf(name)!==-1);
 }
+function _hopeFountainDefaultDefinition(){
+    return {
+        id:'hope-central-fountain',type:'cinematicFountain',x:0,y:0,z:0,w:20.3,d:20.3,h:9.7,
+        enabled:true,rotationY:0,scale:1,
+        water:{opacity:0.50,rippleStrength:1},
+        jets:{count:8,height:1,spread:1,splashStrength:1},
+        map:{showIcon:true}
+    };
+}
+function _hopeFountainDefinition(includeDisabled){
+    var layout=_getCityLayout(currentCityStyle),list=layout&&layout.specialObjects;
+    if(Array.isArray(list)){
+        for(var i=0;i<list.length;i++){
+            var item=list[i];
+            if(item&&(item.type==='cinematicFountain'||item.id==='hope-central-fountain'))return item.enabled===false&&!includeDisabled?null:item;
+        }
+    }
+    // Hope City historically generated its fountain from the "fountain" feature.
+    // Keep old maps working until the editor adopts that landmark into map data.
+    if(currentCityStyle===0&&(_cityLayoutHasFeature(layout,'fountain')||!layout))return _hopeFountainDefaultDefinition();
+    return null;
+}
+function _hopeFountainDefinitionIndex(def){
+    var layout=_getCityLayout(currentCityStyle),list=layout&&layout.specialObjects;
+    if(!Array.isArray(list))return -1;
+    for(var i=0;i<list.length;i++)if(list[i]===def||list[i]&&(list[i].type==='cinematicFountain'||list[i].id==='hope-central-fountain'))return i;
+    return -1;
+}
+function _hopeFountainNumber(group,key,fallback,min,max){
+    var def=window._fountainDefinition,value=def&&def[group]&&Number(def[group][key]);
+    value=Number.isFinite(value)?value:fallback;
+    return Math.max(min,Math.min(max,value));
+}
+window._moveFountainEditorTarget=function(index,x,y,z){
+    var layout=_getCityLayout(currentCityStyle),list=layout&&layout.specialObjects;
+    var def=Array.isArray(list)?list[Number(index)]:null;
+    if(!def||def.type!=='cinematicFountain'||!window._fountainGroup)return false;
+    def.x=Number(x)||0;def.y=Number(y)||0;def.z=Number(z)||0;
+    window._fountainGroup.position.set(def.x,def.y,def.z);
+    if(window._fountainCollider){
+        window._fountainCollider.x=def.x;window._fountainCollider.z=def.z;
+        window._fountainCollider.h=def.y+8.8*window._fountainGroup.scale.x;
+    }
+    return true;
+};
 
 function _cityMixHex(a,b,t){
     if(typeof _mixHex==='function')return _mixHex(a,b,t);
@@ -955,7 +1000,13 @@ function buildCity() {
     }
 
 // ---- Grand Roman Wishing Fountain (Trevi-style) — skip for Sakura City ----
+    var _hopeFountainDef=currentCityStyle===0?(_hopeFountainDefinition(true)||_hopeFountainDefaultDefinition()):_hopeFountainDefaultDefinition();
+    var _hopeFountainEnabled=!_hopeFountainDef||_hopeFountainDef.enabled!==false;
     if(currentCityStyle!==6&&currentCityStyle!==7){
+    var _fountainChildStart=cityGroup.children.length;
+    window._fountainDefinition=_hopeFountainDef;
+    var _fountainWaterDef=_hopeFountainDef&&_hopeFountainDef.water||{};
+    var _fountainJetDef=_hopeFountainDef&&_hopeFountainDef.jets||{};
     var _hopeFountainLow=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
     var _hopeFountainHigh=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
     var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xBDB6A9,{roughness:0.80,bumpScale:0.040,envMapIntensity:0.24}):toon(0xCCBBAA);
@@ -964,7 +1015,8 @@ function buildCity() {
     var _wetStoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x65716E,{roughness:0.48,bumpScale:0.028,clearcoat:0.12,clearcoatRoughness:0.55,envMapIntensity:0.38}):stoneD;
     var _waterSet=currentCityStyle===0&&typeof _visualSurfaceTextureSet==='function'?_visualSurfaceTextureSet('water'):null;
     if(_waterSet)window._danboWaterBump=_waterSet.bumpMap;
-    var waterM=currentCityStyle===0?(_hopeFountainLow?new THREE.MeshPhongMaterial({color:0x4D9EAE,shininess:78,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:0.56,depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshPhysicalMaterial({color:0x4298AA,roughness:0.085,metalness:0.0,clearcoat:0.82,clearcoatRoughness:0.12,envMapIntensity:0.92,ior:1.333,transmission:0.10,thickness:0.55,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:0.50,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});
+    var _fountainWaterOpacity=currentCityStyle===0?Math.max(0.24,Math.min(0.72,Number(_fountainWaterDef.opacity)||0.50)):0.55;
+    var waterM=currentCityStyle===0?(_hopeFountainLow?new THREE.MeshPhongMaterial({color:0x4D9EAE,shininess:78,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:Math.max(0.32,_fountainWaterOpacity),depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshPhysicalMaterial({color:0x4298AA,roughness:0.085,metalness:0.0,clearcoat:0.82,clearcoatRoughness:0.12,envMapIntensity:0.92,ior:1.333,transmission:0.10,thickness:0.55,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:_fountainWaterOpacity,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});
     var goldM=currentCityStyle===0&&typeof softPBR==='function'?softPBR(0xB78C3C,{roughness:0.38,metalness:0.42,envMapIntensity:0.68,emissive:0x2B1700,emissiveIntensity:0.018}):toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.3});
     if(currentCityStyle===0){
         // Broad cut-stone terraces replace the former floating donut silhouette.
@@ -1156,11 +1208,19 @@ function buildCity() {
         }
         var _fallMat=new THREE.MeshPhysicalMaterial({color:0xB8F1F6,roughness:0.06,metalness:0,clearcoat:0.72,clearcoatRoughness:0.10,envMapIntensity:0.86,ior:1.333,transmission:_hopeFountainLow?0:0.12,thickness:0.18,transparent:true,opacity:_hopeFountainLow?0.34:0.32,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
         var _flowHighlightMat=new THREE.MeshBasicMaterial({color:0xE9FDFF,transparent:true,opacity:0.22,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
-        var _arcCount=_hopeFountainLow?4:(_hopeFountainHigh?8:6);
+        var _requestedArcCount=Math.round(Number(_fountainJetDef.count)||8);
+        var _arcCount=Math.max(4,Math.min(_hopeFountainLow?6:12,_requestedArcCount));
+        var _jetHeight=Math.max(0.55,Math.min(1.55,Number(_fountainJetDef.height)||1));
+        var _jetSpread=Math.max(0.68,Math.min(1.32,Number(_fountainJetDef.spread)||1));
+        var _mainJetRadius=4.78*_jetSpread;
         var _mainArcCurves=[];
         for(var _wai=0;_wai<_arcCount;_wai++){
             var _waa=_wai/_arcCount*Math.PI*2;
-            var _curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(Math.cos(_waa)*0.24,8.54,Math.sin(_waa)*0.24),new THREE.Vector3(Math.cos(_waa)*2.45,9.38,Math.sin(_waa)*2.45),new THREE.Vector3(Math.cos(_waa)*4.78,0.77,Math.sin(_waa)*4.78));
+            var _curve=new THREE.QuadraticBezierCurve3(
+                new THREE.Vector3(Math.cos(_waa)*0.24,8.54,Math.sin(_waa)*0.24),
+                new THREE.Vector3(Math.cos(_waa)*2.45*_jetSpread,8.54+0.84*_jetHeight,Math.sin(_waa)*2.45*_jetSpread),
+                new THREE.Vector3(Math.cos(_waa)*_mainJetRadius,0.77,Math.sin(_waa)*_mainJetRadius)
+            );
             _mainArcCurves.push(_curve);
             var _arc=new THREE.Mesh(new THREE.TubeGeometry(_curve,_hopeFountainLow?20:36,_hopeFountainLow?0.042:0.038,_hopeFountainLow?6:10,false),_fallMat);_arc.name='hope-fountain-water-arc';_arc.renderOrder=3;cityGroup.add(_arc);
             if(!_hopeFountainLow){
@@ -1207,7 +1267,7 @@ function buildCity() {
         for(var _ici=0;_ici<_impactCount;_ici++){
             var _ica=_ici/_impactCount*Math.PI*2;
             var _impactFoam=new THREE.Mesh(new THREE.RingGeometry(0.16,0.34,_hopeFountainLow?12:24),_foamMat.clone());
-            _impactFoam.rotation.x=-Math.PI/2;_impactFoam.position.set(Math.cos(_ica)*4.78,0.731,Math.sin(_ica)*4.78);
+            _impactFoam.rotation.x=-Math.PI/2;_impactFoam.position.set(Math.cos(_ica)*_mainJetRadius,0.731,Math.sin(_ica)*_mainJetRadius);
             _impactFoam.material.opacity=0.18;_impactFoam.renderOrder=3;cityGroup.add(_impactFoam);
         }
     }
@@ -1288,9 +1348,6 @@ function buildCity() {
         coin.rotation.z=Math.random()*Math.PI;
         cityGroup.add(coin);
     }
-    // Fountain collider — only the inner column, not the pool (player can wade in)
-    cityColliders.push({x:0,z:0,hw:1.5,hd:1.5,h:8});
-
     // ---- Fountain water particle system ----
     var _fwParticles=[];
     var _fwMat=new THREE.MeshBasicMaterial({color:0xB9EEFF,transparent:true,opacity:currentCityStyle===0?0.30:0.6,depthWrite:false,blending:THREE.NormalBlending});
@@ -1331,9 +1388,33 @@ function buildCity() {
         window._fountainSplashParticles.push({mesh:fsp,life:0,maxLife:0,vx:0,vy:0,vz:0});
     }
 
+    // Treat the complete fountain as one editable functional landmark. Existing
+    // meshes keep local coordinates, so animation, water particles and detail
+    // proportions remain intact while the editor moves/rotates/scales the group.
+    var _fountainBuiltChildren=cityGroup.children.slice(_fountainChildStart);
+    var _fountainGroup=new THREE.Group();_fountainGroup.name='hope-central-fountain-landmark';cityGroup.add(_fountainGroup);
+    for(var _fbc=0;_fbc<_fountainBuiltChildren.length;_fbc++)_fountainGroup.attach(_fountainBuiltChildren[_fbc]);
+    var _fountainX=Number(_hopeFountainDef&&_hopeFountainDef.x)||0;
+    var _fountainY=Number(_hopeFountainDef&&_hopeFountainDef.y)||0;
+    var _fountainZ=Number(_hopeFountainDef&&_hopeFountainDef.z)||0;
+    var _fountainScale=Math.max(0.80,Math.min(1.25,Number(_hopeFountainDef&&_hopeFountainDef.scale)||1));
+    var _fountainRotation=(Number(_hopeFountainDef&&_hopeFountainDef.rotationY)||0)*Math.PI/180;
+    var _fountainIndex=_hopeFountainDefinitionIndex(_hopeFountainDef);
+    _fountainGroup.position.set(_fountainX,_fountainY,_fountainZ);_fountainGroup.rotation.y=_fountainRotation;_fountainGroup.scale.setScalar(_fountainScale);
+    _fountainGroup.visible=_hopeFountainEnabled;
+    _fountainGroup.userData.editorSpecialIndex=_fountainIndex;_fountainGroup.userData.editorSpecialType='cinematicFountain';
+    _fountainGroup.traverse(function(item){
+        item.userData=item.userData||{};item.userData.editorSpecialIndex=_fountainIndex;item.userData.editorSpecialType='cinematicFountain';
+    });
+    var _fountainCollider={x:_fountainX,z:_fountainZ,hw:1.5*_fountainScale,hd:1.5*_fountainScale,h:_fountainY+8.8*_fountainScale,_cinematicFountain:true};
+    if(_hopeFountainEnabled)cityColliders.push(_fountainCollider);
+    window._fountainGroup=_fountainGroup;window._fountainCollider=_fountainCollider;
+    window._fountainRippleStrength=Math.max(0.35,Math.min(1.8,Number(_fountainWaterDef.rippleStrength)||1));
+    window._fountainSplashStrength=Math.max(0.35,Math.min(1.8,Number(_fountainJetDef.splashStrength)||1));
+
     // ---- Streams & Canals (water city style 0) ----
     if(currentCityStyle===0){
-        var streamMat=waterM;
+        var streamMat=waterM.clone();streamMat.opacity=_hopeFountainLow?0.56:0.50;
         var bankMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xB8AA91,{roughness:0.82,bumpScale:0.12}):toon(0xB8AA91);
         // 4 canals radiating from central fountain to city edges
         var canalDirs=[{dx:1,dz:0},{dx:-1,dz:0},{dx:0,dz:1},{dx:0,dz:-1}];

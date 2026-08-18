@@ -921,6 +921,12 @@ function clearCity(){
     window._fountainSplashParticles=null;
     window._fountainPoolWater=null;
     window._fountainRipples=null;
+    window._fountainWaterHighlights=null;
+    window._fountainGroup=null;
+    window._fountainCollider=null;
+    window._fountainDefinition=null;
+    window._fountainRippleStrength=1;
+    window._fountainSplashStrength=1;
     window._sakuraPetals=null;
     window._sakuraCanalWater=null;
     window._sakuraStreamAnimals=null;
@@ -944,8 +950,12 @@ function clearCity(){
     // Remove clouds
     for(var k=0;k<cityCloudPlatforms.length;k++){scene.remove(cityCloudPlatforms[k].group);}
     cityCloudPlatforms.length=0;
-    // Remove cloud world moon pipe
-    if(_cloudWorldPipe){scene.remove(_cloudWorldPipe.group);_cloudWorldPipe=null;}
+    // Remove cloud world moon pipes
+    if(_cloudWorldPipes&&_cloudWorldPipes.length){
+        for(var _cwpi=0;_cwpi<_cloudWorldPipes.length;_cwpi++)if(_cloudWorldPipes[_cwpi]&&_cloudWorldPipes[_cwpi].group)scene.remove(_cloudWorldPipes[_cwpi].group);
+        _cloudWorldPipes.length=0;
+    }else if(_cloudWorldPipe&&_cloudWorldPipe.group)scene.remove(_cloudWorldPipe.group);
+    _cloudWorldPipe=null;
     // Remove moon earth
     if(window._moonEarth){scene.remove(window._moonEarth);window._moonEarth=null;}
     // Remove moon stars
@@ -1358,6 +1368,7 @@ function spawnCityNPCs() {
 // ---- Clouds (can stand on them) ----
 var cityCloudPlatforms=[]; // {group, x, z, y, hw, hd}
 var _cloudWorldPipe=null; // moon pipe in cloud world
+var _cloudWorldPipes=[]; // independently authored moon pipes
 function _citySpecialObjects(){
     return (window.DANBO_CITY_REGISTRY&&DANBO_CITY_REGISTRY.getSpecialObjects)?DANBO_CITY_REGISTRY.getSpecialObjects(currentCityStyle):[];
 }
@@ -1482,11 +1493,14 @@ function _createCloudCherub(options){
 }
 function addClouds(){
     var allSpecialDefs=_citySpecialObjects();
-    var singleCherubDefs=[];
-    for(var _sdi=0;_sdi<allSpecialDefs.length;_sdi++)if(allSpecialDefs[_sdi]&&allSpecialDefs[_sdi].type==='cloudCherub')singleCherubDefs.push({def:allSpecialDefs[_sdi],index:_sdi});
+    var singleCherubDefs=[],moonPipeDefs=[];
+    for(var _sdi=0;_sdi<allSpecialDefs.length;_sdi++){
+        if(allSpecialDefs[_sdi]&&allSpecialDefs[_sdi].type==='cloudCherub')singleCherubDefs.push({def:allSpecialDefs[_sdi],index:_sdi});
+        if(allSpecialDefs[_sdi]&&allSpecialDefs[_sdi].type==='cloudMoonPipe')moonPipeDefs.push({def:allSpecialDefs[_sdi],index:_sdi});
+    }
     var cloudDef=_citySpecialObject('cloudRealm');
     var cherubDef=_citySpecialObject('cloudCherubs');
-    var moonPipeDef=_citySpecialObject('cloudMoonPipe');
+    var moonPipeDef=moonPipeDefs.length?moonPipeDefs[0].def:null;
     // Backward compatibility: old city files did not store cloudRealm yet.
     // Cities 0-4 keep their legacy cloud world until an exported special
     // scene asset is placed, at which point that declarative definition wins.
@@ -1507,7 +1521,7 @@ function addClouds(){
         }
     }
     var cloudLayerEnabled=cloudDef.enabled!==false;
-    if(!cloudLayerEnabled&&!cherubDef&&!singleCherubDefs.length&&!moonPipeDef)return;
+    if(!cloudLayerEnabled&&!cherubDef&&!singleCherubDefs.length&&!moonPipeDefs.length)return;
     var cloudX=_specialNumber(cloudDef,'x',0),cloudY=_specialNumber(cloudDef,'y',46),cloudZ=_specialNumber(cloudDef,'z',0);
     var cloudGenerator=cloudDef.generator||{};
     var roofCloudsEnabled=cloudLayerEnabled&&cloudGenerator.roofClouds!==false;
@@ -1677,15 +1691,24 @@ function addClouds(){
     // ---- Moon Warp Pipe in cloud world center ----
     // Place pipe on TOP of central cloud (cloudTop ≈ cwY + maxScale*0.45 ≈ cwY+9)
     var _moonPipeY=cwY+8;
-    if(moonPipeDef){
-        if(moonPipeDef.enabled!==false)_buildCloudWorldMoonPipe(
-            _specialNumber(moonPipeDef,'x',cloudX),_specialNumber(moonPipeDef,'y',_moonPipeY),_specialNumber(moonPipeDef,'z',cloudZ)
-        );
+    if(moonPipeDefs.length){
+        for(var _mpi=0;_mpi<moonPipeDefs.length;_mpi++){
+            var _mpEntry=moonPipeDefs[_mpi],_mpd=_mpEntry.def;
+            if(_mpd.enabled===false)continue;
+            _buildCloudWorldMoonPipe(
+                _specialNumber(_mpd,'x',cloudX),_specialNumber(_mpd,'y',_moonPipeY),_specialNumber(_mpd,'z',cloudZ),
+                {
+                    scale:_specialNumber(_mpd,'scale',1),rotationY:_specialNumber(_mpd,'rotationY',0),
+                    editorSpecialIndex:_mpEntry.index,instanceId:_mpd.instanceId||''
+                }
+            );
+        }
     }else if(centralPlatformCount>0&&(!cloudDef.interaction||cloudDef.interaction.moonPipe!==false)){
         _buildCloudWorldMoonPipe(cloudX,_moonPipeY,cloudZ);
     }
 }
-function _buildCloudWorldMoonPipe(px,py,pz){
+function _buildCloudWorldMoonPipe(px,py,pz,options){
+    options=options||{};
     var pColor=0xCCCCFF;
     var g=new THREE.Group();
     var pMat=new THREE.MeshPhongMaterial({color:pColor,transparent:true,opacity:0.4,side:THREE.DoubleSide});
@@ -1725,9 +1748,16 @@ function _buildCloudWorldMoonPipe(px,py,pz){
     var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
     sign.scale.set(4,1,1);sign.position.y=10;
     g.add(sign);
-    g.position.set(px,py,pz);
+    var pipeScale=Math.max(0.25,Math.min(10,Number(options.scale)||1));
+    var pipeRotation=Number(options.rotationY)||0;
+    g.position.set(px,py,pz);g.rotation.y=pipeRotation*Math.PI/180;g.scale.setScalar(pipeScale);
+    if(options.editorSpecialIndex!==undefined)g.userData.editorSpecialIndex=Number(options.editorSpecialIndex);
+    if(options.instanceId)g.userData.editorInstanceId=String(options.instanceId);
     scene.add(g);
-    _cloudWorldPipe={group:g,x:px,z:pz,y:py,targetStyle:5,_cooldown:false};
+    var pipe={group:g,x:px,z:pz,y:py,targetStyle:5,_cooldown:false,scale:pipeScale,rotationY:pipeRotation*Math.PI/180,editorSpecialIndex:options.editorSpecialIndex};
+    _cloudWorldPipes.push(pipe);
+    if(!_cloudWorldPipe)_cloudWorldPipe=pipe;
+    return pipe;
 }
 addClouds();
 

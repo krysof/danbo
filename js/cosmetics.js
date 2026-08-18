@@ -219,55 +219,234 @@ function _updateFootprints(){
 }
 
 // ============================================================
-//  SHOP UI  (cute pastel)
+//  SHOP UI — an in-world boutique cabinet with a real 3D try-on stage
 // ============================================================
 window._shopOpen=false;
-var _shopCat='hair',_shopSel=null;
+var _shopCat='hair',_shopSel=null,_shopPreview=null;
+var _SHOP_CAT_VISUAL={
+    hair:{glyph:'\u2726',label:'\u53D1\u578B',color:'#D98A64',soft:'#FFE2C9'},
+    accessory:{glyph:'\u273F',label:'\u53D1\u9970',color:'#E56F8D',soft:'#FFDCE7'},
+    glasses:{glyph:'\u25C9',label:'\u773C\u955C',color:'#5487A9',soft:'#D8EFFF'},
+    hat:{glyph:'\u25B2',label:'\u5E3D\u5B50',color:'#B57948',soft:'#F5D6AD'},
+    halo:{glyph:'\u25CC',label:'\u5149\u73AF',color:'#DAA62D',soft:'#FFF0B4'},
+    back:{glyph:'\u7FBD',label:'\u80CC\u9970',color:'#7D79B8',soft:'#E6E2FF'},
+    footprint:{glyph:'\u2737',label:'\u811A\u5370',color:'#5A9E88',soft:'#D8F2E9'}
+};
 function _coinsNow(){return (typeof coins!=='undefined')?coins:0;}
+function _shopEnsureStyles(){
+    if(document.getElementById('shop-cinematic-style'))return;
+    var style=document.createElement('style');style.id='shop-cinematic-style';
+    style.textContent=
+    '#shop-overlay{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box;'+
+      'background:radial-gradient(circle at 50% 36%,rgba(56,74,94,.24),rgba(20,23,35,.72) 72%);'+
+      'backdrop-filter:blur(7px) saturate(.9);-webkit-backdrop-filter:blur(7px) saturate(.9);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;perspective:1400px;}'+
+    '#shop-card{position:relative;width:min(960px,96vw);height:min(650px,91vh);min-height:440px;display:flex;flex-direction:column;overflow:hidden;'+
+      'border:1px solid rgba(255,244,214,.72);border-radius:30px;background:linear-gradient(145deg,#FFF8E9 0%,#F4E7CE 48%,#E8D4B1 100%);'+
+      'box-shadow:0 34px 80px rgba(8,13,24,.54),0 8px 18px rgba(45,27,14,.34),inset 0 2px 0 #fff,inset 0 -5px 12px rgba(106,70,38,.16);'+
+      'transform:rotateX(.45deg);animation:shopCabinetIn .34s cubic-bezier(.2,.8,.2,1) both;}'+
+    '#shop-card:before{content:"";position:absolute;inset:7px;z-index:4;pointer-events:none;border-radius:24px;border:2px solid rgba(145,86,45,.38);'+
+      'box-shadow:inset 0 0 0 1px rgba(255,255,255,.75),0 0 0 1px rgba(91,50,28,.16);}'+
+    '@keyframes shopCabinetIn{from{opacity:0;transform:translateY(22px) rotateX(4deg) scale(.97)}to{opacity:1;transform:translateY(0) rotateX(.45deg) scale(1)}}'+
+    '.shop-header{position:relative;z-index:5;min-height:72px;padding:12px 18px 12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-sizing:border-box;'+
+      'color:#FFF8E6;background:linear-gradient(180deg,#B95647 0%,#8F352E 56%,#742821 100%);border-bottom:3px solid #D7A760;'+
+      'box-shadow:inset 0 2px 0 rgba(255,255,255,.24),inset 0 -7px 13px rgba(63,18,17,.32),0 5px 13px rgba(83,46,26,.28);}'+
+    '.shop-header:after{content:"";position:absolute;left:0;right:0;bottom:-7px;height:8px;background:linear-gradient(90deg,#F5DBA5,#B7783D 12%,#F2C875 27%,#A96533 47%,#F4D48F 68%,#A56532 86%,#F3D89E);box-shadow:0 2px 5px rgba(63,37,18,.3);}'+
+    '.shop-brand{display:flex;align-items:center;min-width:0;gap:12px;text-shadow:0 2px 2px rgba(70,17,13,.45);}'+
+    '.shop-brand-mark{width:43px;height:43px;flex:none;display:grid;place-items:center;border-radius:14px;color:#8C332B;font-size:22px;'+
+      'background:radial-gradient(circle at 34% 25%,#FFFBE9,#F7D58C 54%,#C4843E 100%);border:2px solid #FFE9B6;'+
+      'box-shadow:0 5px 9px rgba(52,20,13,.34),inset 0 3px 4px rgba(255,255,255,.8),inset 0 -4px 5px rgba(146,82,32,.28);transform:rotate(-3deg);}'+
+    '.shop-title{font-family:"STKaiti","KaiTi","Noto Serif SC",serif;font-size:23px;font-weight:900;letter-spacing:.08em;white-space:nowrap;}'+
+    '.shop-subtitle{margin-top:2px;color:#F3DDBB;font-size:10px;font-weight:700;letter-spacing:.22em;opacity:.92;}'+
+    '.shop-head-actions{display:flex;align-items:center;gap:10px;flex:none;}'+
+    '#shop-coins{height:36px;display:flex;align-items:center;gap:6px;padding:0 13px;border-radius:18px;color:#6D4514;font-weight:900;'+
+      'background:linear-gradient(180deg,#FFF6C9,#EFC66B);border:1px solid #FFE8A3;box-shadow:0 4px 8px rgba(60,25,10,.27),inset 0 2px 2px #fff9d8,inset 0 -3px 4px rgba(160,99,29,.22);}'+
+    '.shop-coin-gem{width:17px;height:17px;display:inline-block;background:linear-gradient(145deg,#FFF7A9,#F4B91E 55%,#C9830D);'+
+      'clip-path:polygon(50% 0,62% 34%,100% 38%,70% 61%,80% 100%,50% 77%,20% 100%,30% 61%,0 38%,38% 34%);filter:drop-shadow(0 2px 1px rgba(113,66,8,.3));}'+
+    '#shop-close{width:38px;height:38px;display:grid;place-items:center;border:0;border-radius:50%;cursor:pointer;color:#FFF8E6;font-size:23px;line-height:1;'+
+      'background:linear-gradient(180deg,#CF7467,#8C302A);box-shadow:0 4px 8px rgba(49,17,14,.3),inset 0 2px 2px rgba(255,255,255,.26),inset 0 -3px 4px rgba(67,13,12,.28);transition:transform .16s,filter .16s;}'+
+    '#shop-close:hover{transform:translateY(-1px) rotate(5deg);filter:brightness(1.08)}'+
+    '.shop-main{position:relative;z-index:2;display:grid;grid-template-columns:250px minmax(0,1fr);flex:1;min-height:0;padding:18px 18px 12px;gap:16px;background:linear-gradient(105deg,rgba(255,251,235,.88),rgba(239,222,191,.68));}'+
+    '.shop-preview{position:relative;min-height:0;overflow:hidden;border-radius:23px;border:1px solid rgba(130,82,44,.48);'+
+      'background:radial-gradient(ellipse at 50% 28%,rgba(255,250,214,.98),rgba(167,205,207,.72) 48%,rgba(70,111,126,.88) 100%);'+
+      'box-shadow:inset 0 2px 4px rgba(255,255,255,.9),inset 0 -16px 26px rgba(32,73,87,.27),0 9px 18px rgba(69,45,26,.22);}'+
+    '.shop-preview:before{content:"";position:absolute;left:8%;right:8%;top:7px;height:35%;z-index:0;border-radius:50%;background:linear-gradient(105deg,rgba(255,255,255,.56),rgba(255,255,255,0) 55%);filter:blur(3px);transform:rotate(-4deg);}'+
+    '.shop-preview:after{content:"";position:absolute;left:13%;right:13%;bottom:13px;height:10px;border-radius:50%;background:rgba(32,38,43,.25);filter:blur(7px);}'+
+    '#shop-preview-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block;touch-action:none;}'+
+    '.shop-preview-label{position:absolute;left:14px;right:14px;bottom:12px;z-index:3;padding:8px 10px;border-radius:14px;text-align:center;color:#643A25;font-size:12px;font-weight:800;letter-spacing:.04em;'+
+      'background:linear-gradient(180deg,rgba(255,251,229,.94),rgba(232,207,164,.92));border:1px solid rgba(255,255,255,.86);box-shadow:0 4px 10px rgba(40,30,19,.22),inset 0 -2px 3px rgba(130,78,34,.14);}'+
+    '.shop-catalog{min-width:0;min-height:0;display:flex;flex-direction:column;border-radius:22px;overflow:hidden;border:1px solid rgba(133,83,43,.35);'+
+      'background:linear-gradient(180deg,rgba(255,251,239,.96),rgba(238,223,197,.94));box-shadow:0 8px 18px rgba(75,49,29,.18),inset 0 1px 0 #fff;}'+
+    '#shop-cats{display:flex;gap:7px;padding:11px 11px 9px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;background:linear-gradient(180deg,#E5C898,#C99D65);'+
+      'border-bottom:1px solid rgba(102,57,29,.35);box-shadow:inset 0 2px 2px rgba(255,255,255,.42),inset 0 -4px 5px rgba(100,55,25,.13);}'+
+    '.shop-cat{height:38px;min-width:70px;padding:0 11px;display:flex;align-items:center;justify-content:center;gap:5px;border:1px solid rgba(109,63,31,.34);border-radius:12px;cursor:pointer;color:#6D4027;'+
+      'background:linear-gradient(180deg,#FFF9E9,#EFD9B5);box-shadow:0 3px 5px rgba(83,50,27,.19),inset 0 2px 1px #fff;white-space:nowrap;font-size:12px;font-weight:900;transition:transform .16s,box-shadow .16s;}'+
+    '.shop-cat:hover{transform:translateY(-2px);box-shadow:0 5px 8px rgba(83,50,27,.25),inset 0 2px 1px #fff}.shop-cat.active{color:#FFF9E8;border-color:#F7D694;'+
+      'background:linear-gradient(180deg,#C95E4D,#8F332C);box-shadow:0 5px 9px rgba(85,29,24,.3),inset 0 2px 2px rgba(255,255,255,.22),inset 0 -3px 4px rgba(70,17,14,.25);transform:translateY(-1px);}'+
+    '.shop-cat-glyph{font-size:15px;line-height:1}'+
+    '#shop-items{position:relative;flex:1;min-height:0;padding:14px 13px 24px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:13px;align-content:start;'+
+      'background:repeating-linear-gradient(180deg,rgba(255,250,236,.76) 0,rgba(255,250,236,.76) 144px,rgba(135,82,42,.16) 145px,rgba(255,255,255,.75) 149px,rgba(91,52,28,.14) 154px);}'+
+    '.shop-item-card{position:relative;height:124px;box-sizing:border-box;padding:8px 8px 9px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;border:1px solid rgba(145,95,56,.28);border-radius:17px;cursor:pointer;text-align:center;color:#553822;'+
+      'background:linear-gradient(145deg,rgba(255,255,250,.98),rgba(244,226,197,.95));box-shadow:0 7px 12px rgba(74,49,29,.18),inset 0 2px 2px #fff,inset 0 -4px 5px rgba(132,86,47,.12);transition:transform .18s,box-shadow .18s,border-color .18s;}'+
+    '.shop-item-card:after{content:"";position:absolute;left:16%;right:16%;bottom:-6px;height:8px;border-radius:50%;z-index:-1;background:rgba(65,40,24,.2);filter:blur(4px);}'+
+    '.shop-item-card:hover{transform:translateY(-4px) scale(1.015);box-shadow:0 12px 18px rgba(70,45,27,.24),inset 0 2px 2px #fff,inset 0 -4px 5px rgba(132,86,47,.12);}'+
+    '.shop-item-card.selected{border:2px solid #B84338;transform:translateY(-4px);box-shadow:0 13px 20px rgba(117,43,35,.28),0 0 0 3px rgba(239,180,123,.43),inset 0 2px 2px #fff;}'+
+    '.shop-item-card.equipped{border-color:#4F947A;box-shadow:0 8px 14px rgba(48,112,88,.25),inset 0 2px 2px #fff;}'+
+    '.shop-item-visual{position:absolute;top:9px;width:58px;height:58px;display:grid;place-items:center;border-radius:50%;color:var(--shop-accent);font-family:serif;font-size:29px;font-weight:900;'+
+      'background:radial-gradient(circle at 35% 25%,#fff 0 9%,var(--shop-soft) 35%,var(--shop-accent) 130%);border:1px solid rgba(255,255,255,.94);'+
+      'box-shadow:0 7px 9px rgba(69,45,29,.24),inset 0 3px 4px rgba(255,255,255,.94),inset 0 -6px 8px rgba(82,54,35,.16);text-shadow:0 2px 1px rgba(255,255,255,.75);transform:perspective(90px) rotateX(-5deg);}'+
+    '.shop-item-visual:after{content:"";position:absolute;left:13px;right:13px;bottom:-8px;height:6px;border-radius:50%;background:rgba(62,40,26,.26);filter:blur(3px);}'+
+    '.shop-item-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:900;letter-spacing:.02em;}'+
+    '.shop-item-price{margin-top:3px;color:#A46B14;font-size:11px;font-weight:800}.shop-item-price.owned{color:#47836D}.shop-item-price.equipped{color:#39705D}'+
+    '.shop-foot{position:relative;z-index:5;min-height:66px;padding:10px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-sizing:border-box;'+
+      'background:linear-gradient(180deg,#E3C18C,#BE8951);border-top:1px solid #F8DFAE;box-shadow:inset 0 2px 2px rgba(255,255,255,.42),0 -5px 12px rgba(73,41,21,.16);}'+
+    '#shop-selname{min-width:0;color:#5D3824;font-size:13px;font-weight:800;text-shadow:0 1px rgba(255,255,255,.55)}'+
+    '#shop-action{min-width:110px;padding:10px 22px;border:1px solid rgba(255,255,255,.58);border-radius:16px;cursor:pointer;color:#FFF9EB;font-size:14px;font-weight:900;letter-spacing:.08em;'+
+      'box-shadow:0 6px 10px rgba(66,35,20,.27),inset 0 2px 2px rgba(255,255,255,.24),inset 0 -4px 5px rgba(60,19,15,.22);transition:transform .16s,filter .16s;}'+
+    '#shop-action:hover{transform:translateY(-2px);filter:brightness(1.06)}#shop-action.buy{background:linear-gradient(180deg,#D76655,#96362F)}'+
+    '#shop-action.equip{background:linear-gradient(180deg,#65B594,#397B63)}#shop-action.unequip{background:linear-gradient(180deg,#9B958B,#68645E)}'+
+    '@media(max-width:680px){#shop-overlay{padding:10px}#shop-card{width:95vw;height:93dvh;min-height:500px;border-radius:25px}#shop-card:before{inset:5px;border-radius:20px}.shop-header{min-height:64px;padding:9px 12px 9px 16px;gap:7px}.shop-brand{gap:8px}.shop-brand-mark{width:36px;height:36px;border-radius:12px;font-size:18px}.shop-title{font-size:17px;letter-spacing:.02em}.shop-subtitle{display:none}.shop-head-actions{gap:5px}#shop-coins{height:32px;padding:0 9px;font-size:14px}#shop-close{width:33px;height:33px;font-size:21px}.shop-main{grid-template-columns:1fr;grid-template-rows:126px minmax(0,1fr);padding:14px 11px 8px;gap:9px}.shop-preview{border-radius:18px}.shop-preview-label{left:auto;right:9px;bottom:8px;width:132px;padding:6px 8px;font-size:10px}.shop-catalog{border-radius:17px}#shop-cats{padding:8px 8px 7px;gap:6px}.shop-cat{height:34px;min-width:64px;padding:0 9px;font-size:11px}#shop-items{padding:10px 9px 20px;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;background:repeating-linear-gradient(180deg,rgba(255,250,236,.76) 0,rgba(255,250,236,.76) 128px,rgba(135,82,42,.16) 129px,rgba(255,255,255,.75) 133px,rgba(91,52,28,.14) 137px)}.shop-item-card{height:113px;border-radius:15px}.shop-item-visual{top:7px;width:51px;height:51px;font-size:25px}.shop-item-name{font-size:12px}.shop-foot{min-height:58px;padding:8px 15px;gap:8px}#shop-selname{font-size:11px}#shop-action{min-width:92px;padding:9px 15px;font-size:12px}}'+
+    '@media(max-width:390px){.shop-brand-mark{display:none}.shop-title{font-size:16px}#shop-coins{padding:0 7px}.shop-coin-gem{width:15px;height:15px}.shop-main{grid-template-rows:112px minmax(0,1fr)}.shop-preview-label{width:122px}}'+
+    '@media(prefers-reduced-motion:reduce){#shop-card{animation:none}.shop-item-card,.shop-cat,#shop-action,#shop-close{transition:none}}';
+    document.head.appendChild(style);
+}
+function _shopBuildPreviewEgg(){
+    var g=new THREE.Group();
+    var bodyMat=new THREE.MeshPhysicalMaterial({color:0xFFF0C9,roughness:0.38,metalness:0,clearcoat:0.24,clearcoatRoughness:0.5});
+    var darkMat=new THREE.MeshStandardMaterial({color:0x272335,roughness:0.3});
+    var whiteMat=new THREE.MeshPhysicalMaterial({color:0xFFFDF8,roughness:0.22,clearcoat:0.2});
+    var blushMat=new THREE.MeshStandardMaterial({color:0xF28E91,roughness:0.48});
+    var footMat=new THREE.MeshPhysicalMaterial({color:0xB9574F,roughness:0.3,clearcoat:0.58,clearcoatRoughness:0.25});
+    var body=new THREE.Mesh(new THREE.SphereGeometry(0.66,28,22),bodyMat);body.position.y=0.77;body.scale.set(0.88,1.13,0.79);body.castShadow=true;g.add(body);
+    [-1,1].forEach(function(s){
+        var eyeWhite=new THREE.Mesh(new THREE.SphereGeometry(0.115,16,12),whiteMat);eyeWhite.position.set(s*0.205,0.97,0.493);eyeWhite.scale.set(.88,1.05,.42);g.add(eyeWhite);
+        var eye=new THREE.Mesh(new THREE.SphereGeometry(0.067,14,10),darkMat);eye.position.set(s*0.205,0.97,0.562);eye.scale.set(.82,1,.45);g.add(eye);
+        var shine=new THREE.Mesh(new THREE.SphereGeometry(0.018,8,6),whiteMat);shine.position.set(s*0.188,1.002,0.594);g.add(shine);
+        var cheek=new THREE.Mesh(new THREE.SphereGeometry(0.07,12,8),blushMat);cheek.position.set(s*0.36,0.79,0.49);cheek.scale.set(1.2,.48,.25);g.add(cheek);
+        var arm=new THREE.Mesh(new THREE.CapsuleGeometry(0.052,0.35,5,10),bodyMat);arm.position.set(s*0.67,0.7,0.01);arm.rotation.z=s*-0.23;arm.castShadow=true;g.add(arm);
+        var hand=new THREE.Mesh(new THREE.SphereGeometry(0.105,14,10),bodyMat);hand.position.set(s*0.72,0.49,0.04);hand.castShadow=true;g.add(hand);
+        var foot=new THREE.Mesh(new THREE.SphereGeometry(0.2,16,11),footMat);foot.position.set(s*0.31,0.14,0.18);foot.scale.set(1.15,.55,1.55);foot.castShadow=true;g.add(foot);
+    });
+    var mouth=new THREE.Mesh(new THREE.TorusGeometry(0.07,0.013,6,16,Math.PI),darkMat);mouth.position.set(0,0.78,0.572);mouth.rotation.z=Math.PI;g.add(mouth);
+    return g;
+}
+function _shopInitPreview(){
+    var canvas=document.getElementById('shop-preview-canvas');if(!canvas||!window.THREE)return;
+    try{
+        var renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true,powerPreference:'high-performance'});
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,_cosIsTouchLike()?1.25:1.65));
+        renderer.outputColorSpace=THREE.SRGBColorSpace;
+        renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.95;
+        renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+        var previewScene=new THREE.Scene();
+        var camera3d=new THREE.PerspectiveCamera(31,1,.1,20);camera3d.position.set(0,1.15,4.65);camera3d.lookAt(0,.82,0);
+        var stage=new THREE.Group();previewScene.add(stage);
+        var pedestal=new THREE.Mesh(new THREE.CylinderGeometry(.98,1.12,.22,32),new THREE.MeshPhysicalMaterial({color:0xD8A467,roughness:.38,clearcoat:.28,clearcoatRoughness:.38}));
+        pedestal.position.y=-.03;pedestal.receiveShadow=true;stage.add(pedestal);
+        var pedestalTop=new THREE.Mesh(new THREE.CylinderGeometry(.91,.93,.08,32),new THREE.MeshPhysicalMaterial({color:0xFFF0C8,roughness:.3,clearcoat:.35}));
+        pedestalTop.position.y=.1;pedestalTop.receiveShadow=true;stage.add(pedestalTop);
+        var egg=_shopBuildPreviewEgg();stage.add(egg);
+        var hemi=new THREE.HemisphereLight(0xDDF4FF,0x6E4935,1.75);previewScene.add(hemi);
+        var key=new THREE.DirectionalLight(0xFFE1AD,4.0);key.position.set(-3.5,5,4);key.castShadow=true;key.shadow.mapSize.set(512,512);previewScene.add(key);
+        var rim=new THREE.PointLight(0x8EDCFF,2.3,8);rim.position.set(2.8,2.4,-2.4);previewScene.add(rim);
+        _shopPreview={renderer:renderer,scene:previewScene,camera:camera3d,stage:stage,egg:egg,item:null,frame:0,start:performance.now()};
+        function draw(now){
+            if(!_shopPreview||_shopPreview.renderer!==renderer)return;
+            var rect=canvas.getBoundingClientRect(),w=Math.max(1,Math.round(rect.width)),h=Math.max(1,Math.round(rect.height));
+            if(canvas.width!==Math.round(w*renderer.getPixelRatio())||canvas.height!==Math.round(h*renderer.getPixelRatio())){
+                renderer.setSize(w,h,false);camera3d.aspect=w/h;camera3d.updateProjectionMatrix();
+            }
+            var t=(now-_shopPreview.start)/1000;
+            stage.position.y=Math.sin(t*1.45)*.025;stage.rotation.y=-.04+Math.sin(t*.65)*.055;
+            if(_shopPreview.item&&_shopPreview.item.userData._shopPreviewSpin)_shopPreview.item.rotation.y=t*.65;
+            renderer.render(previewScene,camera3d);
+            _shopPreview.frame=requestAnimationFrame(draw);
+        }
+        _shopPreview.frame=requestAnimationFrame(draw);
+    }catch(e){console.warn('[shop preview] 3D preview unavailable',e);}
+}
+function _shopBuildFootprintPreview(id){
+    var g=new THREE.Group(),colors;
+    if(id==='fp_sakura')colors=[0xFF91B9,0xFFD0E0];
+    else if(id==='fp_snow')colors=[0xDDF6FF,0x9DDAFF];
+    else if(id==='fp_flame')colors=[0xFFB13B,0xFF5A35];
+    else colors=[0xFF6666,0xFFD34D,0x62D77D,0x61B5FF,0xAC7CFF];
+    for(var i=0;i<9;i++){
+        var material=new THREE.MeshPhysicalMaterial({color:colors[i%colors.length],roughness:.28,clearcoat:.45,emissive:colors[i%colors.length],emissiveIntensity:.08});
+        var geometry=id==='fp_snow'?new THREE.OctahedronGeometry(.07,0):(id==='fp_flame'?new THREE.ConeGeometry(.06,.17,8):new THREE.SphereGeometry(.065,10,8));
+        var mote=new THREE.Mesh(geometry,material),angle=i/9*Math.PI*2;
+        mote.position.set(Math.cos(angle)*(.46+(i%2)*.1),.18+(i%3)*.07,Math.sin(angle)*(.34+(i%2)*.08)+.16);
+        mote.scale.set(1,id==='fp_sakura'?.45:1,id==='fp_sakura'?1.35:1);
+        mote.castShadow=true;g.add(mote);
+    }
+    g.userData._shopPreviewSpin=true;
+    return g;
+}
+function _shopSetPreview(id){
+    if(!_shopPreview)return;
+    if(_shopPreview.item){
+        _shopPreview.egg.remove(_shopPreview.item);
+        _shopPreview.item.traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material){var a=Array.isArray(o.material)?o.material:[o.material];a.forEach(function(m){if(m&&m.dispose)m.dispose();});}});
+        _shopPreview.item=null;
+    }
+    if(id){
+        var cat=_ITEM_BY_ID[id]&&_ITEM_BY_ID[id].cat;
+        var built=_buildCosmetic(id);
+        if(!built&&cat==='footprint')built=_shopBuildFootprintPreview(id);
+        if(built){
+            if(cat==='hair'||cat==='hat')built.position.y=.23;
+            else if(cat==='accessory'||cat==='halo')built.position.y=.17;
+            else if(cat==='glasses')built.position.y=.035;
+            _shopPreview.item=built;_shopPreview.egg.add(built);
+        }
+    }
+    var label=document.querySelector('.shop-preview-label');
+    if(label)label.textContent=id?(_ITEM_BY_ID[id].name+' \u00B7 \u5B9E\u65F6\u8BD5\u7A7F'):'\u9009\u62E9\u5546\u54C1 \u00B7 3D \u5B9E\u65F6\u8BD5\u7A7F';
+}
+function _shopDisposePreview(){
+    if(!_shopPreview)return;
+    cancelAnimationFrame(_shopPreview.frame);
+    var renderer=_shopPreview.renderer,previewScene=_shopPreview.scene;
+    previewScene.traverse(function(o){if(o.geometry)o.geometry.dispose();if(o.material){var a=Array.isArray(o.material)?o.material:[o.material];a.forEach(function(m){if(m&&m.dispose)m.dispose();});}});
+    renderer.dispose();if(renderer.forceContextLoss)renderer.forceContextLoss();
+    _shopPreview=null;
+}
 function _openShop(){
     if(window._shopOpen)return;
-    window._shopOpen=true;
+    window._shopOpen=true;_shopEnsureStyles();
     var ov=document.createElement('div');ov.id='shop-overlay';
-    ov.style.cssText='position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;background:rgba(40,30,55,0.5);backdrop-filter:blur(2px);font-family:system-ui,Segoe UI,sans-serif;';
     var card=document.createElement('div');card.id='shop-card';
-    card.style.cssText='width:min(680px,94vw);max-height:88vh;display:flex;flex-direction:column;border-radius:22px;overflow:hidden;'+
-        'background:linear-gradient(160deg,#FFF3FA,#EAF6FF);border:4px solid #FFB6CE;box-shadow:0 14px 54px rgba(0,0,0,0.45);';
     card.innerHTML=
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#FFE3EF;">'+
-          '<div style="font-size:19px;font-weight:800;color:#E66AA0;">\uD83C\uDFEA \u86CB\u5821\u57CE\u6742\u8D27\u94FA</div>'+
-          '<div style="display:flex;align-items:center;gap:10px;">'+
-            '<span id="shop-coins" style="font-weight:800;color:#B8860B;">\u2B50 '+_coinsNow()+'</span>'+
-            '<span id="shop-close" style="cursor:pointer;font-size:20px;color:#888;">\u2715</span>'+
-          '</div>'+
+        '<div class="shop-header">'+
+          '<div class="shop-brand"><div class="shop-brand-mark">\u2726</div><div><div class="shop-title">'+_shopLocalizedName()+'</div><div class="shop-subtitle">DANBO BOUTIQUE \u00B7 \u539F\u521B\u5916\u89C2\u6536\u85CF</div></div></div>'+
+          '<div class="shop-head-actions"><div id="shop-coins"><span class="shop-coin-gem"></span><span>'+_coinsNow()+'</span></div><button id="shop-close" type="button" aria-label="\u5173\u95ED">\u00D7</button></div>'+
         '</div>'+
-        '<div style="display:flex;flex:1;min-height:0;">'+
-          '<div id="shop-cats" style="width:96px;background:#FBEAF2;padding:8px 6px;overflow:auto;"></div>'+
-          '<div id="shop-items" style="flex:1;padding:10px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;align-content:start;"></div>'+
+        '<div class="shop-main">'+
+          '<div class="shop-preview"><canvas id="shop-preview-canvas"></canvas><div class="shop-preview-label">\u9009\u62E9\u5546\u54C1 \u00B7 3D \u5B9E\u65F6\u8BD5\u7A7F</div></div>'+
+          '<div class="shop-catalog"><div id="shop-cats"></div><div id="shop-items"></div></div>'+
         '</div>'+
-        '<div id="shop-foot" style="padding:10px 16px;background:#FFF7FB;border-top:1px solid #FFD6E6;display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
-          '<div id="shop-selname" style="color:#666;font-size:14px;">\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\u8BD5\u7A7F</div>'+
-          '<button id="shop-action" style="display:none;"></button>'+
-        '</div>';
+        '<div id="shop-foot" class="shop-foot"><div id="shop-selname">\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\uFF0C\u5728\u5C55\u53F0\u4E0A\u5B9E\u65F6\u8BD5\u7A7F</div><button id="shop-action" style="display:none;"></button></div>';
     ov.appendChild(card);document.body.appendChild(ov);
     document.getElementById('shop-close').onclick=_closeShop;
     ov.addEventListener('click',function(e){if(e.target===ov)_closeShop();});
     _shopCat='hair';_shopSel=null;
-    _shopRender();
+    _shopInitPreview();_shopRender();
 }
 function _closeShop(){
+    _shopDisposePreview();
     var ov=document.getElementById('shop-overlay');if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
     window._shopOpen=false;_shopSel=null;
     _applyCosmetics(); // revert preview to actual equipped
 }
 function _shopRender(){
-    var cc=document.getElementById('shop-coins');if(cc)cc.textContent='\u2B50 '+_coinsNow();
+    var cc=document.getElementById('shop-coins');
+    if(cc)cc.innerHTML='<span class="shop-coin-gem"></span><span>'+_coinsNow()+'</span>';
     var catBox=document.getElementById('shop-cats');if(!catBox)return;
     catBox.innerHTML='';
     _CATS.forEach(function(c){
-        var b=document.createElement('div');b.textContent=c.name;
-        b.style.cssText='padding:8px 4px;margin-bottom:4px;text-align:center;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;'+
-            (c.id===_shopCat?'background:#FFB6CE;color:#fff;':'background:#fff;color:#A06;');
-        b.onclick=function(){_shopCat=c.id;_shopSel=null;_shopRender();};
+        var meta=_SHOP_CAT_VISUAL[c.id]||{glyph:'\u2726'};
+        var b=document.createElement('button');b.type='button';b.className='shop-cat'+(c.id===_shopCat?' active':'');
+        b.innerHTML='<span class="shop-cat-glyph">'+meta.glyph+'</span><span>'+c.name+'</span>';
+        b.onclick=function(){_shopCat=c.id;_shopSel=null;_shopSetPreview(null);_shopRender();};
         catBox.appendChild(b);
     });
     var grid=document.getElementById('shop-items');grid.innerHTML='';
@@ -275,10 +454,14 @@ function _shopRender(){
     list.forEach(function(it){
         var owned=Cosmetics.isOwned(it.id);
         var equipped=Cosmetics.equipment()[it.cat]===it.id;
-        var card=document.createElement('div');
-        card.style.cssText='background:#fff;border-radius:14px;padding:8px;border:2px solid '+(it.id===_shopSel?'#FF7FB0':(equipped?'#7FD0A0':'#FFE0EC'))+';cursor:pointer;text-align:center;';
-        card.innerHTML='<div style="font-size:13px;font-weight:700;color:#555;margin-bottom:4px;">'+it.name+'</div>'+
-            '<div style="font-size:12px;color:'+(owned?'#7FB07F':'#B8860B')+';">'+(owned?(equipped?'\u5DF2\u88C5\u5907':'\u5DF2\u62E5\u6709'):('\u2B50 '+it.price))+'</div>';
+        var selected=it.id===_shopSel,meta=_SHOP_CAT_VISUAL[it.cat]||_SHOP_CAT_VISUAL.hair;
+        var card=document.createElement('button');card.type='button';
+        card.className='shop-item-card'+(selected?' selected':'')+(equipped?' equipped':'');
+        card.style.setProperty('--shop-accent',meta.color);card.style.setProperty('--shop-soft',meta.soft);
+        card.innerHTML='<span class="shop-item-visual">'+meta.glyph+'</span>'+
+            '<span class="shop-item-name">'+it.name+'</span>'+
+            '<span class="shop-item-price '+(equipped?'equipped':(owned?'owned':''))+'">'+
+            (owned?(equipped?'\u25C6 \u5DF2\u88C5\u5907':'\u25C7 \u5DF2\u62E5\u6709'):('<span class="shop-coin-gem" style="width:11px;height:11px;"></span> '+it.price))+'</span>';
         card.onclick=function(){_shopSelectItem(it.id);};
         grid.appendChild(card);
     });
@@ -287,21 +470,21 @@ function _shopRender(){
 function _shopSelectItem(id){
     _shopSel=id;
     var it=_ITEM_BY_ID[id];
-    _applyCosmetics(it.cat,id); // live try-on preview
+    _applyCosmetics(it.cat,id); // live try-on preview on the player
+    _shopSetPreview(id);        // and on the dedicated 3D boutique stage
     _shopRender();
 }
 function _shopRenderAction(){
     var nameEl=document.getElementById('shop-selname');
     var act=document.getElementById('shop-action');
     if(!act)return;
-    if(!_shopSel){if(nameEl)nameEl.textContent='\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\u8BD5\u7A7F';act.style.display='none';return;}
+    if(!_shopSel){if(nameEl)nameEl.textContent='\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\uFF0C\u5728\u5C55\u53F0\u4E0A\u5B9E\u65F6\u8BD5\u7A7F';act.style.display='none';return;}
     var it=_ITEM_BY_ID[_shopSel];
     var owned=Cosmetics.isOwned(_shopSel);
     var equipped=Cosmetics.equipment()[it.cat]===_shopSel;
-    if(nameEl)nameEl.textContent=it.name+(owned?'':'  \u2B50 '+it.price);
+    if(nameEl)nameEl.textContent=it.name+(owned?'':'  \u00B7  '+it.price+' \u91D1\u5E01');
     act.style.display='inline-block';
-    act.style.cssText='display:inline-block;padding:8px 22px;border:none;border-radius:16px;font-size:15px;font-weight:800;cursor:pointer;color:#fff;'+
-        (owned?(equipped?'background:#B0B0C0;':'background:#7FC9A0;'):'background:#FF7FB0;');
+    act.className=owned?(equipped?'unequip':'equip'):'buy';
     act.textContent=owned?(equipped?'\u5378\u4E0B':'\u88C5\u5907'):'\u8D2D\u4E70';
     act.onclick=function(){
         if(!owned){
@@ -320,9 +503,87 @@ function _toast(text,color){
 }
 
 // ============================================================
-//  蛋堡城杂货铺：可爱圆润的电影感店面 + 门口进入 + 老板在店内
+//  蛋宝杂货铺：可爱圆润的电影感店面 + 门口进入 + 老板在店内
 // ============================================================
-var _shopNPC=null,_shopDoorPos={x:8,z:-5.5};
+var _shopNPC=null,_shopDoorPos={x:8,z:-4.3},_shopDoorOut={x:0,z:1},_shopColliders=[],_shopTransformKey='';
+function _shopDefaultDefinition(){
+    return {
+        id:'hope-grocery-store',type:'groceryStore',x:8,y:0,z:-8,w:5.4,d:5.4,h:6.4,
+        enabled:true,rotationY:0,scale:1,
+        interaction:{action:'enterShop',radius:2.5,doorLocalX:0,doorLocalZ:3.7,showPrompt:true},
+        shop:{type:'cosmetic',spawnKeeper:true,showMapIcon:true}
+    };
+}
+function _shopDefinition(){
+    if(typeof _citySpecialObject==='function'){
+        var def=_citySpecialObject('groceryStore');
+        return def&&def.enabled!==false?def:null;
+    }
+    return (typeof currentCityStyle!=='undefined'&&currentCityStyle===0)?_shopDefaultDefinition():null;
+}
+function _shopDefinitionIndex(def){
+    var list=typeof _citySpecialObjects==='function'?_citySpecialObjects():[];
+    for(var i=0;i<list.length;i++)if(list[i]===def||list[i]&&def&&(list[i].id===def.id||list[i].type==='groceryStore'))return i;
+    return -1;
+}
+function _shopRemoveCollider(){
+    if(typeof cityColliders==='undefined'){_shopColliders.length=0;return;}
+    for(var i=0;i<_shopColliders.length;i++){
+        var index=cityColliders.indexOf(_shopColliders[i]);if(index>=0)cityColliders.splice(index,1);
+    }
+    _shopColliders.length=0;
+}
+function _shopApplyDefinition(def){
+    if(!_shopNPC||!def)return;
+    var x=Number(def.x)||0,y=Number(def.y)||0,z=Number(def.z)||0;
+    var scale=Math.max(0.8,Math.min(1.25,Number(def.scale)||1));
+    var radians=(Number(def.rotationY)||0)*Math.PI/180,cos=Math.cos(radians),sin=Math.sin(radians);
+    var interaction=def.interaction||{},specialIndex=_shopDefinitionIndex(def);
+    var transformKey=[x,y,z,scale,radians,Number(interaction.doorLocalX)||0,Number(interaction.doorLocalZ)||3.7,specialIndex].join('|');
+    if(_shopTransformKey===transformKey&&_shopColliders.length&&typeof cityColliders!=='undefined'&&_shopColliders.every(function(item){return cityColliders.indexOf(item)>=0;}))return;
+    _shopNPC.position.set(x,y,z);_shopNPC.rotation.y=radians;_shopNPC.scale.setScalar(scale);
+    var localX=(Number(interaction.doorLocalX)||0)*scale;
+    var localZ=(Number(interaction.doorLocalZ)||3.7)*scale;
+    _shopDoorPos.x=x+cos*localX+sin*localZ;_shopDoorPos.z=z-sin*localX+cos*localZ;
+    _shopDoorOut.x=sin;_shopDoorOut.z=cos;
+    _shopNPC.userData.editorSpecialIndex=specialIndex;
+    _shopNPC.userData.editorSpecialType='groceryStore';
+    _shopNPC.traverse(function(item){
+        item.userData=item.userData||{};
+        item.userData.editorSpecialIndex=specialIndex;
+        item.userData.editorSpecialType='groceryStore';
+    });
+    _shopRemoveCollider();
+    if(typeof cityColliders!=='undefined'){
+        var storeH=y+(Number(def.h)||6.4)*scale;
+        function wall(localCenterX,localCenterZ,localHalfW,localHalfD){
+            localCenterX*=scale;localCenterZ*=scale;localHalfW*=scale;localHalfD*=scale;
+            var collider={
+                x:x+cos*localCenterX+sin*localCenterZ,z:z-sin*localCenterX+cos*localCenterZ,
+                hw:Math.abs(cos)*localHalfW+Math.abs(sin)*localHalfD,
+                hd:Math.abs(sin)*localHalfW+Math.abs(cos)*localHalfD,
+                h:storeH,_groceryStore:true
+            };
+            _shopColliders.push(collider);cityColliders.push(collider);
+        }
+        // Five wall sections preserve the real doorway gap even after rotation.
+        wall(0,-2.5,2.7,.2);wall(-2.5,0,.2,2.7);wall(2.5,0,.2,2.7);
+        wall(-1.55,2.5,.95,.2);wall(1.55,2.5,.95,.2);
+    }
+    _shopTransformKey=transformKey;
+}
+function _shopLocalizedName(){
+    return typeof L==='function'?L('shopName'):{
+        zhs:'\u86CB\u5B9D\u6742\u8D27\u94FA',zht:'\u86CB\u5BF6\u96DC\u8CA8\u8216',
+        ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97',en:'Danbo General Store'
+    }[_langCode]||'Danbo General Store';
+}
+function _shopLocalizedEnterDesc(){
+    return typeof L==='function'?L('shopEnterDesc'):{
+        zhs:'\u8FDB\u5165\u86CB\u5B9D\u6742\u8D27\u94FA\uFF1F',zht:'\u9032\u5165\u86CB\u5BF6\u96DC\u8CA8\u8216\uFF1F',
+        ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97\u306B\u5165\u308A\u307E\u3059\u304B\uFF1F',en:'Enter the Danbo General Store?'
+    }[_langCode]||'Enter the Danbo General Store?';
+}
 function _cosIsTouchLike(){
     return (('ontouchstart' in window)||(navigator.maxTouchPoints>0)||(window.matchMedia&&window.matchMedia('(hover:none)').matches));
 }
@@ -340,9 +601,11 @@ function _layoutShopButton(){
     }
 }
 function _ensureShopNPC(){
-    if(_shopNPC)return;
+    var def=_shopDefinition();
+    if(!def){if(_shopNPC)_shopNPC.visible=false;_shopRemoveCollider();return null;}
+    if(_shopNPC&&_shopNPC.parent){_shopApplyDefinition(def);return _shopNPC;}
     var g=new THREE.Group();g.name='hope-city-cute-grocery-store';
-    var HX=8, HZ=-8, H=2.5, WH=4; // house centre + half-size + wall height
+    var HX=0, HZ=0, H=2.5, WH=4; // local house centre + half-size + wall height
     var low=!!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
     var rounded=typeof _visualRoundedBoxGeometry==='function';
     function box(w,h,d,r){return rounded?_visualRoundedBoxGeometry(w,h,d,r||0.10):new THREE.BoxGeometry(w,h,d);}
@@ -414,7 +677,7 @@ function _ensureShopNPC(){
         var scallop=add(new THREE.SphereGeometry(0.16,low?8:12,low?6:8),ai%2?trimMat:trimPink,aw.position.x,awningY-0.05,awningZ+0.42,'shop-awning-scallop');
         scallop.scale.set(1.30,0.62,0.74);
     }
-    // door sign 【蛋堡城杂货铺】 — warm, rounded and readable without a flat 2D slab.
+    // Localized door sign — warm, rounded and readable without a flat 2D slab.
     var sc=document.createElement('canvas');sc.width=640;sc.height=180;var sgx=sc.getContext('2d');
     var bg=sgx.createLinearGradient(0,0,0,180);bg.addColorStop(0,'#FFF7DE');bg.addColorStop(1,'#FFE6B8');
     sgx.fillStyle=bg;sgx.beginPath();sgx.moveTo(54,12);sgx.lineTo(586,12);sgx.quadraticCurveTo(628,12,628,54);
@@ -423,8 +686,9 @@ function _ensureShopNPC(){
     sgx.lineWidth=10;sgx.strokeStyle='#C85C71';sgx.stroke();
     sgx.fillStyle='#EFB54F';sgx.beginPath();sgx.ellipse(72,90,25,33,0,0,Math.PI*2);sgx.fill();
     sgx.fillStyle='#FFF9E9';sgx.beginPath();sgx.ellipse(72,83,12,15,0,0,Math.PI*2);sgx.fill();
-    sgx.fillStyle='#8D4D41';sgx.font='800 65px system-ui,Segoe UI,sans-serif';sgx.textAlign='center';sgx.textBaseline='middle';
-    sgx.fillText('\u86CB\u5821\u57CE\u6742\u8D27\u94FA',355,92);
+    var shopSignName=_shopLocalizedName();
+    sgx.fillStyle='#8D4D41';sgx.font='800 '+(_langCode==='en'?40:(_langCode==='ja'?52:65))+'px system-ui,Segoe UI,sans-serif';sgx.textAlign='center';sgx.textBaseline='middle';
+    sgx.fillText(shopSignName,355,92,490);
     var signTexture=new THREE.CanvasTexture(sc);if(THREE.SRGBColorSpace!==undefined)signTexture.colorSpace=THREE.SRGBColorSpace;
     if(typeof R!=='undefined'&&R.capabilities&&R.capabilities.getMaxAnisotropy)signTexture.anisotropy=Math.min(4,R.capabilities.getMaxAnisotropy());
     var signMat=new THREE.MeshBasicMaterial({map:signTexture,transparent:true,side:THREE.DoubleSide,toneMapped:false});
@@ -443,9 +707,22 @@ function _ensureShopNPC(){
     add(box(1.72,0.18,0.72,0.14),stoneMat,HX,0.10,HZ+H+0.58,'shop-doorstep');
     add(new THREE.CylinderGeometry(0.72,0.78,0.12,low?14:24),stoneMat,HX,0.07,HZ+H+1.18,'shop-path-stone');
     g.traverse(function(item){if(item.isMesh){item.castShadow=true;item.receiveShadow=true;}});
-    g.visible=false;scene.add(g);_shopNPC=g;
+    g.visible=false;scene.add(g);_shopNPC=g;_shopApplyDefinition(def);return g;
 }
-// elderly egg shopkeeper (蛋堡老板) — built fresh INSIDE the shop, faces +z
+window._rebuildShopFromCityData=function(){
+    _shopRemoveCollider();
+    if(_shopNPC&&_shopNPC.parent)_shopNPC.parent.remove(_shopNPC);
+    _shopNPC=null;_shopTransformKey='';
+    return _ensureShopNPC();
+};
+window._moveShopEditorTarget=function(index,x,y,z){
+    var list=typeof _citySpecialObjects==='function'?_citySpecialObjects():[];
+    var def=list[Number(index)];
+    if(!def||def.type!=='groceryStore')return false;
+    def.x=Number(x)||0;def.y=Number(y)||0;def.z=Number(z)||0;
+    _shopApplyDefinition(def);return true;
+};
+// elderly egg shopkeeper (蛋宝老板) — built fresh INSIDE the shop, faces +z
 window._buildShopKeeper=function(){
     var keeper=new THREE.Group();
     var kb=new THREE.Mesh(new THREE.SphereGeometry(0.55,16,12),toon(0xFFF1D0));kb.position.y=0.62;kb.scale.set(1,1.08,1);keeper.add(kb);
@@ -462,7 +739,7 @@ function _ensureShopButton(){
     var b=document.createElement('div');b.id='shop-btn';b.textContent='\uD83C\uDFEA';
     b.style.cssText='position:fixed;bottom:58px;right:12px;z-index:55;width:40px;height:40px;border-radius:12px;'+
         'background:rgba(255,255,255,0.85);border:2px solid #FFB6CE;color:#C2477A;font-size:20px;line-height:40px;text-align:center;cursor:pointer;user-select:none;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
-    b.title='\u86CB\u5821\u57CE\u6742\u8D27\u94FA';
+    b.title=_shopLocalizedName();
     b.onclick=function(){ if(window._interiorActive&&window._interiorShop&&window._shopNearKeeper)_openShop(); };
     document.body.appendChild(b);
     _layoutShopButton();
@@ -478,8 +755,8 @@ function _maybeAutoShopConfirm(mode){
     var key='hidden:'+type+':-97';
     if(typeof _portalDismissed!=='undefined'&&_portalDismissed===key)return false;
     showPortalConfirm({
-        name:isDoor?'\uD83C\uDFEA \u86CB\u5821\u57CE\u6742\u8D27\u94FA':'\uD83C\uDFEA \u9009\u8D2D',
-        desc:isDoor?'\u8FDB\u5165\u6742\u8D27\u94FA\uFF1F':'\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F',
+        name:isDoor?'\uD83C\uDFEA '+_shopLocalizedName():'\uD83C\uDFEA \u9009\u8D2D',
+        desc:isDoor?_shopLocalizedEnterDesc():'\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F',
         raceIndex:-1,
         _hiddenType:type,
         _targetStyle:-97
@@ -506,17 +783,23 @@ function _cosUpdate(){
         if(window._shopNearKeeper&&!window._shopOpen&&_maybeAutoShopConfirm('keeper'))_showShopPrompt(false);
         else _showShopPrompt(window._shopNearKeeper&&!window._shopOpen,'keeper');
     } else { window._shopNearKeeper=false; if(typeof _portalDismissed!=='undefined'&&_portalDismissed==='hidden:shopKeeper:-97')_portalDismissed=null; }
+    if(window.DANBO_MAP_EDITOR_LIVE){
+        var editorShopDef=_shopDefinition();_ensureShopNPC();
+        if(_shopNPC)_shopNPC.visible=!!editorShopDef;
+        window._nearShopDoor=false;_showShopPrompt(false);return;
+    }
     var inCity=(typeof gameState!=='undefined'&&gameState==='city'&&!window._interiorActive);
     var sb=document.getElementById('shop-btn');if(sb)sb.style.display=(window._interiorActive&&window._interiorShop&&window._shopNearKeeper&&!window._shopOpen)?'block':'none';
     if(!inCity){ if(_shopNPC)_shopNPC.visible=false; window._nearShopDoor=false; if(!window._shopNearKeeper)_showShopPrompt(false); return; }
-    // red shop house only in Egg City (style 0)
+    var shopDef=_shopDefinition();
     _ensureShopNPC();
-    var show=(currentCityStyle===0);_shopNPC.visible=show;
+    var show=!!(shopDef&&_shopNPC);if(_shopNPC)_shopNPC.visible=show;
     if(show&&playerEgg&&playerEgg.mesh){
         var dx=playerEgg.mesh.position.x-_shopDoorPos.x,dz=playerEgg.mesh.position.z-_shopDoorPos.z;
-        window._nearShopDoor=(dx*dx+dz*dz)<5.0;
+        var radius=Math.max(1,Number(shopDef.interaction&&shopDef.interaction.radius)||2.5);
+        window._nearShopDoor=(dx*dx+dz*dz)<radius*radius;
         if(window._nearShopDoor&&!window._shopOpen&&_maybeAutoShopConfirm('door'))_showShopPrompt(false);
-        else _showShopPrompt(window._nearShopDoor&&!window._shopOpen,'door');
+        else _showShopPrompt(window._nearShopDoor&&!window._shopOpen&&(!shopDef.interaction||shopDef.interaction.showPrompt!==false),'door');
     } else { window._nearShopDoor=false; if(typeof _portalDismissed!=='undefined'&&_portalDismissed==='hidden:shopHouse:-97')_portalDismissed=null; _showShopPrompt(false); }
     // footprints while walking
     var eqfp=Cosmetics.equipment().footprint;
@@ -540,7 +823,7 @@ function _showShopPrompt(show,mode){
         }
         else {
             el.textContent='\uD83C\uDFEA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4';
-            el.onclick=function(){if(typeof _portalDismissed!=='undefined')_portalDismissed=null;if(typeof showPortalConfirm==='function')showPortalConfirm({name:'\uD83C\uDFEA \u86CB\u5821\u57CE\u6742\u8D27\u94FA',desc:'\u8FDB\u5165\u6742\u8D27\u94FA\uFF1F',raceIndex:-1,_hiddenType:'shopHouse',_targetStyle:-97});else _enterShopHouse();};
+            el.onclick=function(){if(typeof _portalDismissed!=='undefined')_portalDismissed=null;if(typeof showPortalConfirm==='function')showPortalConfirm({name:'\uD83C\uDFEA '+_shopLocalizedName(),desc:_shopLocalizedEnterDesc(),raceIndex:-1,_hiddenType:'shopHouse',_targetStyle:-97});else _enterShopHouse();};
         }
         el.style.display='block';
     } else if(el)el.style.display='none';

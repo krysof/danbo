@@ -58,7 +58,7 @@ function _buildInteriorRoom(){
 function _interiorDoorScan(px,pz){
     if(typeof cityColliders==='undefined'){_nearDoorBuilding=null;_showDoorPrompt(false);return;}
     if(playerEgg&&playerEgg.mesh&&playerEgg.mesh.position.y>3.5){_nearDoorBuilding=null;_showDoorPrompt(false);return;}
-    if(typeof _shopDoorPos!=='undefined'&&typeof currentCityStyle!=='undefined'&&currentCityStyle===0){
+    if(typeof _shopDoorPos!=='undefined'&&typeof _shopNPC!=='undefined'&&_shopNPC&&_shopNPC.visible){
         var sdx=px-_shopDoorPos.x,sdz=pz-_shopDoorPos.z;
         if(sdx*sdx+sdz*sdz<6.25){_nearDoorBuilding=null;_showDoorPrompt(false);return;}
     }
@@ -146,7 +146,7 @@ function _interiorEnter(building,opts){
             window._shopKeeperPos={x:b.x,z:b.z-2.6};
         }
     }
-    _interiorReturn={x:playerEgg.mesh.position.x,y:playerEgg.mesh.position.y,z:playerEgg.mesh.position.z,b:building};
+    _interiorReturn={x:playerEgg.mesh.position.x,y:playerEgg.mesh.position.y,z:playerEgg.mesh.position.z,b:building,shop:window._interiorShop};
     window._interiorActive=true;
     if(typeof cityGroup!=='undefined'&&cityGroup)cityGroup.visible=false;
     _interiorGroup.visible=true;
@@ -166,7 +166,10 @@ function _interiorExit(){
     _showInteriorHud(false);
     if(playerEgg&&playerEgg.mesh&&_interiorReturn){
         var r=_interiorReturn;
-        playerEgg.mesh.position.set(r.x,Math.max(r.y,1.0),r.z+1.0); // step back out of the door
+        if(r.shop&&typeof _shopDoorPos!=='undefined'){
+            var out=typeof _shopDoorOut!=='undefined'?_shopDoorOut:{x:0,z:1};
+            playerEgg.mesh.position.set(_shopDoorPos.x+out.x*0.9,Math.max(r.y,1.0),_shopDoorPos.z+out.z*0.9);
+        }else playerEgg.mesh.position.set(r.x,Math.max(r.y,1.0),r.z+1.0); // step back out of the door
         playerEgg.vx=0;playerEgg.vy=0;playerEgg.vz=0;
     }
 }
@@ -174,8 +177,9 @@ function _showInteriorHud(show){
     var el=document.getElementById('interior-hud');
     if(show){
         var shop=window._interiorShop;
+        var shopName=typeof L==='function'?L('shopName'):'Danbo General Store';
         var html=shop
-            ?'<div style="font-weight:800;color:#C2477A;">\uD83C\uDFEA \u86CB\u5821\u57CE\u6742\u8D27\u94FA</div><div style="font-size:12px;opacity:0.8;">\u8D70\u5230\u8001\u677F\u9762\u524D\u786E\u8BA4\u9009\u8D2D \u00B7 \u8D70\u5230\u95E8\u53E3\u79BB\u5F00</div>'
+            ?'<div style="font-weight:800;color:#C2477A;">\uD83C\uDFEA '+shopName+'</div><div style="font-size:12px;opacity:0.8;">\u8D70\u5230\u8001\u677F\u9762\u524D\u786E\u8BA4\u9009\u8D2D \u00B7 \u8D70\u5230\u95E8\u53E3\u79BB\u5F00</div>'
             :'<div style="font-weight:800;color:#C2477A;">\uD83C\uDFE0 \u623F\u5C4B\u5185\u90E8</div><div style="font-size:12px;opacity:0.8;">\u5185\u5BB9\u5F00\u53D1\u4E2D \u00B7 \u8D70\u5230\u95E8\u53E3\u79BB\u5F00</div>';
         if(!el){
             el=document.createElement('div');el.id='interior-hud';

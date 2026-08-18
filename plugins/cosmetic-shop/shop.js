@@ -1,5 +1,5 @@
 // ============================================================
-//  蛋堡城杂货铺 — Cosmetic Shop (SYSTEM PLUGIN)
+//  蛋宝杂货铺 — Cosmetic Shop (SYSTEM PLUGIN)
 // ------------------------------------------------------------
 //  Migrated from js/cosmetics.js into a self-contained system plugin.
 //  This plugin touches NO game globals. All core interaction is via ctx.api:
@@ -28,6 +28,19 @@
     var api=ctx.api;
     var THREE=ctx.THREE||window.THREE;
     var toon=ctx.toon||window.toon;
+    var _SHOP_NAME={
+        zhs:'\u86CB\u5B9D\u6742\u8D27\u94FA',zht:'\u86CB\u5BF6\u96DC\u8CA8\u8216',
+        ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97',en:'Danbo General Store'
+    };
+    var _SHOP_ENTER_DESC={
+        zhs:'\u8FDB\u5165\u86CB\u5B9D\u6742\u8D27\u94FA\uFF1F',zht:'\u9032\u5165\u86CB\u5BF6\u96DC\u8CA8\u8216\uFF1F',
+        ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97\u306B\u5165\u308A\u307E\u3059\u304B\uFF1F',en:'Enter the Danbo General Store?'
+    };
+    function _shopLang(){
+        var lang=(document.documentElement.lang||'en').toLowerCase();
+        return lang.indexOf('zh-tw')===0||lang.indexOf('zh-hk')===0?'zht':(lang.indexOf('zh')===0?'zhs':(lang.indexOf('ja')===0?'ja':'en'));
+    }
+    function _shopText(map){var code=_shopLang();return map[code]||map.en;}
     // Plugin-local UI state; mirrored to the core via the API (no globals touched by the plugin).
     var _shopOpen=false, _nearKeeper=false;
     function _setShopOpen(v){ _shopOpen=!!v; api.ui.setModalOpen(_shopOpen); api.publish('open',_shopOpen); }
@@ -242,7 +255,7 @@
             'background:linear-gradient(160deg,#FBF3E4,#F0E4CE);border:4px solid #CC4A48;box-shadow:0 14px 54px rgba(0,0,0,0.45);';
         card.innerHTML=
             '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#CC4A48;">'+
-              '<div style="font-size:19px;font-weight:800;color:#F6E3C0;">\uD83C\uDFEA \u86CB\u5821\u57CE\u6742\u8D27\u94FA</div>'+
+              '<div style="font-size:19px;font-weight:800;color:#F6E3C0;">\uD83C\uDFEA '+_shopText(_SHOP_NAME)+'</div>'+
               '<div style="display:flex;align-items:center;gap:10px;">'+
                 '<span id="shop-coins" style="font-weight:800;color:#FFE066;">\u2B50 '+_coinsNow()+'</span>'+
                 '<span id="shop-close" style="cursor:pointer;font-size:20px;color:#F6E3C0;">\u2715</span>'+
@@ -340,7 +353,7 @@
             b.style.width='40px';b.style.height='40px';b.style.lineHeight='40px';b.style.borderRadius='12px';
         }
     }
-    // elderly egg shopkeeper (蛋堡老板) — built fresh INSIDE the shop, faces +z
+    // elderly egg shopkeeper (蛋宝老板) — built fresh INSIDE the shop, faces +z
     function _buildShopKeeper(){
         var keeper=new THREE.Group();
         var kb=new THREE.Mesh(new THREE.SphereGeometry(0.55,16,12),toon(0xFFF1D0));kb.position.y=0.62;kb.scale.set(1,1.08,1);keeper.add(kb);
@@ -357,7 +370,7 @@
         var b=document.createElement('div');b.id='shop-btn';b.textContent='\uD83C\uDFEA';
         b.style.cssText='position:fixed;bottom:58px;right:12px;z-index:55;width:40px;height:40px;border-radius:12px;'+
             'background:rgba(255,255,255,0.85);border:2px solid #CC4A48;color:#7A3B1E;font-size:20px;line-height:40px;text-align:center;cursor:pointer;user-select:none;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
-        b.title='\u86CB\u5821\u57CE\u6742\u8D27\u94FA';
+        b.title=_shopText(_SHOP_NAME);
         b.onclick=function(){ if(api.interior.isActive()&&api.interior.isShop()&&_nearKeeper)_openShop(); };
         document.body.appendChild(b);
         _layoutShopButton();
@@ -421,7 +434,7 @@
             }
             else {
                 el.textContent='\uD83C\uDFEA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4';
-                el.onclick=function(){api.portal.clearDismissed();api.portal.confirm({name:'\uD83C\uDFEA \u86CB\u5821\u57CE\u6742\u8D27\u94FA',desc:'\u8FDB\u5165\u6742\u8D27\u94FA\uFF1F',raceIndex:-1,_hiddenType:'shopHouse',_targetStyle:-97});};
+                el.onclick=function(){api.portal.clearDismissed();api.portal.confirm({name:'\uD83C\uDFEA '+_shopText(_SHOP_NAME),desc:_shopText(_SHOP_ENTER_DESC),raceIndex:-1,_hiddenType:'shopHouse',_targetStyle:-97});};
             }
             el.style.display='block';
         } else if(el)el.style.display='none';

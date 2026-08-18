@@ -5,21 +5,26 @@
         return;
     }
 
-    // 蛋堡城杂货铺 — red shop house near spawn in Egg City (style 0).
+    // 蛋宝杂货铺 — red shop house near spawn in Egg City (style 0).
     // Registered through the plugin entrance system so the new per-city
     // architecture places/cleans it up like any other entrance building.
     var NAME={
-        zhs:'\uD83C\uDFEA \u86CB\u5821\u57CE\u6742\u8D27\u94FA',
-        zht:'\uD83C\uDFEA \u86CB\u5821\u57CE\u96DC\u8C8A\u92EA',
+        zhs:'\uD83C\uDFEA \u86CB\u5B9D\u6742\u8D27\u94FA',
+        zht:'\uD83C\uDFEA \u86CB\u5BF6\u96DC\u8CA8\u8216',
         ja:'\uD83C\uDFEA \u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97',
         en:'\uD83C\uDFEA Danbo General Store'
     };
     var DESC={
-        zhs:'\u8FDB\u5165\u6742\u8D27\u94FA\u9009\u8D2D\u5916\u89C2\uFF1F',
-        zht:'\u9032\u5165\u96DC\u8C8A\u92EA\u9078\u8CFC\u5916\u89C0\uFF1F',
-        ja:'\u96D1\u8CA8\u5E97\u3067\u898B\u305F\u76EE\u3092\u8CB7\u3046\uFF1F',
-        en:'Enter the shop to buy cosmetics?'
+        zhs:'\u8FDB\u5165\u86CB\u5B9D\u6742\u8D27\u94FA\u9009\u8D2D\u5916\u89C2\uFF1F',
+        zht:'\u9032\u5165\u86CB\u5BF6\u96DC\u8CA8\u8216\u9078\u8CFC\u5916\u89C0\uFF1F',
+        ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97\u3067\u5916\u89B3\u30A2\u30A4\u30C6\u30E0\u3092\u8CFC\u5165\u3057\u307E\u3059\u304B\uFF1F',
+        en:'Enter the Danbo General Store to buy cosmetics?'
     };
+    function localeCode(){
+        var lang=(document.documentElement.lang||'en').toLowerCase();
+        return lang.indexOf('zh-tw')===0||lang.indexOf('zh-hk')===0?'zht':(lang.indexOf('zh')===0?'zhs':(lang.indexOf('ja')===0?'ja':'en'));
+    }
+    function localized(map){var code=localeCode();return map[code]||map.en;}
 
     window.DANBO_PLUGIN_HOST.registerEntrance({
         id:'cosmetic-shop',
@@ -71,14 +76,15 @@
             roof.position.set(0,WH+0.9,0);roof.rotation.y=Math.PI/4;roof.castShadow=true;group.add(roof);
             box(0.4,0.7,0.4,wallMat,1.2,WH+1.3,-0.6);              // chimney
 
-            // door sign 【蛋堡城杂货铺】 — wooden plank
+            // Localized door sign — wooden plank
             var sc=document.createElement('canvas');sc.width=320;sc.height=96;
             var sgx=sc.getContext('2d');
             sgx.fillStyle='#7A3B1E';sgx.fillRect(0,0,320,96);
             sgx.fillStyle='#F6E3C0';sgx.fillRect(6,6,308,84);
-            sgx.fillStyle='#7A3B1E';sgx.font='bold 40px system-ui,Segoe UI,sans-serif';
+            var signName=localized(NAME).replace(/^\uD83C\uDFEA\s*/,'');
+            sgx.fillStyle='#7A3B1E';sgx.font='bold '+(localeCode()==='en'?24:(localeCode()==='ja'?32:40))+'px system-ui,Segoe UI,sans-serif';
             sgx.textAlign='center';sgx.textBaseline='middle';
-            sgx.fillText('\u86CB\u5821\u57CE\u6742\u8D27\u94FA',160,50);
+            sgx.fillText(signName,160,50,285);
             var signMat=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(sc),transparent:true,side:THREE.DoubleSide});
             var sign=new THREE.Mesh(new THREE.PlaneGeometry(3.0,0.9),signMat);sign.position.set(0,3.15,H+0.25);group.add(sign);
             box(3.2,1.05,0.12,trimMat,0,3.15,H+0.18);              // sign board

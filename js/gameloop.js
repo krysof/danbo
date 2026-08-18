@@ -312,10 +312,11 @@ function updateCity(){
     }
     if(window._fountainRipples){
         var _rt=Date.now()*0.00032;
+        var _rippleStrength=window._fountainRippleStrength||1;
         for(var _ri=0;_ri<window._fountainRipples.length;_ri++){
             var _rp=window._fountainRipples[_ri],_phase=(_rt+(_rp.userData._phase||0))%1;
-            _rp.scale.setScalar(0.72+_phase*1.18);
-            _rp.material.opacity=0.24*(1-_phase);
+            _rp.scale.setScalar(0.72+_phase*(0.72+0.46*_rippleStrength));
+            _rp.material.opacity=Math.min(0.38,0.24*_rippleStrength)*(1-_phase);
         }
     }
     if(window._danboWaterBump){
@@ -484,20 +485,27 @@ function updateCity(){
     if(_beamSoundCD>0)_beamSoundCD--;
     if(_explSoundCD>0)_explSoundCD--;
     if(_missileSoundCD>0)_missileSoundCD--;
-    var _fdist=DANBO_WASM.len2D(px,pz);
+    var _fountainCenterX=window._fountainGroup?window._fountainGroup.position.x:0;
+    var _fountainCenterY=window._fountainGroup?window._fountainGroup.position.y:0;
+    var _fountainCenterZ=window._fountainGroup?window._fountainGroup.position.z:0;
+    var _fountainWorldScale=window._fountainGroup?window._fountainGroup.scale.x:1;
+    var _fdist=DANBO_WASM.len2D(px-_fountainCenterX,pz-_fountainCenterZ);
     var _pspd=playerEgg?DANBO_WASM.len2D(playerEgg.vx||0,playerEgg.vz||0):0;
-    if(_fdist<6.5&&playerEgg.mesh.position.y<1.5&&window._fountainSplashParticles){
+    if((!window._fountainGroup||window._fountainGroup.visible)&&_fdist<6.5*_fountainWorldScale&&playerEgg.mesh.position.y<_fountainCenterY+1.5*_fountainWorldScale&&window._fountainSplashParticles){
         // Play splash sound on entry
         if(!playerEgg._inFountain){playerEgg._inFountain=true;playSplashSound();}
         // Check if player is moving (wading)
-        var _spawnRate=_pspd>0.02?0.5:0.12; // more splashes when moving
+        var _splashStrength=window._fountainSplashStrength||1;
+        var _spawnRate=Math.min(0.86,(_pspd>0.02?0.5:0.12)*_splashStrength); // more splashes when moving
         // Continuous wading splash particles
         for(var fsi2=0;fsi2<window._fountainSplashParticles.length;fsi2++){
             var fsp2=window._fountainSplashParticles[fsi2];
             if(!fsp2.mesh.visible&&fsp2.life>=fsp2.maxLife&&Math.random()<_spawnRate){
-                fsp2.mesh.position.set(px+(Math.random()-0.5)*2,0.7,pz+(Math.random()-0.5)*2);
+                var _splashWorldPoint=new THREE.Vector3(px+(Math.random()-0.5)*2,_fountainCenterY+0.7*_fountainWorldScale,pz+(Math.random()-0.5)*2);
+                if(window._fountainGroup)window._fountainGroup.worldToLocal(_splashWorldPoint);
+                fsp2.mesh.position.copy(_splashWorldPoint);
                 fsp2.vx=(Math.random()-0.5)*0.2+(playerEgg.vx||0)*0.5;
-                fsp2.vy=0.1+Math.random()*0.18;
+                fsp2.vy=(0.1+Math.random()*0.18)*_splashStrength;
                 fsp2.vz=(Math.random()-0.5)*0.2+(playerEgg.vz||0)*0.5;
                 fsp2.life=0;fsp2.maxLife=18+Math.random()*12;
                 fsp2.mesh.visible=true;

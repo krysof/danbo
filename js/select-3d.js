@@ -505,9 +505,9 @@
         var ch=CHARACTERS[selected],rgb=((ch.accent>>16)&255)+','+((ch.accent>>8)&255)+','+(ch.accent&255);
         screen.style.setProperty('--select-accent',hex6(ch.accent));screen.style.setProperty('--select-accent-rgb',rgb);
         var locale=COPY[window._langCode]||COPY.zhs,copy=locale[selected]||COPY.zhs[selected];
-        var pageTitle=document.getElementById('select-page-title'),rosterTitle=document.getElementById('select-roster-title'),switchHint=document.getElementById('select-switch-hint'),mapLabel=document.getElementById('select-map-label'),mapCity=document.getElementById('select-map-city');
+        var pageTitle=document.getElementById('select-page-title'),worldIntro=document.getElementById('select-world-intro'),switchHint=document.getElementById('select-switch-hint'),mapLabel=document.getElementById('select-map-label'),mapCity=document.getElementById('select-map-city');
         if(pageTitle&&typeof L==='function')pageTitle.textContent=L('selectHeroTitle');
-        if(rosterTitle&&typeof L==='function')rosterTitle.textContent=L('selectRosterTitle');
+        if(worldIntro&&typeof L==='function')worldIntro.textContent=L('selectWorldIntro');
         if(switchHint&&typeof L==='function')switchHint.textContent=L('selectSwitchHint');
         if(mapLabel&&typeof L==='function')mapLabel.textContent=L('selectMapLabel');
         if(mapCity){
