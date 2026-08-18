@@ -13,7 +13,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260818.4">
+<link rel="stylesheet" href="style.css?v=20260818.5">
 </head>
 <body>
 <div id="game-container">
@@ -190,7 +190,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260818.4';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260818.5';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   var warmStart=false;

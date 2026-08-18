@@ -904,6 +904,7 @@ function buildWarpPipes(){
 
 function clearCity(){
     if(typeof _clearCityVisualFX==='function')_clearCityVisualFX();
+    cityGroup.userData._danboInstancesOptimized=false;
     // Remove everything from cityGroup
     while(cityGroup.children.length>0)cityGroup.remove(cityGroup.children[0]);
     cityColliders.length=0;
@@ -916,6 +917,7 @@ function clearCity(){
     cityChests.length=0;
     cityProps.length=0;
     window.DANBO_DYNAMIC_CITY_INSTANCES=[];
+    window.DANBO_DYNAMIC_CITY_INSTANCE_ROOTS=[];
     warpPipeMeshes.length=0;
     window._fountainParticles=null;
     window._fountainSplashParticles=null;

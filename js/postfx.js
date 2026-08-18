@@ -113,7 +113,7 @@ function _initCinematicPostFX(){
         distanceExponent:1.0,
         thickness:1.0,
         scale:1.0,
-        samples:16,
+        samples:8,
         screenSpaceRadius:false
     });
     _postFXGTAO.updatePdMaterial({
@@ -123,7 +123,7 @@ function _initCinematicPostFX(){
         radius:4,
         radiusExponent:2,
         rings:2,
-        samples:16
+        samples:8
     });
     _postFXGTAO.blendIntensity=0.95;
     _postFXBloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.18,0.42,1.30);
@@ -132,7 +132,8 @@ function _initCinematicPostFX(){
     _postFXBloom.threshold=1.30;
     _postFXOutput=new OutputPass();
     _postFXGrade=new ShaderPass(_cinematicGradeShader);
-    _postFXSMAA=new SMAAPass(innerWidth*_renderPixelRatio,innerHeight*_renderPixelRatio);
+    var initialPostScale=(window.DANBO_VISUAL_QUALITY&&Number(DANBO_VISUAL_QUALITY.postScale))||1;
+    _postFXSMAA=new SMAAPass(innerWidth*_renderPixelRatio*initialPostScale,innerHeight*_renderPixelRatio*initialPostScale);
 
     _postFXComposer.addPass(_postFXRenderPass);
     _postFXComposer.addPass(_postFXGTAO);
@@ -142,10 +143,15 @@ function _initCinematicPostFX(){
     _postFXComposer.addPass(_postFXOutput);
 
     var quality=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'high';
+    var mobileQuality=!!(window.DANBO_RENDER_PERF&&DANBO_RENDER_PERF.mobile);
     _postFXGTAO.enabled=quality!=='low';
-    if(quality==='balanced'){
-        _postFXGTAO.updateGtaoMaterial({samples:8});
-        _postFXGTAO.updatePdMaterial({rings:2,samples:8,radius:3});
+    if(mobileQuality&&quality!=='low'){
+        _postFXGTAO.updateGtaoMaterial({samples:4});
+        _postFXGTAO.updatePdMaterial({rings:2,samples:4,radius:2});
+        _postFXBloom.strength=quality==='high'?0.14:0.11;
+    }else if(quality==='balanced'){
+        _postFXGTAO.updateGtaoMaterial({samples:6});
+        _postFXGTAO.updatePdMaterial({rings:2,samples:6,radius:3});
         _postFXBloom.strength=0.14;
     }else if(quality==='low'){
         _postFXBloom.strength=0.09;
@@ -172,11 +178,19 @@ function _initCinematicPostFX(){
 
 function _updatePostFXSize(force){
     if(!_postFXComposer)return;
-    var width=Math.max(1,innerWidth),height=Math.max(1,innerHeight),dpr=_renderPixelRatio||1;
+    var width=Math.max(1,innerWidth),height=Math.max(1,innerHeight);
+    var qualityScale=(window.DANBO_VISUAL_QUALITY&&Number(DANBO_VISUAL_QUALITY.postScale))||1;
+    var dpr=Math.max(0.5,(_renderPixelRatio||1)*qualityScale);
     if(!force&&width===_postFXWidth&&height===_postFXHeight&&dpr===_postFXDpr)return;
     _postFXWidth=width;_postFXHeight=height;_postFXDpr=dpr;
     _postFXComposer.setPixelRatio(dpr);
     _postFXComposer.setSize(width,height);
+    // GTAO is spatially smooth and denoised, so calculate it below the main
+    // cinematic buffer resolution. The final combine remains full resolution.
+    if(_postFXGTAO){
+        var aoScale=(window.DANBO_VISUAL_QUALITY&&Number(DANBO_VISUAL_QUALITY.aoScale))||0.72;
+        _postFXGTAO.setSize(Math.max(1,Math.round(width*dpr*aoScale)),Math.max(1,Math.round(height*dpr*aoScale)));
+    }
     _postFXGrade.uniforms.resolution.value.set(width*dpr,height*dpr);
 }
 

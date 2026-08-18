@@ -23,20 +23,35 @@ window.DANBO_VISUAL_QUALITY={
     mode:_visualQualityMode,
     high:_visualQualityMode==='high',
     low:_visualQualityMode==='low',
-    postScale:_visualQualityMode==='high'?1.0:(_visualQualityMode==='low'?0.68:0.84)
+    postScale:_visualQualityMobile?1.0:(_visualQualityMode==='high'?0.92:(_visualQualityMode==='low'?0.68:0.84)),
+    aoScale:_visualQualityMobile?0.60:(_visualQualityMode==='high'?0.72:(_visualQualityMode==='low'?0.50:0.60))
 };
 window.setDanboVisualQuality=function(mode){
     mode=['low','balanced','high','auto'].indexOf(mode)>=0?mode:'auto';
     try{localStorage.setItem('danbo_visual_quality',mode);}catch(e){}
     location.reload();
 };
-var _qualityDprCap=_visualQualityMobile?1:(RENDER_CONFIG.pixelRatioMax||2);
-var _pixelRatioMax=_visualQualityMobile?1:Math.min(devicePixelRatio||1,_qualityDprCap);
-var _pixelRatioMin=_pixelRatioMax;
-var _renderPixelRatio=_pixelRatioMax;
+// Keep the number of shaded pixels bounded. A DPR-2 1280x720 window used to
+// produce a 2560x1440 GTAO target, while the adaptive scaler was accidentally
+// locked because its minimum and maximum were identical.
+var _qualityConfiguredDprCap=RENDER_CONFIG.pixelRatioMax||2;
+var _qualityPixelBudget=_visualQualityMode==='high'?2400000:(_visualQualityMode==='low'?1250000:2000000);
+var _qualityDprCap=1,_pixelRatioMax=1,_pixelRatioMin=1,_renderPixelRatio=1;
+function _refreshRenderPixelRatioBounds(){
+    var cssPixels=Math.max(1,innerWidth*innerHeight);
+    var deviceDpr=Math.max(0.5,Number(devicePixelRatio)||1);
+    var budgetCap=Math.sqrt(_qualityPixelBudget/cssPixels);
+    _qualityDprCap=_visualQualityMobile?1:Math.min(_qualityConfiguredDprCap,budgetCap);
+    _pixelRatioMax=_visualQualityMobile?1:Math.max(0.55,Math.min(deviceDpr,_qualityDprCap));
+    var adaptiveFloor=_visualQualityMobile?1:(_visualQualityMode==='high'?0.80:(_visualQualityMode==='low'?0.62:0.70));
+    _pixelRatioMin=Math.min(_pixelRatioMax,adaptiveFloor);
+}
+_refreshRenderPixelRatioBounds();
+_renderPixelRatio=_pixelRatioMax;
 function _setRenderPixelRatio(v){
     _renderPixelRatio=Math.max(_pixelRatioMin,Math.min(_pixelRatioMax,v));
     R.setPixelRatio(_renderPixelRatio);
+    if(typeof _updatePostFXSize==='function')_updatePostFXSize(true);
 }
 _setRenderPixelRatio(_renderPixelRatio);
 R.shadowMap.enabled = true;
@@ -107,8 +122,7 @@ if(typeof HDRLoader==='function'){
 const camera = new THREE.PerspectiveCamera(58, innerWidth/innerHeight, 0.1, 1200);
 window.addEventListener('resize', ()=>{
     R.setSize(innerWidth,innerHeight);
-    _pixelRatioMax=_visualQualityMobile?1:Math.min(devicePixelRatio||1,_qualityDprCap);
-    _pixelRatioMin=_pixelRatioMax;
+    _refreshRenderPixelRatioBounds();
     _setRenderPixelRatio(_renderPixelRatio);
     camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
 });
@@ -119,13 +133,20 @@ scene.add(new THREE.AmbientLight(0xffffff,_ambientStrength));
 var _sunStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowSunIntensity||RENDER_CONFIG.sunIntensity):RENDER_CONFIG.sunIntensity;
 const sun = new THREE.DirectionalLight(RENDER_CONFIG.sunColor,_sunStrength);
 sun.position.set(RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,RENDER_CONFIG.sunPos.z); sun.castShadow=true;
-var _shadowQualitySize=_visualQualityMobile?2048:(_visualQualityMode==='low'?2048:(RENDER_CONFIG.shadowMapSize||4096));
+var _shadowQualitySize=_visualQualityMobile?1024:(_visualQualityMode==='low'?1024:Math.min(2048,RENDER_CONFIG.shadowMapSize||4096));
 sun.shadow.mapSize.set(_shadowQualitySize,_shadowQualitySize);
 const ssc=sun.shadow.camera; ssc.left=-RENDER_CONFIG.shadowRange;ssc.right=RENDER_CONFIG.shadowRange;ssc.top=RENDER_CONFIG.shadowRange;ssc.bottom=-RENDER_CONFIG.shadowRange;ssc.near=RENDER_CONFIG.shadowNear;ssc.far=RENDER_CONFIG.shadowFar;
 sun.shadow.bias=RENDER_CONFIG.shadowBias;
 sun.shadow.normalBias=RENDER_CONFIG.shadowNormalBias||0.03;
 sun.shadow.radius=RENDER_CONFIG.shadowRadius||3;
 if('intensity' in sun.shadow)sun.shadow.intensity=RENDER_CONFIG.shadowIntensity||0.68;
+// The sun follows the player, but a multi-million-pixel shadow atlas does not
+// need to be regenerated at display refresh rate. Keep it stable between
+// scheduled refreshes instead of paying a full shadow scene render every frame.
+sun.shadow.autoUpdate=false;
+sun.shadow.needsUpdate=true;
+var _shadowUpdateInterval=_visualQualityMode==='high'?2:(_visualQualityMode==='low'?4:3);
+var _shadowUpdateFrame=0;
 scene.add(sun); scene.add(sun.target);
 var _hemiStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowHemiIntensity||RENDER_CONFIG.hemiIntensity):RENDER_CONFIG.hemiIntensity;
 scene.add(new THREE.HemisphereLight(RENDER_CONFIG.hemiSkyColor,RENDER_CONFIG.hemiGroundColor,_hemiStrength));
@@ -193,21 +214,42 @@ function _updateSkyDome(skyHex,horizonHex,groundHex){
 }
 _updateSkyDome(RENDER_CONFIG.fogColor,0xEAF7FF,0x88CCAA);
 
-var _qualityFrameCount=0,_qualityAvgMs=16.7,_qualityCooldown=0;
+var _qualityFrameCount=0,_qualityAvgMs=16.7,_qualityCooldown=0,_qualitySlowFrames=0;
 function _updateRenderQuality(frameMs){
     if(!frameMs||gameState==='menu')return;
-    _qualityAvgMs=_qualityAvgMs*0.94+frameMs*0.06;
+    frameMs=Math.min(250,frameMs);
+    _qualityAvgMs=_qualityAvgMs*0.88+frameMs*0.12;
     _qualityFrameCount++;
+    _qualitySlowFrames=frameMs>36?(_qualitySlowFrames+1):Math.max(0,_qualitySlowFrames-1);
     if(_qualityCooldown>0){_qualityCooldown--;return;}
-    if(_qualityFrameCount%45!==0)return;
-    if(_qualityAvgMs>24&&_renderPixelRatio>_pixelRatioMin+0.05){
-        _setRenderPixelRatio(_renderPixelRatio-0.12);
-        _qualityCooldown=45;
-    } else if(_qualityAvgMs<17.2&&_renderPixelRatio<_pixelRatioMax-0.05){
-        _setRenderPixelRatio(_renderPixelRatio+0.08);
+    if(_qualitySlowFrames>=2&&_renderPixelRatio>_pixelRatioMin+0.03){
+        _setRenderPixelRatio(_renderPixelRatio-0.18);
+        _qualitySlowFrames=0;
+        _qualityCooldown=6;
+    } else if(_qualityFrameCount%24===0&&_qualityAvgMs>23&&_renderPixelRatio>_pixelRatioMin+0.03){
+        _setRenderPixelRatio(_renderPixelRatio-0.10);
+        _qualityCooldown=18;
+    } else if(_qualityFrameCount%120===0&&_qualityAvgMs<16.8&&_renderPixelRatio<_pixelRatioMax-0.03){
+        _setRenderPixelRatio(_renderPixelRatio+0.05);
         _qualityCooldown=90;
     }
+    if(window.DANBO_RENDER_PERF){
+        DANBO_RENDER_PERF.pixelRatio=_renderPixelRatio;
+        DANBO_RENDER_PERF.averageFrameMs=_qualityAvgMs;
+    }
 }
+
+window.DANBO_RENDER_PERF={
+    quality:_visualQualityMode,
+    mobile:_visualQualityMobile,
+    pixelBudget:_qualityPixelBudget,
+    pixelRatio:_renderPixelRatio,
+    pixelRatioMin:_pixelRatioMin,
+    pixelRatioMax:_pixelRatioMax,
+    shadowMapSize:_shadowQualitySize,
+    shadowUpdateInterval:_shadowUpdateInterval,
+    averageFrameMs:_qualityAvgMs
+};
 
 function _updateSunShadowFocus(){
     if(!playerEgg||!sun.visible)return;
@@ -216,6 +258,10 @@ function _updateSunShadowFocus(){
     sun.position.set(px+RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,pz+RENDER_CONFIG.sunPos.z);
     _sunMesh.position.set(px+RENDER_CONFIG.sunPos.x*3,RENDER_CONFIG.sunPos.y*3,pz+RENDER_CONFIG.sunPos.z*3);
     _sunGlow.position.copy(_sunMesh.position);
+    if(++_shadowUpdateFrame>=_shadowUpdateInterval){
+        _shadowUpdateFrame=0;
+        sun.shadow.needsUpdate=true;
+    }
 }
 
 // ---- Skins ----

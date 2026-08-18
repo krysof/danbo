@@ -139,19 +139,22 @@ function _cityCanvasSign(text,bg,fg){
     return tex;
 }
 
-// Reuse identical geometry/material pairs through InstancedMesh. Unlike lowering
-// DPR, texture size, model detail or shadow quality, this changes only how the
-// same pixels are submitted to WebGL. Buildings are instanced independently so
-// the existing near-camera fade can still operate per building.
+// Reuse identical props through InstancedMesh and batch opaque building parts.
+// Unlike lowering model detail, this keeps the authored objects and changes only
+// how the same pixels are submitted to WebGL. Buildings stay in separate batches
+// so the existing near-camera fade can still operate per building.
 function _optimizeCityInstances(){
     if(!cityGroup||typeof THREE.InstancedMesh!=='function')return;
+    try{if(new URLSearchParams(location.search).has('mapEditorPreview'))return;}catch(e){}
+    if(cityGroup.userData._danboInstancesOptimized)return;
     window.DANBO_DYNAMIC_CITY_INSTANCES=[];
     cityGroup.updateMatrixWorld(true);
     var cityInverse=new THREE.Matrix4().copy(cityGroup.matrixWorld).invert();
     var buildingMembers=new Set();
     var propRootByMesh=new Map();
     var excluded=new Set();
-    var stats={drawsBefore:0,drawsAfter:0,instances:0,dynamicInstances:0};
+    var stats={drawsBefore:0,drawsAfter:0,instances:0,batches:0,batchedMeshes:0,dynamicInstances:0,
+        instanceCandidates:0,batchCandidates:0,instanceGroups:0,batchGroups:0};
 
     function markTree(root,set){
         if(!root||!root.isObject3D)return;
@@ -167,20 +170,46 @@ function _optimizeCityInstances(){
             !(mesh.userData&&mesh.userData.noAO)&&
             !/(?:portal|coin|chest|water|ripple|foam|stream|droplet|glow|effect|fish|wheel)/i.test(mesh.name||''));
     }
+    function primitiveGeometryKey(geometry){
+        var parameters=geometry&&geometry.parameters;
+        if(!parameters)return geometry.uuid;
+        var parts=[],keys=Object.keys(parameters).sort();
+        for(var i=0;i<keys.length;i++){
+            var value=parameters[keys[i]];
+            if(typeof value==='number'||typeof value==='string'||typeof value==='boolean')parts.push(keys[i]+'='+value);
+        }
+        // Shape/lathe/custom geometries cannot be proven equivalent cheaply.
+        return parts.length?geometry.type+'|'+parts.join(','):geometry.uuid;
+    }
+    function opaqueMaterialKey(material){
+        function colorValue(value){return value&&value.isColor?value.getHex():'';}
+        function textureValue(value){return value&&value.isTexture?value.uuid:'';}
+        return [material.type,colorValue(material.color),colorValue(material.emissive),material.emissiveIntensity,
+            material.roughness,material.metalness,material.envMapIntensity,material.side,material.flatShading,
+            material.vertexColors,material.toneMapped,material.fog,material.depthWrite,material.depthTest,
+            material.colorWrite,material.alphaTest,material.polygonOffset,material.polygonOffsetFactor,
+            material.polygonOffsetUnits,textureValue(material.map),textureValue(material.alphaMap),
+            textureValue(material.lightMap),textureValue(material.bumpMap),textureValue(material.displacementMap),
+            textureValue(material.normalMap),textureValue(material.aoMap),textureValue(material.roughnessMap),
+            textureValue(material.metalnessMap),textureValue(material.emissiveMap),textureValue(material.gradientMap),
+            material.aoMapIntensity,material.normalScale&&material.normalScale.x,material.normalScale&&material.normalScale.y].join('|');
+    }
     function groupKey(mesh){
-        return mesh.geometry.uuid+'|'+mesh.material.uuid+'|'+
+        return primitiveGeometryKey(mesh.geometry)+'|'+opaqueMaterialKey(mesh.material)+'|'+
             (mesh.castShadow?1:0)+'|'+(mesh.receiveShadow?1:0)+'|'+mesh.layers.mask;
     }
     function buildGroups(candidates,label,onCreated){
         var groups=new Map();
         candidates.forEach(function(mesh){
             if(!eligible(mesh))return;
+            stats.instanceCandidates++;
             var key=groupKey(mesh);
             if(!groups.has(key))groups.set(key,[]);
             groups.get(key).push(mesh);
         });
         groups.forEach(function(items){
             if(items.length<2)return;
+            stats.instanceGroups++;
             var first=items[0],instanced;
             try{
                 instanced=new THREE.InstancedMesh(first.geometry,first.material,items.length);
@@ -223,6 +252,69 @@ function _optimizeCityInstances(){
         });
     }
 
+    function geometryLayoutKey(geometry){
+        var names=Object.keys(geometry.attributes||{}).sort(),parts=[];
+        for(var i=0;i<names.length;i++){
+            var attribute=geometry.attributes[names[i]];
+            parts.push(names[i]+':'+attribute.itemSize+':'+(attribute.normalized?1:0));
+        }
+        return (geometry.getIndex()?1:0)+'|'+parts.join(',');
+    }
+    function buildBatches(candidates,label,onCreated){
+        if(typeof THREE.BatchedMesh!=='function')return;
+        var groups=new Map();
+        candidates.forEach(function(mesh){
+            if(!eligible(mesh))return;
+            stats.batchCandidates++;
+            var key=opaqueMaterialKey(mesh.material)+'|'+geometryLayoutKey(mesh.geometry)+'|'+
+                (mesh.castShadow?1:0)+'|'+(mesh.receiveShadow?1:0)+'|'+mesh.layers.mask;
+            if(!groups.has(key))groups.set(key,[]);
+            groups.get(key).push(mesh);
+        });
+        groups.forEach(function(items){
+            if(items.length<2)return;
+            stats.batchGroups++;
+            var first=items[0],batched;
+            try{
+                var geometries=new Map(),vertexCount=0,indexCount=0;
+                items.forEach(function(item){
+                    var geometry=item.geometry;
+                    if(geometries.has(geometry.uuid))return;
+                    geometries.set(geometry.uuid,geometry);
+                    vertexCount+=geometry.getAttribute('position').count;
+                    if(geometry.getIndex())indexCount+=geometry.getIndex().count;
+                });
+                batched=new THREE.BatchedMesh(items.length,vertexCount,indexCount,first.material);
+                batched.name='danbo-'+label+'-batch';
+                batched.castShadow=first.castShadow;
+                batched.receiveShadow=first.receiveShadow;
+                batched.layers.mask=first.layers.mask;
+                batched.userData.editorBuildingIndex=first.userData.editorBuildingIndex;
+                var geometryIds=new Map();
+                geometries.forEach(function(geometry,key){geometryIds.set(key,batched.addGeometry(geometry));});
+                for(var i=0;i<items.length;i++){
+                    var source=items[i];
+                    source.updateWorldMatrix(true,false);
+                    var matrix=new THREE.Matrix4().multiplyMatrices(cityInverse,source.matrixWorld);
+                    var instanceId=batched.addInstance(geometryIds.get(source.geometry.uuid));
+                    batched.setMatrixAt(instanceId,matrix);
+                    if(source.parent)source.parent.remove(source);
+                }
+                batched.computeBoundingBox();
+                batched.computeBoundingSphere();
+                cityGroup.add(batched);
+                stats.drawsBefore+=items.length;
+                stats.drawsAfter++;
+                stats.batches++;
+                stats.batchedMeshes+=items.length;
+                if(onCreated)onCreated(items,batched);
+            }catch(error){
+                if(batched&&batched.dispose)batched.dispose();
+                console.warn('City batch skipped:',error);
+            }
+        });
+    }
+
     // Track every building member up front so the global pass cannot combine
     // separate buildings and accidentally tie their occlusion fades together.
     if(typeof cityBuildingMeshes!=='undefined')cityBuildingMeshes.forEach(function(building){
@@ -249,46 +341,69 @@ function _optimizeCityInstances(){
         else if(Array.isArray(value))value.forEach(function(item){markTree(item&&(item.group||item.mesh||item),excluded);});
     });
 
-    // Preserve per-building material fade by creating separate instance groups.
+    // Preserve per-building material fade by creating separate batches. Unlike
+    // InstancedMesh, BatchedMesh can combine the many differently-sized facade
+    // primitives that share one material into one render-list entry.
     if(typeof cityBuildingMeshes!=='undefined')cityBuildingMeshes.forEach(function(building){
         var unique=new Set();
-        (building.meshes||[]).forEach(function(root){if(root&&root.isObject3D)root.traverse(function(child){unique.add(child);});});
-        buildGroups(Array.from(unique),'building',function(items,instanced){
-            var removed=new Set(items);
-            building.meshes=(building.meshes||[]).filter(function(mesh){return !removed.has(mesh);});
-            building.meshes.push(instanced);
+        (building.meshes||[]).forEach(function(root){if(root&&root.isObject3D)root.traverse(function(child){if(child.isMesh)unique.add(child);});});
+        var removed=new Set(),replacements=[];
+        buildBatches(Array.from(unique),'building',function(items,batched){
+            items.forEach(function(item){removed.add(item);});
+            replacements.push(batched);
         });
+        building.meshes=Array.from(unique).filter(function(mesh){return mesh.parent&&!removed.has(mesh);}).concat(replacements);
     });
 
-    // Props and other repeated non-building geometry may share one draw. Movable
-    // props keep invisible source nodes whose matrices are mirrored each frame.
-    var globalCandidates=[];
+    // Movable props keep invisible source nodes whose matrices are mirrored each
+    // frame. Static props can use larger BatchedMesh groups.
+    var globalCandidates=[],dynamicCandidates=[];
     cityGroup.traverse(function(object){
-        if(!buildingMembers.has(object)&&!excluded.has(object)&&eligible(object))globalCandidates.push(object);
+        if(!buildingMembers.has(object)&&!excluded.has(object)&&eligible(object)){
+            if(propRootByMesh.has(object))dynamicCandidates.push(object);
+            else globalCandidates.push(object);
+        }
     });
-    buildGroups(globalCandidates,'city');
+    buildGroups(dynamicCandidates,'dynamic-city');
+    buildBatches(globalCandidates,'city');
+    var dynamicRoots=new Map();
+    window.DANBO_DYNAMIC_CITY_INSTANCES.forEach(function(binding){
+        var entry=dynamicRoots.get(binding.root);
+        if(!entry){
+            binding.root.updateMatrix();
+            entry={root:binding.root,bindings:[],localMatrix:binding.root.matrix.clone()};
+            dynamicRoots.set(binding.root,entry);
+        }
+        entry.bindings.push(binding);
+    });
+    window.DANBO_DYNAMIC_CITY_INSTANCE_ROOTS=Array.from(dynamicRoots.values());
     window.DANBO_CITY_INSTANCE_STATS=stats;
+    if(!window.DANBO_CITY_INSTANCE_HISTORY)window.DANBO_CITY_INSTANCE_HISTORY=[];
+    window.DANBO_CITY_INSTANCE_HISTORY.push(stats);
+    cityGroup.userData._danboInstancesOptimized=true;
 }
 
 function _syncDynamicCityInstances(){
-    var bindings=window.DANBO_DYNAMIC_CITY_INSTANCES;
-    if(!bindings||!bindings.length||!cityGroup)return;
+    var entries=window.DANBO_DYNAMIC_CITY_INSTANCE_ROOTS;
+    if(!entries||!entries.length||!cityGroup)return;
     cityGroup.updateWorldMatrix(true,false);
     var inverse=_syncDynamicCityInstances._inverse||(_syncDynamicCityInstances._inverse=new THREE.Matrix4());
     inverse.copy(cityGroup.matrixWorld).invert();
-    var roots=_syncDynamicCityInstances._roots||(_syncDynamicCityInstances._roots=new Set());
     var touched=_syncDynamicCityInstances._touched||(_syncDynamicCityInstances._touched=new Set());
-    roots.clear();touched.clear();
-    for(var i=0;i<bindings.length;i++){
-        var binding=bindings[i];
-        if(!binding.mesh.parent)continue;
-        if(!roots.has(binding.root)){
-            binding.root.updateMatrixWorld(true);
-            roots.add(binding.root);
+    touched.clear();
+    for(var i=0;i<entries.length;i++){
+        var entry=entries[i],root=entry.root;
+        root.updateMatrix();
+        if(root.matrix.equals(entry.localMatrix))continue;
+        entry.localMatrix.copy(root.matrix);
+        root.updateMatrixWorld(true);
+        for(var j=0;j<entry.bindings.length;j++){
+            var binding=entry.bindings[j];
+            if(!binding.mesh.parent)continue;
+            binding.matrix.multiplyMatrices(inverse,binding.source.matrixWorld);
+            binding.mesh.setMatrixAt(binding.index,binding.matrix);
+            touched.add(binding.mesh);
         }
-        binding.matrix.multiplyMatrices(inverse,binding.source.matrixWorld);
-        binding.mesh.setMatrixAt(binding.index,binding.matrix);
-        touched.add(binding.mesh);
     }
     touched.forEach(function(mesh){mesh.instanceMatrix.needsUpdate=true;});
 }
@@ -3750,6 +3865,12 @@ function buildCity() {
             }
         }
     }
+
+    // This optimizer was introduced with the detailed city geometry, but the
+    // build path never invoked it. Without this call Hope City submits well over
+    // two thousand individual meshes per frame. It preserves every object and
+    // combines compatible opaque geometry/material work.
+    _optimizeCityInstances();
 }
 
 function _buildMobileSuit(msType,weaponType,customColor){
