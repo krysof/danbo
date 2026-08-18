@@ -113,7 +113,7 @@ function _initCinematicPostFX(){
         distanceExponent:1.0,
         thickness:1.0,
         scale:1.0,
-        samples:8,
+        samples:16,
         screenSpaceRadius:false
     });
     _postFXGTAO.updatePdMaterial({
@@ -123,7 +123,7 @@ function _initCinematicPostFX(){
         radius:4,
         radiusExponent:2,
         rings:2,
-        samples:8
+        samples:16
     });
     _postFXGTAO.blendIntensity=0.95;
     _postFXBloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.18,0.42,1.30);
@@ -145,10 +145,10 @@ function _initCinematicPostFX(){
     var quality=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'high';
     var mobileQuality=!!(window.DANBO_RENDER_PERF&&DANBO_RENDER_PERF.mobile);
     _postFXGTAO.enabled=quality!=='low';
-    if(mobileQuality&&quality!=='low'){
+    if(mobileQuality&&quality!=='low'&&quality!=='high'){
         _postFXGTAO.updateGtaoMaterial({samples:4});
         _postFXGTAO.updatePdMaterial({rings:2,samples:4,radius:2});
-        _postFXBloom.strength=quality==='high'?0.14:0.11;
+        _postFXBloom.strength=0.11;
     }else if(quality==='balanced'){
         _postFXGTAO.updateGtaoMaterial({samples:6});
         _postFXGTAO.updatePdMaterial({rings:2,samples:6,radius:3});

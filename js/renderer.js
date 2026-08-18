@@ -5,6 +5,10 @@ const R = new THREE.WebGLRenderer({antialias:false, powerPreference:'high-perfor
 R.setSize(innerWidth,innerHeight);
 var _visualQualityPref='auto';
 try{_visualQualityPref=localStorage.getItem('danbo_visual_quality')||'auto';}catch(e){}
+try{
+    var _visualQualityQuery=new URLSearchParams(location.search).get('quality');
+    if(['low','balanced','high','auto'].indexOf(_visualQualityQuery)>=0)_visualQualityPref=_visualQualityQuery;
+}catch(e){}
 var _visualQualityCoarse=!!(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
 var _visualQualityAnyFine=!!(window.matchMedia&&matchMedia('(any-pointer: fine)').matches);
 var _visualQualityMobile=_visualQualityCoarse&&!_visualQualityAnyFine;
@@ -23,27 +27,27 @@ window.DANBO_VISUAL_QUALITY={
     mode:_visualQualityMode,
     high:_visualQualityMode==='high',
     low:_visualQualityMode==='low',
-    postScale:_visualQualityMobile?1.0:(_visualQualityMode==='high'?0.92:(_visualQualityMode==='low'?0.68:0.84)),
-    aoScale:_visualQualityMobile?0.60:(_visualQualityMode==='high'?0.72:(_visualQualityMode==='low'?0.50:0.60))
+    postScale:_visualQualityMode==='high'?1.0:(_visualQualityMobile?1.0:(_visualQualityMode==='low'?0.68:0.84)),
+    aoScale:_visualQualityMode==='high'?1.0:(_visualQualityMobile?0.60:(_visualQualityMode==='low'?0.50:0.60))
 };
 window.setDanboVisualQuality=function(mode){
     mode=['low','balanced','high','auto'].indexOf(mode)>=0?mode:'auto';
     try{localStorage.setItem('danbo_visual_quality',mode);}catch(e){}
     location.reload();
 };
-// Keep the number of shaded pixels bounded. A DPR-2 1280x720 window used to
-// produce a 2560x1440 GTAO target, while the adaptive scaler was accidentally
-// locked because its minimum and maximum were identical.
+// Keep Balanced/Low shaded pixels bounded. Explicit High is the uncompromised
+// path (full device DPR up to the configured cap); its draw-call batching still
+// applies, but it never lowers resolution automatically.
 var _qualityConfiguredDprCap=RENDER_CONFIG.pixelRatioMax||2;
-var _qualityPixelBudget=_visualQualityMode==='high'?2400000:(_visualQualityMode==='low'?1250000:2000000);
+var _qualityPixelBudget=_visualQualityMode==='high'?0:(_visualQualityMode==='low'?1250000:2000000);
 var _qualityDprCap=1,_pixelRatioMax=1,_pixelRatioMin=1,_renderPixelRatio=1;
 function _refreshRenderPixelRatioBounds(){
     var cssPixels=Math.max(1,innerWidth*innerHeight);
     var deviceDpr=Math.max(0.5,Number(devicePixelRatio)||1);
-    var budgetCap=Math.sqrt(_qualityPixelBudget/cssPixels);
+    var budgetCap=_visualQualityMode==='high'?_qualityConfiguredDprCap:Math.sqrt(_qualityPixelBudget/cssPixels);
     _qualityDprCap=_visualQualityMobile?1:Math.min(_qualityConfiguredDprCap,budgetCap);
     _pixelRatioMax=_visualQualityMobile?1:Math.max(0.55,Math.min(deviceDpr,_qualityDprCap));
-    var adaptiveFloor=_visualQualityMobile?1:(_visualQualityMode==='high'?0.80:(_visualQualityMode==='low'?0.62:0.70));
+    var adaptiveFloor=_visualQualityMode==='high'?_pixelRatioMax:(_visualQualityMobile?1:(_visualQualityMode==='low'?0.62:0.70));
     _pixelRatioMin=Math.min(_pixelRatioMax,adaptiveFloor);
 }
 _refreshRenderPixelRatioBounds();
@@ -133,19 +137,18 @@ scene.add(new THREE.AmbientLight(0xffffff,_ambientStrength));
 var _sunStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowSunIntensity||RENDER_CONFIG.sunIntensity):RENDER_CONFIG.sunIntensity;
 const sun = new THREE.DirectionalLight(RENDER_CONFIG.sunColor,_sunStrength);
 sun.position.set(RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,RENDER_CONFIG.sunPos.z); sun.castShadow=true;
-var _shadowQualitySize=_visualQualityMobile?1024:(_visualQualityMode==='low'?1024:Math.min(2048,RENDER_CONFIG.shadowMapSize||4096));
+var _shadowQualitySize=_visualQualityMode==='high'?(RENDER_CONFIG.shadowMapSize||4096):(_visualQualityMobile?1024:(_visualQualityMode==='low'?1024:Math.min(2048,RENDER_CONFIG.shadowMapSize||4096)));
 sun.shadow.mapSize.set(_shadowQualitySize,_shadowQualitySize);
 const ssc=sun.shadow.camera; ssc.left=-RENDER_CONFIG.shadowRange;ssc.right=RENDER_CONFIG.shadowRange;ssc.top=RENDER_CONFIG.shadowRange;ssc.bottom=-RENDER_CONFIG.shadowRange;ssc.near=RENDER_CONFIG.shadowNear;ssc.far=RENDER_CONFIG.shadowFar;
 sun.shadow.bias=RENDER_CONFIG.shadowBias;
 sun.shadow.normalBias=RENDER_CONFIG.shadowNormalBias||0.03;
 sun.shadow.radius=RENDER_CONFIG.shadowRadius||3;
 if('intensity' in sun.shadow)sun.shadow.intensity=RENDER_CONFIG.shadowIntensity||0.68;
-// The sun follows the player, but a multi-million-pixel shadow atlas does not
-// need to be regenerated at display refresh rate. Keep it stable between
-// scheduled refreshes instead of paying a full shadow scene render every frame.
+// Balanced/Low keep the sun stable between scheduled shadow refreshes. Explicit
+// High requests its full 4096 atlas every frame.
 sun.shadow.autoUpdate=false;
 sun.shadow.needsUpdate=true;
-var _shadowUpdateInterval=_visualQualityMode==='high'?2:(_visualQualityMode==='low'?4:3);
+var _shadowUpdateInterval=_visualQualityMode==='high'?1:(_visualQualityMode==='low'?4:3);
 var _shadowUpdateFrame=0;
 scene.add(sun); scene.add(sun.target);
 var _hemiStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowHemiIntensity||RENDER_CONFIG.hemiIntensity):RENDER_CONFIG.hemiIntensity;
