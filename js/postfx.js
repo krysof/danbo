@@ -24,16 +24,16 @@ var _cinematicGradeShader={
         time:{value:0},
         resolution:{value:new THREE.Vector2(1,1)},
         vignette:{value:1.05},
-        grain:{value:0.055},
-        chroma:{value:0.0016},
-        saturation:{value:1.02},
+        grain:{value:0.040},
+        chroma:{value:0.00045},
+        saturation:{value:1.08},
         // Grade runs before OutputPass in linear space, so use a low contrast
         // offset to retain mobile shadow detail instead of crushing near-black.
-        contrast:{value:1.06},
-        lift:{value:0.020},
-        shadowColor:{value:new THREE.Color(0.38,0.43,0.46)},
-        highlightColor:{value:new THREE.Color(1.0,0.90,0.72)},
-        splitAmount:{value:0.08}
+        contrast:{value:1.10},
+        lift:{value:0.004},
+        shadowColor:{value:new THREE.Color(0.42,0.52,0.60)},
+        highlightColor:{value:new THREE.Color(1.0,0.88,0.70)},
+        splitAmount:{value:0.06}
     },
     vertexShader:[
         'varying vec2 vUv;',
@@ -73,9 +73,8 @@ var _cinematicGradeShader={
         '  color=mix(color,color*highlightColor,highlightWeight*splitAmount);',
         '  color=(color-0.5)*contrast+0.5+lift;',
         '  color=mix(vec3(luma(color)),color,saturation);',
-        // A soft shoulder after grading preserves facade and fountain detail instead
-        // of letting the low-angle 5.2-intensity key light bleach highlights.
-        '  color=color/(1.0+max(color-0.62,vec3(0.0))*1.08);',
+        // OutputPass owns the single ACES shoulder. Applying another shoulder here
+        // compressed most of the scene into the same pale mid/high-light band.
         '  float edge=smoothstep(0.28,0.78,length(fromCenter)*1.4142);',
         '  color*=1.0-edge*0.16*vignette;',
         '  float noise=hash(gl_FragCoord.xy+vec2(time*71.0,time*37.0))-0.5;',
@@ -127,10 +126,10 @@ function _initCinematicPostFX(){
         samples:16
     });
     _postFXGTAO.blendIntensity=0.95;
-    _postFXBloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.26,0.55,1.15);
-    _postFXBloom.strength=0.26;
-    _postFXBloom.radius=0.55;
-    _postFXBloom.threshold=1.15;
+    _postFXBloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.18,0.42,1.30);
+    _postFXBloom.strength=0.18;
+    _postFXBloom.radius=0.42;
+    _postFXBloom.threshold=1.30;
     _postFXOutput=new OutputPass();
     _postFXGrade=new ShaderPass(_cinematicGradeShader);
     _postFXSMAA=new SMAAPass(innerWidth*_renderPixelRatio,innerHeight*_renderPixelRatio);
@@ -147,10 +146,16 @@ function _initCinematicPostFX(){
     if(quality==='balanced'){
         _postFXGTAO.updateGtaoMaterial({samples:8});
         _postFXGTAO.updatePdMaterial({rings:2,samples:8,radius:3});
-        _postFXBloom.strength=0.21;
+        _postFXBloom.strength=0.14;
     }else if(quality==='low'){
-        _postFXBloom.strength=0.13;
+        _postFXBloom.strength=0.09;
         _postFXGrade.uniforms.grain.value=0.025;
+        // Low mode uses Lambert/toon fallbacks without HDR reflections. Preserve
+        // their shadow readability while keeping the deeper authored albedo.
+        _postFXGrade.uniforms.contrast.value=1.04;
+        _postFXGrade.uniforms.lift.value=0.018;
+        _postFXGrade.uniforms.saturation.value=1.05;
+        _postFXGrade.uniforms.vignette.value=0.82;
     }
     _updatePostFXSize(true);
     window.DANBO_POSTFX={

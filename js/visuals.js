@@ -193,7 +193,9 @@ function _visualSurfaceMaterial(kind,color,opts){
     if(set.normalMap){var ns=kind==='grass'?0.46:(kind==='roof'?0.68:(kind==='path'?0.40:(kind==='stone'?0.30:0.34)));base.normalMap=set.normalMap;base.normalScale=new THREE.Vector2(ns,ns);}
     else{base.bumpMap=set.bumpMap;base.bumpScale=kind==='grass'?0.12:(kind==='facade'?0.034:(kind==='roof'?0.18:0.10));}
     if(set.external&&typeof _mixHex==='function'){
-        var tintLift=kind==='grass'?0.34:(kind==='facade'?0.22:(kind==='roof'?0.12:(kind==='path'?0.38:0.44)));
+        // Preserve the material's authored hue. Large white lifts (up to 44%)
+        // erased albedo/normal-map contrast once the HDR environment was added.
+        var tintLift=kind==='grass'?0.07:(kind==='facade'?0.04:(kind==='roof'?0.02:(kind==='path'?0.06:0.05)));
         color=_mixHex(color,0xFFFFFF,tintLift);
     }
     for(var k in opts)base[k]=opts[k];
@@ -491,7 +493,10 @@ function _visualAddHorizon(style,st,mood){
 
 function _visualAddAtmosphericClouds(style,mood){
     if(style===5||style===7)return;
-    if(style===0){_visualAddPuffyClouds();return;}
+    // Hope City already uses the HDRI as its visible sky. The old instanced
+    // sphere clusters filled the upper frame with oversized white blobs and
+    // hid the real horizon, so do not layer fake geometry over that background.
+    if(style===0)return;
     var cloudColor=style===3?0xFF7744:(style===1?0xFFE4A8:(style===4?0xFFE7FF:0xFFFFFF));
     var cloudCount=style===3?10:18;
     for(var i=0;i<cloudCount;i++){

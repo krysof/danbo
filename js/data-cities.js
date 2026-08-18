@@ -86,8 +86,8 @@ var CAMERA_CONFIG={
 var RENDER_CONFIG={
     fogColor:0x8EB3C4, fogDensity:0.0021,
     hdri:'assets/hdri/farm_sunset_1k.hdr',
-    environmentIntensity:0.9, backgroundIntensity:0.85,
-    sunColor:0xFFD9A0, sunIntensity:5.2,
+    environmentIntensity:0.72, backgroundIntensity:0.78,
+    sunColor:0xFFD9A0, sunIntensity:2.6, lowSunIntensity:5.0,
     // Small Harbour Sunset has a low golden-hour sun. Keep the physical
     // direction and the visible background aligned (about 7.6 degrees high).
     // Farm Sunset's solar disc sits at roughly 37 degrees azimuth. Keep the key
@@ -97,10 +97,10 @@ var RENDER_CONFIG={
     shadowRange:55, shadowNear:1, shadowFar:360, shadowRadius:3, shadowIntensity:0.68,
     // HDRI supplies the broad sky illumination. These legacy fills stay deliberately
     // low so non-PBR/toon props remain readable without flattening contact shadows.
-    ambientIntensity:0.08,
-    hemiSkyColor:0xD9EFFF, hemiGroundColor:0x59675A, hemiIntensity:0.18,
+    ambientIntensity:0.08, lowAmbientIntensity:0.13,
+    hemiSkyColor:0xD9EFFF, hemiGroundColor:0x59675A, hemiIntensity:0.18, lowHemiIntensity:0.28,
     pixelRatioMin:1.0, pixelRatioMax:2.0,
-    toneExposure:0.66
+    toneExposure:0.70
 };
 
 // ---- Portal (race entrance) parameters ----

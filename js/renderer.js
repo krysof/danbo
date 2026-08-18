@@ -114,8 +114,10 @@ window.addEventListener('resize', ()=>{
 });
 
 // ---- Lighting ----
-scene.add(new THREE.AmbientLight(0xffffff, RENDER_CONFIG.ambientIntensity));
-const sun = new THREE.DirectionalLight(RENDER_CONFIG.sunColor, RENDER_CONFIG.sunIntensity);
+var _ambientStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowAmbientIntensity||RENDER_CONFIG.ambientIntensity):RENDER_CONFIG.ambientIntensity;
+scene.add(new THREE.AmbientLight(0xffffff,_ambientStrength));
+var _sunStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowSunIntensity||RENDER_CONFIG.sunIntensity):RENDER_CONFIG.sunIntensity;
+const sun = new THREE.DirectionalLight(RENDER_CONFIG.sunColor,_sunStrength);
 sun.position.set(RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,RENDER_CONFIG.sunPos.z); sun.castShadow=true;
 var _shadowQualitySize=_visualQualityMobile?2048:(_visualQualityMode==='low'?2048:(RENDER_CONFIG.shadowMapSize||4096));
 sun.shadow.mapSize.set(_shadowQualitySize,_shadowQualitySize);
@@ -125,7 +127,8 @@ sun.shadow.normalBias=RENDER_CONFIG.shadowNormalBias||0.03;
 sun.shadow.radius=RENDER_CONFIG.shadowRadius||3;
 if('intensity' in sun.shadow)sun.shadow.intensity=RENDER_CONFIG.shadowIntensity||0.68;
 scene.add(sun); scene.add(sun.target);
-scene.add(new THREE.HemisphereLight(RENDER_CONFIG.hemiSkyColor,RENDER_CONFIG.hemiGroundColor,RENDER_CONFIG.hemiIntensity));
+var _hemiStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowHemiIntensity||RENDER_CONFIG.hemiIntensity):RENDER_CONFIG.hemiIntensity;
+scene.add(new THREE.HemisphereLight(RENDER_CONFIG.hemiSkyColor,RENDER_CONFIG.hemiGroundColor,_hemiStrength));
 // Keep auxiliary lights permanently in the scene. Effects and city themes may only
 // modify intensity; adding/removing lights would force a full material shader recompile.
 const rimLight = new THREE.DirectionalLight(0xCFEAFF,0.04);
