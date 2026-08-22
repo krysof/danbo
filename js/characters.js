@@ -125,9 +125,22 @@ function drawPortrait(ch) {
     if(!hd)return;
     var portraitCtx=hd.ctx;
     var W=hd.w, H=hd.h;
-    if(typeof DANBO_CUTE_STYLE!=='undefined'&&String(DANBO_CUTE_STYLE).indexOf('round-minimal')===0){
+    var _classicSelect=document.getElementById('select-screen');
+    var _useClassicPortrait=_classicSelect&&_classicSelect.classList.contains('select-style-classic');
+    if(!_useClassicPortrait&&typeof DANBO_CUTE_STYLE!=='undefined'&&String(DANBO_CUTE_STYLE).indexOf('round-minimal')===0){
         _drawCuteRoundPortrait(portraitCtx,ch,W,H);
         return;
+    }
+    // The legacy illustrator was authored on a 220x260 canvas. Scale that
+    // coordinate system into the responsive arcade card so the fighter fills
+    // today's larger desktop and mobile panels instead of sitting tiny inside it.
+    var _classicPortraitRestore=false;
+    if(_useClassicPortrait){
+        var _classicScale=Math.min(W/220,H/260);
+        portraitCtx.save();
+        portraitCtx.translate((W-220*_classicScale)/2,(H-260*_classicScale)/2);
+        portraitCtx.scale(_classicScale,_classicScale);
+        W=220;H=260;_classicPortraitRestore=true;
     }
     var _ac='#'+((ch.accent||0).toString(16)).padStart(6,'0');
     portraitCtx.clearRect(0,0,W,H);
@@ -436,4 +449,5 @@ function drawPortrait(ch) {
             portraitCtx.fillStyle='#333';portraitCtx.fill();
         }
     }
+    if(_classicPortraitRestore)portraitCtx.restore();
 }

@@ -13,7 +13,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260822.1">
+<link rel="stylesheet" href="style.css?v=20260822.2">
 </head>
 <body>
 <div id="game-container">
@@ -46,12 +46,13 @@
           <h1 id="select-page-title">选择角色</h1>
           <p id="select-world-intro">每一枚生命蛋壳，都孕育着独一无二的伙伴。</p>
         </div>
-        <div class="select-quality-chip"><i></i> CINEMATIC 3D</div>
+        <div class="select-quality-chip"><i></i><span id="select-quality-label">CINEMATIC 3D</span></div>
       </header>
 
       <main class="select-cinematic-main">
         <section class="select-hero-panel" aria-label="Selected character preview">
           <div id="select-hero-viewport" class="select-hero-viewport" aria-hidden="true"></div>
+          <canvas id="portrait-canvas" class="select-classic-portrait" width="340" height="402" style="width:min(340px,72vw);height:auto" aria-hidden="true"></canvas>
           <div class="select-hero-rings" aria-hidden="true"><span></span><span></span></div>
           <div class="select-hero-copy">
             <div class="select-archetype" id="select-archetype">花冠守护者</div>
@@ -66,7 +67,11 @@
         <section class="select-roster-panel" aria-label="Character roster">
           <div class="select-roster-top">
             <div class="select-roster-heading">
-              <div><small>CHOOSE YOUR HERO</small></div>
+              <div class="select-roster-title"><small>CHOOSE YOUR HERO</small></div>
+              <div class="select-style-toggle" id="select-style-toggle" role="group" aria-label="Character select style">
+                <button type="button" class="select-style-btn active" data-select-style="cinematic" aria-pressed="true" title="Cinematic 3D">3D</button>
+                <button type="button" class="select-style-btn" data-select-style="classic" aria-pressed="false" title="Classic arcade">SF</button>
+              </div>
               <span class="select-roster-count"><b id="select-roster-index">01</b> / 08</span>
             </div>
             <aside class="select-map-panel" aria-label="Selected game scene map">
@@ -75,6 +80,7 @@
                 <strong id="select-map-city">希望之城</strong>
               </div>
               <div id="select-map-viewport" class="select-map-viewport" aria-hidden="true"></div>
+              <canvas id="sf2-map-canvas" class="select-classic-map" width="400" height="220" aria-hidden="true"></canvas>
               <div class="select-map-live"><i></i> LIVE 3D</div>
             </aside>
           </div>
@@ -190,7 +196,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260822.1';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260822.2';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   var warmStart=false;

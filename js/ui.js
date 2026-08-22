@@ -216,10 +216,9 @@ function _drawMiniPortrait(ch,size){
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.imageSmoothingEnabled=true;
     if(ctx.imageSmoothingQuality)ctx.imageSmoothingQuality='high';
-    if(typeof DANBO_CUTE_STYLE!=='undefined'&&String(DANBO_CUTE_STYLE).indexOf('round-minimal')===0){
-        _drawCuteMiniPortrait(ctx,ch,size);
-        return c;
-    }
+    // This canvas is displayed only by the optional classic arcade selector, so
+    // deliberately keep the original SF-inspired character details here. The
+    // current cinematic selector continues to use the full real-time 3D models.
     var cx=size/2,cy=size*0.48;
     // Body shape varies by character type
     var rx=size*0.32,ry=size*0.38;
@@ -253,6 +252,10 @@ CHARACTERS.forEach((ch,i) => {
     cell.setAttribute('tabindex','0');
     cell.setAttribute('aria-label',ch.name);
     cell.style.setProperty('--card-rgb',((ch.accent>>16)&255)+','+((ch.accent>>8)&255)+','+(ch.accent&255));
+    var miniCanvas=_drawMiniPortrait(ch,96);
+    miniCanvas.className='char-icon-canvas';
+    miniCanvas.setAttribute('aria-hidden','true');
+    cell.appendChild(miniCanvas);
     var num=document.createElement('span');num.className='char-number';num.textContent=String(i+1).padStart(2,'0');cell.appendChild(num);
     var fallback=document.createElement('span');fallback.className='char-fallback';fallback.textContent=ch.icon;cell.appendChild(fallback);
     var label=document.createElement('span');label.className='char-label';label.textContent=ch.name;cell.appendChild(label);
@@ -268,6 +271,40 @@ CHARACTERS.forEach((ch,i) => {
     if (charGrid) charGrid.appendChild(cell);
 });
 if (portraitCtx) _updateSF2Select(0);
+
+// ---- Select-screen presentation switch ----
+// Cinematic remains the default. Classic restores the old SF-inspired portraits,
+// island map, gold arcade framing and airplane launch without replacing gameplay.
+(function(){
+    var screen=document.getElementById('select-screen');
+    var toggle=document.getElementById('select-style-toggle');
+    if(!screen||!toggle)return;
+    function normalize(value){return value==='classic'?'classic':'cinematic';}
+    function setStyle(value,persist){
+        value=normalize(value);
+        screen.classList.toggle('select-style-classic',value==='classic');
+        screen.classList.toggle('select-style-cinematic',value==='cinematic');
+        screen.dataset.selectStyle=value;
+        var qualityLabel=document.getElementById('select-quality-label');
+        if(qualityLabel)qualityLabel.textContent=value==='classic'?'ARCADE LEGACY':'CINEMATIC 3D';
+        toggle.querySelectorAll('[data-select-style]').forEach(function(button){
+            var active=button.dataset.selectStyle===value;
+            button.classList.toggle('active',active);
+            button.setAttribute('aria-pressed',active?'true':'false');
+        });
+        if(persist!==false)try{localStorage.setItem('danbo_select_style',value);}catch(e){}
+        requestAnimationFrame(function(){_updateSF2Select(typeof selectedChar==='number'?selectedChar:0);});
+        window.dispatchEvent(new CustomEvent('danbo-select-style',{detail:{style:value}}));
+    }
+    toggle.addEventListener('click',function(event){
+        var button=event.target.closest('[data-select-style]');
+        if(button)setStyle(button.dataset.selectStyle,true);
+    });
+    var initial='cinematic';
+    try{initial=normalize(new URLSearchParams(location.search).get('selectStyle')||localStorage.getItem('danbo_select_style'));}catch(e){}
+    window._setCharacterSelectStyle=setStyle;
+    setStyle(initial,false);
+})();
 
 // ---- State ----
 let gameState = 'menu'; // menu, city, raceIntro, racing, raceResult

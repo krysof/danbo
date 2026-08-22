@@ -106,8 +106,12 @@ document.getElementById('confirm-btn').addEventListener('click',()=>{
         enterCity();
         _selectConfirmed=false;_startTriggered=false; // reset for next time
     };
-    // Prefer the cinematic hero launch; retain the old plane path only as a WebGL fallback.
-    if(typeof window._startSelect3DTransition==='function')window._startSelect3DTransition(_enterSelectedCharacter);
+    // Each presentation keeps its matching launch: cinematic hero flash for 3D,
+    // and the restored world-map airplane route for classic arcade mode.
+    var _selectScreen=document.getElementById('select-screen');
+    var _classicSelect=_selectScreen&&_selectScreen.classList.contains('select-style-classic');
+    if(_classicSelect)_startPlaneAnim(_selCh.mapX,_selCh.mapY,0,0,_enterSelectedCharacter);
+    else if(typeof window._startSelect3DTransition==='function')window._startSelect3DTransition(_enterSelectedCharacter);
     else _startPlaneAnim(_selCh.mapX,_selCh.mapY,0,0,_enterSelectedCharacter);
 });
 

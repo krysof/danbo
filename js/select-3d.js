@@ -699,6 +699,9 @@
     function frame(now){
         requestAnimationFrame(frame);
         if(!screen.classList.contains('active')){wasActive=false;return;}
+        // The optional classic selector uses the restored 2D portraits and map.
+        // Do not spend GPU time drawing an invisible WebGL layer in that mode.
+        if(screen.classList.contains('select-style-classic')){wasActive=false;return;}
         var resized=resize();
         if(!wasActive||resized){
             renderer.setScissorTest(false);renderer.setViewport(0,0,lastW,lastH);renderer.clear(true,true,true);
