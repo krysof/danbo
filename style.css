@@ -236,6 +236,20 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 }
 @media(max-width:390px),(max-height:690px){.select-style-classic .select-map-panel{height:72px}.select-style-classic .select-roster-top{min-height:98px}.select-style-classic .select-roster-title{display:none}}
 
+/* Mobile browser chrome (especially iOS Safari) can float over the bottom of
+   the visual viewport. Keep the primary action in its own touch-safe layer and
+   reserve matching space in the roster so cards never steal its hit target. */
+@media(max-width:700px){
+  #select-screen.active .select-roster-panel{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}
+  #select-screen.active .select-confirm-row{position:fixed;z-index:30;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:max(10px,env(safe-area-inset-bottom,0px));display:block;min-height:0;pointer-events:none}
+  #select-screen.active .select-confirm-row .select-control-tip{display:none}
+  #select-screen.active #confirm-btn{width:100%;height:46px;margin:0;pointer-events:auto;touch-action:manipulation;box-shadow:0 10px 28px rgba(22,45,58,.34),inset 0 1px 0 rgba(255,255,255,.58)}
+}
+@media(max-width:700px){
+  .danbo-ios-browser #select-screen.active .select-roster-panel{padding-bottom:calc(126px + env(safe-area-inset-bottom,0px))}
+  .danbo-ios-browser #select-screen.active .select-confirm-row{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+}
+
 /* City HUD */
 #city-hud{position:absolute;top:0;left:0;right:0;padding:clamp(4px,1.5vw,10px) clamp(6px,2vw,14px);z-index:5;pointer-events:none}
 .hud-top{display:flex;justify-content:flex-start;gap:clamp(3px,1vw,8px);margin-bottom:4px;padding-right:clamp(80px,25vw,140px);flex-wrap:wrap}
