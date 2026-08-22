@@ -326,6 +326,14 @@ function _optimizeCityInstances(){
             if(child.isMesh)propRootByMesh.set(child,root);
         });
     });
+    // Animals animate individual body parts (heads, wings, ears, legs), not just
+    // their root transform. Removing those child meshes into a static batch makes
+    // the animation loop lose references such as the pigeon's head and freezes
+    // the remaining articulated motion. Keep these small animated hierarchies
+    // intact; batching buildings and ordinary props still removes most draw calls.
+    if(Array.isArray(window._cityAnimals))window._cityAnimals.forEach(function(animal){
+        markTree(animal&&animal.group,excluded);
+    });
     if(typeof cityCoins!=='undefined')cityCoins.forEach(function(item){markTree(item&&item.mesh,excluded);});
     if(typeof cityChests!=='undefined')cityChests.forEach(function(item){markTree(item&&(item.group||item.mesh),excluded);});
     if(typeof portals!=='undefined')portals.forEach(function(item){
@@ -1711,6 +1719,7 @@ function buildCity() {
         pbody.scale.set(1,0.7,1.3);pg.add(pbody);
         var phead=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),toon(0x999999));
         phead.position.set(0,0.15,0.2);pg.add(phead);
+        pg.userData.animalParts={head:phead};
         // Eyes
         [-1,1].forEach(function(s){
             var peye=new THREE.Mesh(new THREE.SphereGeometry(0.03,4,3),toon(0xFF6600));

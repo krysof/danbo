@@ -895,7 +895,11 @@ function updateCity(){
                     if(a.stateTimer<=0){a.state='ground';a.stateTimer=120+Math.floor(Math.random()*180);}
                 } else if(a.state==='ground'){
                     // Peck animation
-                    if(Math.random()<0.03)a.group.children[1].rotation.x=0.5; else a.group.children[1].rotation.x*=0.9;
+                    var _pParts=a.group.userData&&a.group.userData.animalParts;
+                    var _pHead=_pParts&&_pParts.head;
+                    // Never depend on a numeric child slot: render optimizers and
+                    // future model revisions may legitimately reorder children.
+                    if(_pHead){if(Math.random()<0.03)_pHead.rotation.x=0.5;else _pHead.rotation.x*=0.9;}
                     if(a.stateTimer<=0){a.state='fly';a.stateTimer=180+Math.floor(Math.random()*240);
                         a.targetY=5+Math.random()*15;a.vx=(Math.random()-0.5)*0.12;a.vz=(Math.random()-0.5)*0.12;}
                 }
