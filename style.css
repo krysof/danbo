@@ -181,13 +181,13 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 }
 @media(max-width:700px){.select-sky-glow{animation:none}.select-hero-panel:before{background:linear-gradient(116deg,rgba(255,247,210,.20),transparent 38%),linear-gradient(90deg,transparent 48%,rgba(22,57,63,.56) 100%)}.select-hero-panel:after{filter:blur(5px);opacity:.56}.select-roster-panel{backdrop-filter:none;-webkit-backdrop-filter:none}}
 
-/* Optional classic arcade selector — restores the original SF-inspired portraits,
-   world map and gold cabinet framing while leaving cinematic 3D as the default. */
+/* Optional classic arcade selector. The cabinet/map remain 2D, while character
+   previews are the same live 3D fighter-costume meshes used in gameplay. */
 #select-screen.select-style-classic{--arcade-gold:#ffd84a;--arcade-red:#f04b32;--arcade-blue:#182b67;background:radial-gradient(circle at 50% 12%,rgba(255,153,55,.34),transparent 30%),linear-gradient(180deg,#210b3d 0%,#57133f 28%,#b3343c 58%,#f08539 100%);color:#fff}
 #select-screen.select-style-classic:before{background:repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,rgba(0,0,0,.035) 1px 3px),radial-gradient(ellipse at 50% 118%,rgba(255,210,91,.50),transparent 48%),linear-gradient(90deg,rgba(6,10,35,.42),transparent 22% 78%,rgba(6,10,35,.42))}
 #select-screen.select-style-classic:after{background:linear-gradient(180deg,rgba(255,255,255,.04),transparent 45%,rgba(22,4,34,.18));box-shadow:inset 0 0 145px rgba(10,4,28,.58)}
-.select-style-classic #select-3d-canvas,.select-style-classic .select-sky-glow,.select-style-classic .select-hero-viewport,.select-style-classic .select-hero-rings,.select-style-classic .select-map-viewport,.select-style-classic .select-map-live{display:none}
-.select-style-classic .select-cinematic-shell{z-index:2}
+.select-style-classic .select-sky-glow,.select-style-classic .select-hero-rings,.select-style-classic .select-map-viewport,.select-style-classic .select-map-live{display:none}
+.select-style-classic .select-cinematic-shell{z-index:auto}
 .select-style-classic .select-cinematic-header{color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.42)}
 .select-style-classic .select-brand-mark{background:linear-gradient(145deg,#fff39a,#ffb22f 53%,#e74332);border:3px solid var(--arcade-gold);border-radius:10px;box-shadow:4px 4px 0 #32103d,0 0 20px rgba(255,216,74,.42)}
 .select-style-classic .select-brand-mark span{color:#7c1739;text-shadow:1px 1px 0 #fff4a8}
@@ -199,7 +199,7 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 .select-style-classic .select-hero-panel,.select-style-classic .select-roster-panel{border:3px solid var(--arcade-gold);border-radius:12px;background:linear-gradient(150deg,rgba(19,32,93,.96),rgba(58,18,75,.94) 58%,rgba(132,31,59,.92));box-shadow:6px 7px 0 rgba(25,7,43,.72),0 0 24px rgba(255,216,74,.22),inset 0 0 0 2px rgba(255,255,255,.10)}
 .select-style-classic .select-hero-panel:before{background:radial-gradient(circle at 50% 34%,rgba(95,143,231,.34),transparent 38%),repeating-linear-gradient(135deg,rgba(255,255,255,.025) 0 2px,transparent 2px 7px),linear-gradient(180deg,transparent 48%,rgba(17,7,40,.92) 100%)}
 .select-style-classic .select-hero-panel:after{left:7%;right:7%;bottom:24%;height:20%;background:radial-gradient(ellipse,rgba(255,201,67,.32),transparent 70%);filter:blur(7px)}
-.select-style-classic .select-classic-portrait{display:block;position:absolute;z-index:2;left:50%;top:4%;transform:translateX(-50%);width:min(62%,300px)!important;aspect-ratio:220/260;max-height:66%;object-fit:contain;border:3px solid rgba(255,216,74,.86);border-radius:8px;background:#21124c;box-shadow:5px 6px 0 rgba(16,5,35,.62),0 0 18px rgba(255,216,74,.20);image-rendering:auto}
+.select-style-classic .select-classic-portrait{display:none}
 .select-style-classic .select-hero-copy{left:24px;right:24px;bottom:18px;padding:11px 14px 10px;border-left:5px solid var(--arcade-red);background:linear-gradient(90deg,rgba(15,10,47,.88),rgba(60,14,57,.58),transparent);text-shadow:2px 2px 0 rgba(0,0,0,.58)}
 .select-style-classic .select-archetype{color:#ffb35d;letter-spacing:.16em}.select-style-classic .select-archetype:before{background:var(--arcade-gold);box-shadow:0 0 9px var(--arcade-gold)}
 .select-style-classic .sf2-char-name{color:var(--arcade-gold);font-style:italic;text-transform:uppercase;letter-spacing:.08em;text-shadow:3px 3px 0 #bd2f39,5px 5px 0 rgba(8,5,29,.72)}
@@ -214,13 +214,13 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 .select-style-classic .select-classic-map{display:block;position:absolute;z-index:1;inset:0;width:100%;height:100%;image-rendering:auto}
 .select-style-classic .select-map-caption{color:#fff5b3;text-shadow:2px 2px 0 #16113e}.select-style-classic .select-map-caption span{color:#ffbe62}
 .select-style-classic .char-grid{gap:7px}
-.select-style-classic .char-cell{isolation:isolate;border:2px solid rgba(255,201,70,.38);border-radius:7px;background:linear-gradient(145deg,#1b2b69,#351b63 65%,#671f58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),3px 3px 0 rgba(12,6,35,.48);transition:border-color .12s,box-shadow .12s,background .12s}
+.select-style-classic .char-cell{border:2px solid rgba(255,201,70,.38);border-radius:7px;background:linear-gradient(145deg,#1b2b69,#351b63 65%,#671f58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),3px 3px 0 rgba(12,6,35,.48);transition:border-color .12s,box-shadow .12s,background .12s}
 .select-style-classic .char-cell:before{inset:5%;border-radius:5px;background:radial-gradient(circle,rgba(var(--card-rgb),.28),transparent 66%)}
 .select-style-classic .char-cell:after{display:block;left:8%;right:8%;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--arcade-gold),transparent)}
 .select-style-classic .char-cell:hover{border-color:#ffbd47;background:linear-gradient(145deg,#263c86,#55216c);box-shadow:0 0 13px rgba(255,190,63,.34),3px 3px 0 rgba(12,6,35,.52)}
 .select-style-classic .char-cell.selected{border-color:var(--arcade-gold);background:linear-gradient(145deg,#344da0,#771f60);box-shadow:0 0 0 2px #f0443e,0 0 18px rgba(255,216,74,.72),3px 3px 0 rgba(12,6,35,.52);animation:selectArcadePulse .9s ease-in-out infinite}
 @keyframes selectArcadePulse{50%{box-shadow:0 0 0 2px #f0443e,0 0 27px rgba(255,216,74,.92),3px 3px 0 rgba(12,6,35,.52)}}
-.select-style-classic .char-cell .char-icon-canvas{display:block;position:absolute;z-index:2;left:6%;top:5%;width:88%!important;height:auto!important;border-radius:5px;filter:saturate(1.08) contrast(1.04)}
+.select-style-classic .char-cell .char-icon-canvas{display:none}
 .select-style-classic .char-cell .char-number{z-index:4;color:#ffe681;text-shadow:1px 1px 0 #15113f}
 .select-style-classic .char-cell .char-label{z-index:5;left:4px;right:4px;bottom:4px;border:1px solid rgba(255,216,74,.62);border-radius:4px;background:rgba(13,16,60,.88);color:#fff5b2;text-shadow:1px 1px 0 #160c35;box-shadow:none;backdrop-filter:none}
 .select-style-classic #confirm-btn{border:3px solid var(--arcade-gold);border-radius:8px;background:linear-gradient(180deg,#f3653e,#c42d3b);color:#fff7ae;box-shadow:4px 5px 0 rgba(18,6,39,.68),inset 0 2px 0 rgba(255,255,255,.28);text-shadow:2px 2px 0 #771631;text-transform:uppercase;font-style:italic}

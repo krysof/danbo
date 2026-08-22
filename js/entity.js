@@ -417,7 +417,142 @@ function _animateCuteCharacterDetails(model,now){
     }
 }
 
-function _createCuteRoundCharacterMesh(color,accent,charType){
+// Optional arcade-fighter costume layer. It is built on the same mascot body
+// used by gameplay, rather than swapping the select screen to an unrelated 2D
+// portrait. The layer can therefore be toggled without rebuilding physics,
+// animation or combat hit meshes.
+function _addClassicArcadeFighterRig(g,body,color,accent,charType){
+    if(!g||!body)return null;
+    var type=charType||'egg',high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
+    var root=new THREE.Group();
+    root.name='danbo-classic-arcade-fighter-style';
+    root.visible=false;
+    body.add(root);
+    var details=[];
+    function material(hex,opts){
+        opts=opts||{};
+        if(opts.roughness===undefined)opts.roughness=.42;
+        if(opts.clearcoat===undefined)opts.clearcoat=.18;
+        if(opts.clearcoatRoughness===undefined)opts.clearcoatRoughness=.28;
+        return softPBR(hex,opts);
+    }
+    function add(geometry,mat,x,y,z,rx,ry,rz,sx,sy,sz,parent){
+        var mesh=new THREE.Mesh(geometry,mat);
+        mesh.position.set(x||0,y||0,z||0);
+        mesh.rotation.set(rx||0,ry||0,rz||0);
+        mesh.scale.set(sx===undefined?1:sx,sy===undefined?1:sy,sz===undefined?1:sz);
+        mesh.castShadow=true;mesh.receiveShadow=false;
+        (parent||root).add(mesh);details.push(mesh);return mesh;
+    }
+    function tube(points,radius,mat,parent){
+        var curve=new THREE.CatmullRomCurve3(points.map(function(p){return new THREE.Vector3(p[0],p[1],p[2]);}));
+        var mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,high?18:10,radius,high?8:5,false),mat);
+        mesh.castShadow=true;(parent||root).add(mesh);details.push(mesh);return mesh;
+    }
+    var white=material(0xF4F0E4,{roughness:.67,clearcoat:.06,envMapIntensity:.28});
+    var ink=material(0x191B23,{roughness:.58,clearcoat:.05,envMapIntensity:.18});
+    var red=material(0xC92836,{roughness:.50,clearcoat:.12,envMapIntensity:.30});
+    var gold=material(0xF4C542,{roughness:.29,metalness:.28,clearcoat:.35,envMapIntensity:.55});
+    var blond=material(0xFFD34B,{roughness:.46,clearcoat:.10,envMapIntensity:.31});
+    var orange=material(0xF06A22,{roughness:.52,clearcoat:.08,envMapIntensity:.25});
+    function addBelt(mat,knotMat){
+        add(new THREE.TorusGeometry(.49,.035,high?9:6,high?40:24),mat,0,-.43,.01,Math.PI/2,0,0,1,1,.82);
+        add(new THREE.SphereGeometry(.072,high?16:10,high?12:8),knotMat||mat,0,-.43,.615,0,0,0,1.12,.80,.48);
+    }
+    function addLapels(mat){
+        tube([[-.36,-.12,.590],[-.19,-.27,.684],[-.025,-.42,.620]],.031,mat);
+        tube([[ .36,-.12,.590],[ .19,-.27,.684],[ .025,-.42,.620]],.031,mat);
+    }
+    function addSpikes(mat,count,y,z,spread,height){
+        for(var i=0;i<count;i++){
+            var t=count===1?0:i/(count-1),x=(t-.5)*spread;
+            add(new THREE.ConeGeometry(.075+(i%2)*.012,height,high?10:6),mat,x,y+Math.sin(t*Math.PI)*.045,z-(Math.abs(t-.5)*.055),-.12+(t-.5)*.22,0,(t-.5)*.30);
+        }
+    }
+    if(type==='egg'){
+        // White gi, black belt and a tied red headband.
+        addLapels(white);addBelt(ink,red);
+        tube([[-.43,.40,.590],[-.19,.43,.690],[.19,.43,.690],[.43,.40,.590]],.028,red);
+        add(new THREE.SphereGeometry(.055,12,8),red,.44,.39,.42);
+        add(new THREE.BoxGeometry(.055,.30,.022),red,.50,.28,.30,0,0,-.38);
+        add(new THREE.BoxGeometry(.052,.25,.020),red,.42,.26,.25,0,0,.22);
+    }else if(type==='bull'){
+        // Sumo-inspired topknot, ceremonial belt and cheek paint.
+        add(new THREE.SphereGeometry(.175,high?22:14,high?16:10),ink,0,.78,.02,0,0,0,1.18,.60,.92);
+        add(new THREE.CylinderGeometry(.070,.090,.18,high?16:9),ink,0,.89,.01,0,0,0,1,1,.90);
+        addBelt(white,gold);
+        [-1,1].forEach(function(s){
+            add(new THREE.BoxGeometry(.16,.030,.020),red,s*.34,.10,.680,0,-s*.18,s*.16);
+            add(new THREE.BoxGeometry(.13,.026,.018),red,s*.36,.02,.652,0,-s*.22,s*.16);
+        });
+    }else if(type==='cat'){
+        // Wild orange crest and electric body markings.
+        addSpikes(orange,7,.79,.00,.82,.34);
+        var stripe=material(0x2D8548,{roughness:.58,clearcoat:.05,emissive:0x173F25,emissiveIntensity:.025});
+        [-1,1].forEach(function(s){
+            tube([[s*.47,.18,.565],[s*.37,.10,.662],[s*.48,.02,.566]],.022,stripe);
+            tube([[s*.43,-.16,.565],[s*.30,-.23,.660],[s*.43,-.30,.545]],.020,stripe);
+        });
+    }else if(type==='rooster'){
+        // Flat-top silhouette, dog tags and restrained military patches.
+        add(new THREE.BoxGeometry(.61,.13,.28),blond,0,.78,.00,0,0,0,1,.90,1);
+        for(var fi=0;fi<5;fi++)add(new THREE.BoxGeometry(.105,.11,.22),blond,-.24+fi*.12,.87,-.005,0,0,(fi-2)*.035);
+        tube([[-.27,.13,.650],[-.18,-.04,.698],[0,-.12,.714],[.18,-.04,.698],[.27,.13,.650]],.010,gold);
+        add(new THREE.BoxGeometry(.105,.145,.020),gold,-.055,-.18,.712,0,0,-.12);
+        add(new THREE.BoxGeometry(.105,.145,.020),gold,.070,-.17,.711,0,0,.12);
+        var patch=material(0x394B2A,{roughness:.72,clearcoat:.02,envMapIntensity:.16});
+        add(new THREE.CircleGeometry(.095,12),patch,-.37,-.23,.614,0,-.30,.18,1,.48,1);
+        add(new THREE.CircleGeometry(.080,12),patch,.38,-.28,.600,0,.30,-.16,1,.48,1);
+    }else if(type==='dog'){
+        // Red gi fighter with a high golden crest and dark belt.
+        addSpikes(blond,7,.79,.00,.82,.38);addLapels(red);addBelt(ink,red);
+        [-1,1].forEach(function(s){add(new THREE.TorusGeometry(.115,.025,7,18),red,s*.57,-.10,.18,0,Math.PI/2,0);});
+    }else if(type==='monkey'){
+        // Twin hair buns, white ribbons and gold-trimmed blue dress lines.
+        add(new THREE.SphereGeometry(.49,high?28:18,high?18:12),ink,0,.55,-.19,0,0,0,1,.58,.72);
+        [-1,1].forEach(function(s){
+            add(new THREE.SphereGeometry(.17,high?20:12,high?14:9),ink,s*.43,.60,-.03,0,0,0,1,1,.78);
+            add(new THREE.TorusGeometry(.18,.025,7,20),white,s*.43,.60,-.01,Math.PI/2,0,0);
+            add(new THREE.BoxGeometry(.055,.24,.025),white,s*.55,.44,.01,0,0,-s*.42);
+            tube([[s*.29,-.28,.642],[s*.24,-.05,.700],[s*.15,.15,.714]],.022,gold);
+        });
+        addBelt(gold,white);
+    }else if(type==='bear'){
+        // Heavy wrestler: red crest, championship belt and chest scars.
+        addSpikes(red,5,.79,-.02,.52,.28);
+        add(new THREE.TorusGeometry(.55,.070,high?10:6,high?40:24),red,0,-.33,.01,Math.PI/2,0,0,1,1,.78);
+        add(new THREE.BoxGeometry(.30,.19,.045),gold,0,-.33,.708,0,0,0,1,1,.55);
+        add(new THREE.BoxGeometry(.12,.08,.055),red,0,-.33,.742);
+        var scar=material(0xDDA387,{roughness:.78,clearcoat:0,envMapIntensity:.14});
+        tube([[-.29,.10,.706],[-.18,.01,.760],[-.08,-.10,.748]],.015,scar);
+        tube([[-.24,.01,.735],[-.13,.11,.755]],.012,scar);
+        tube([[.12,.06,.755],[.25,-.08,.719]],.013,scar);
+    }else if(type==='cockroach'){
+        // Mystic fighter: forehead mark, prayer beads and gold cuffs.
+        add(new THREE.BoxGeometry(.065,.22,.018),red,0,.42,.704);
+        add(new THREE.CircleGeometry(.048,12),white,0,.31,.716);
+        add(new THREE.CircleGeometry(.023,10),red,0,.31,.720);
+        for(var bi=0;bi<11;bi++){
+            var a=-1.23+bi*(2.46/10);
+            add(new THREE.SphereGeometry(.042,high?12:8,high?9:6),bi%2?white:gold,Math.sin(a)*.33,-.02-Math.cos(a)*.19,.657+Math.cos(a)*.035);
+        }
+        [-1,1].forEach(function(s){add(new THREE.TorusGeometry(.112,.022,7,18),gold,s*.56,-.10,.17,0,Math.PI/2,0);});
+    }
+    g.userData._classicFighterRoot=root;
+    g.userData._classicFighterDetails=details;
+    return root;
+}
+
+function _setCharacterMeshStyle(mesh,style){
+    if(!mesh)return mesh;
+    var classic=style==='classic';
+    if(mesh.userData&&mesh.userData._classicFighterRoot)mesh.userData._classicFighterRoot.visible=classic;
+    if(mesh.userData)mesh.userData._characterDisplayStyle=classic?'classic':'cinematic';
+    return mesh;
+}
+window._setCharacterMeshStyle=_setCharacterMeshStyle;
+
+function _createCuteRoundCharacterMesh(color,accent,charType,includeClassicRig){
     var g=new THREE.Group(),type=charType||'egg';
     accent=(accent===undefined||accent===null)?0xFF6F7D:accent;
     var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
@@ -677,14 +812,19 @@ function _createCuteRoundCharacterMesh(color,accent,charType){
     g.userData._candyEars=candyEars;g.userData._flowerDetails=flowerDetails;g.userData._forestLeaves=forestLeaves;g.userData._rockDetails=rockDetails;g.userData._rockSurfaceMarks=rockSurfaceMarks;g.userData._starDetails=starDetails;g.userData._windDetails=windDetails;
     g.userData._eyeWhites=_eyeWhites;g.userData._pupils=_pupils;g.userData._shines=_shines;g.userData._eyeBaseScales=_eyeBaseScales;g.userData._smile=smile;g.userData._eyeY=0.19;
     g.userData.rightArm=rightArm;g.userData.leftArm=leftArm;g.userData.rightLeg=rightLeg;g.userData.leftLeg=leftLeg;
+    // The switchable selection roster keeps both variants. Normal NPCs and the
+    // cinematic player skip the hidden rig entirely to avoid dozens of unused
+    // meshes in crowded cities.
+    if(includeClassicRig)_addClassicArcadeFighterRig(g,body,color,accent,type);
     return g;
 }
 
-function createEggMesh(color, accent, charType) {
+function createEggMesh(color, accent, charType, displayStyle, includeClassicRig) {
     // Always use the clean mascot mesh. The older detailed mesh below is kept as
     // a fallback reference only, but we no longer enter it so cached style flags
     // cannot bring back the cluttered/human-looking characters.
-    return _createCuteRoundCharacterMesh(color,accent,charType);
+    var resolvedStyle=displayStyle==='classic'?'classic':'cinematic';
+    return _setCharacterMeshStyle(_createCuteRoundCharacterMesh(color,accent,charType,resolvedStyle==='classic'||includeClassicRig===true),resolvedStyle);
     var g = new THREE.Group();
     var bodyGeo = new THREE.SphereGeometry(0.6,20,14);
     var pos = bodyGeo.attributes.position;
@@ -1274,7 +1414,11 @@ function _updatePlayerArrowClearance(cosmeticRoot){
 }
 
 function createEgg(x,z,color,accent,isPlayer,targetScene,charType){
-    const mesh=createEggMesh(color,accent,charType);
+    // Only the selected player inherits the presentation style. NPCs keep the
+    // clean mascot look, while the player's arcade costume is exactly the same
+    // mesh shown on the selection screen.
+    const displayStyle=(isPlayer&&window.DANBO_SELECTED_CHARACTER_STYLE==='classic')?'classic':'cinematic';
+    const mesh=createEggMesh(color,accent,charType,displayStyle);
     mesh.position.set(x,0.01,z);
     (targetScene||scene).add(mesh);
     let arrow=null;

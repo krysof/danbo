@@ -273,8 +273,8 @@ CHARACTERS.forEach((ch,i) => {
 if (portraitCtx) _updateSF2Select(0);
 
 // ---- Select-screen presentation switch ----
-// Cinematic remains the default. Classic restores the old SF-inspired portraits,
-// island map, gold arcade framing and airplane launch without replacing gameplay.
+// Cinematic remains the default. Classic now selects a real 3D arcade-fighter
+// costume shared by the preview and the playable character.
 (function(){
     var screen=document.getElementById('select-screen');
     var toggle=document.getElementById('select-style-toggle');
@@ -285,6 +285,7 @@ if (portraitCtx) _updateSF2Select(0);
         screen.classList.toggle('select-style-classic',value==='classic');
         screen.classList.toggle('select-style-cinematic',value==='cinematic');
         screen.dataset.selectStyle=value;
+        window.DANBO_SELECTED_CHARACTER_STYLE=value;
         var qualityLabel=document.getElementById('select-quality-label');
         if(qualityLabel)qualityLabel.textContent=value==='classic'?'ARCADE LEGACY':'CINEMATIC 3D';
         toggle.querySelectorAll('[data-select-style]').forEach(function(button){

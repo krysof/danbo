@@ -106,7 +106,7 @@
         // low quality; the static roster cards are throttled below to pay for it.
         var oldHigh=quality.high,oldLow=quality.low,model;
         quality.high=true;quality.low=false;
-        try{model=createEggMesh(ch.color,ch.accent,ch.type);}
+        try{model=createEggMesh(ch.color,ch.accent,ch.type,screen.classList.contains('select-style-classic')?'classic':'cinematic',true);}
         finally{quality.high=oldHigh;quality.low=oldLow;}
         model.position.y=.06;stage.add(model);
         // Facial meshes no longer cast tiny self-shadows onto the body. The body and
@@ -124,6 +124,7 @@
         (model.userData._rockDetails||[]).forEach(markCaster);
         (model.userData._starDetails||[]).forEach(markCaster);
         (model.userData._windDetails||[]).forEach(markCaster);
+        markCaster(model.userData._classicFighterRoot);
 
         // One fixed warm key light defines the character. Ambient sky light only
         // prevents crushed blacks; there are no moving fill/rim lights.
@@ -488,6 +489,19 @@
     var stages=[],mapStages=[];
     try{for(var i=0;i<CHARACTERS.length;i++){stages.push(makeStage(CHARACTERS[i],i));mapStages.push(makeCuteSceneMap(i));}}
     catch(buildErr){console.error('Unable to build 3D roster',buildErr);renderer.dispose();screen.classList.add('select-3d-fallback');return;}
+    function syncCharacterStyle(style){
+        style=style==='classic'?'classic':'cinematic';
+        for(var si=0;si<stages.length;si++){
+            if(typeof window._setCharacterMeshStyle==='function')window._setCharacterMeshStyle(stages[si].model,style);
+        }
+        renderer.setScissorTest(false);
+        if(lastW&&lastH){renderer.setViewport(0,0,lastW,lastH);renderer.clear(true,true,true);}
+        cardsDirty=true;mapDirty=true;wasActive=false;
+    }
+    window.addEventListener('danbo-select-style',function(event){
+        syncCharacterStyle(event&&event.detail&&event.detail.style);
+    });
+    syncCharacterStyle(screen.classList.contains('select-style-classic')?'classic':'cinematic');
     var _selectProofBody=stages[0]&&stages[0].model&&stages[0].model.userData.body;
     window.DANBO_SELECT_QUALITY.heroBodySegments=_selectProofBody&&_selectProofBody.geometry&&_selectProofBody.geometry.parameters?_selectProofBody.geometry.parameters.widthSegments:0;
     window.DANBO_SELECT_QUALITY.preserveCards=true;
@@ -699,9 +713,9 @@
     function frame(now){
         requestAnimationFrame(frame);
         if(!screen.classList.contains('active')){wasActive=false;return;}
-        // The optional classic selector uses the restored 2D portraits and map.
-        // Do not spend GPU time drawing an invisible WebGL layer in that mode.
-        if(screen.classList.contains('select-style-classic')){wasActive=false;return;}
+        // Both presentations use the exact same live 3D character mesh. Classic
+        // keeps its 2D route map, so only that small map viewport is skipped.
+        var classicStyle=screen.classList.contains('select-style-classic');
         var resized=resize();
         if(!wasActive||resized){
             renderer.setScissorTest(false);renderer.setViewport(0,0,lastW,lastH);renderer.clear(true,true,true);
@@ -714,7 +728,7 @@
         }
         renderRect(heroViewport,stages[selected],true,t);
         var mapInterval=1000/window.DANBO_SELECT_QUALITY.mapFps;
-        if(mapDirty||now-lastMapAt>=mapInterval){renderSceneMap(t);lastMapAt=now;mapDirty=false;}
+        if(!classicStyle&&(mapDirty||now-lastMapAt>=mapInterval)){renderSceneMap(t);lastMapAt=now;mapDirty=false;}
         var cardInterval=1000/window.DANBO_SELECT_QUALITY.cardFps;
         var cells=document.querySelectorAll('.char-cell');
         if(cardsDirty||now-lastCardsAt>=cardInterval){
