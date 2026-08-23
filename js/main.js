@@ -7,6 +7,7 @@ buildPortals();
 buildCityCoins();
 buildCityChests();
 buildWarpPipes();
+if(typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();
 _optimizeCityInstances();
 applyCityTheme();
 // Initial portrait draw (after entity.js loaded)

@@ -126,6 +126,69 @@ function _citySharedPBR(key,color,opts){
     if(!_cityPBRCache[cacheKey])_cityPBRCache[cacheKey]=softPBR(color,opts||{});
     return _cityPBRCache[cacheKey];
 }
+var _CITY_PBR_PROFILES=[
+    {ground:'grass',path:'path',facade:'facade',roof:'roof',foundation:'stone',wood:'wood',metal:'metal',groundTile:2.07},
+    {ground:'sand',path:'stone',facade:'facade',roof:'roof',foundation:'stone',wood:'wood',metal:'metal',groundTile:2.35},
+    {ground:'snow',path:'ice',facade:'stone',roof:'ice',foundation:'stone',wood:'wood',metal:'metal',groundTile:2.10},
+    {ground:'lava',path:'stone',facade:'stone',roof:'metal',foundation:'lava',wood:'wood',metal:'metal',groundTile:1.85},
+    {ground:'candy',path:'path',facade:'candy',roof:'candy',foundation:'stone',wood:'wood',metal:'metal',groundTile:1.70},
+    {ground:'lunar',path:'metal',facade:'metal',roof:'metal',foundation:'lunar',wood:'wood',metal:'metal',groundTile:2.80},
+    {ground:'grass',path:'stone',facade:'facade',roof:'roof',foundation:'stone',wood:'wood',metal:'metal',groundTile:1.95},
+    {ground:'snow',path:'stone',facade:'facade',roof:'wood',foundation:'stone',wood:'wood',metal:'metal',groundTile:2.15}
+];
+function _cityPBRProfile(style){return _CITY_PBR_PROFILES[style]||_CITY_PBR_PROFILES[0];}
+function _citySurfaceMaterial(role,color,opts){
+    opts=opts||{};
+    var profile=_cityPBRProfile(currentCityStyle),kind=profile[role]||role||'stone';
+    if(typeof _visualSurfaceMaterial==='function')return _visualSurfaceMaterial(kind,color,opts);
+    return softPBR(color,opts);
+}
+function _cityUpgradeMaterialsToPBR(){
+    // Custom Sakura, Snow and Moon landmarks predate the shared material system and
+    // still construct many small pieces with MeshToon/Phong materials. Promote those
+    // remaining surfaces after the city is built so every city participates in HDRI,
+    // ACES, GTAO and physically based roughness without deleting any authored objects.
+    if(!cityGroup||typeof softPBR!=='function')return;
+    var replacements=new Map(),oldMaterials=[];
+    function promote(material,mesh){
+        if(!material||material.isMeshStandardMaterial||material.isMeshPhysicalMaterial||material.isMeshLambertMaterial||material.isMeshBasicMaterial||material.isSpriteMaterial)return material;
+        if(!(material.isMeshToonMaterial||material.isMeshPhongMaterial))return material;
+        if(replacements.has(material.uuid))return replacements.get(material.uuid);
+        var color=material.color?material.color.getHex():0xFFFFFF;
+        var isEmissive=!!(material.emissive&&material.emissive.getHex()!==0&&material.emissiveIntensity>0);
+        var isWater=!!(material.transparent&&material.opacity<0.86&&material.color&&material.color.b>material.color.r*1.08&&material.color.b>material.color.g*0.92);
+        var name=((mesh&&mesh.name)||'').toLowerCase();
+        var isMetal=/(metal|rail|pole|ship|funnel|antenna|tank|barrel)/.test(name);
+        var opts={
+            roughness:isWater?0.10:(isEmissive?0.22:(isMetal?0.46:0.78)),
+            metalness:isMetal?0.28:0,
+            envMapIntensity:isWater?0.88:(isEmissive?0.48:(isMetal?0.52:0.20)),
+            transparent:material.transparent,opacity:material.opacity,side:material.side,
+            depthWrite:material.depthWrite,depthTest:material.depthTest,blending:material.blending,
+            vertexColors:material.vertexColors,flatShading:material.flatShading,
+            map:material.map||null,alphaMap:material.alphaMap||null,
+            bumpMap:material.bumpMap||null,bumpScale:material.bumpScale||0,
+            normalMap:material.normalMap||null,normalScale:material.normalScale||undefined,
+            roughnessMap:material.roughnessMap||null,metalnessMap:material.metalnessMap||null,
+            aoMap:material.aoMap||null,aoMapIntensity:material.aoMapIntensity||1,
+            emissive:material.emissive?material.emissive.getHex():0,
+            emissiveMap:material.emissiveMap||null,emissiveIntensity:material.emissiveIntensity||0
+        };
+        if(isWater){opts.clearcoat=0.72;opts.clearcoatRoughness=0.12;opts.ior=1.333;opts.depthWrite=false;}
+        else if(isEmissive){opts.clearcoat=0.38;opts.clearcoatRoughness=0.22;}
+        var next=softPBR(color,opts);next.name=(material.name||'city-material')+'-pbr';next.userData=Object.assign({},material.userData||{},{danboCityPBR:true});
+        replacements.set(material.uuid,next);oldMaterials.push(material);return next;
+    }
+    cityGroup.traverse(function(object){
+        if(!object||!object.material)return;
+        if(Array.isArray(object.material))object.material=object.material.map(function(m){return promote(m,object);});
+        else object.material=promote(object.material,object);
+    });
+    for(var i=0;i<oldMaterials.length;i++)if(oldMaterials[i]&&oldMaterials[i].dispose)oldMaterials[i].dispose();
+    var previous=window.DANBO_CITY_PBR_STATS;
+    var cumulative=(previous&&previous.style===currentCityStyle?previous.promoted:0)+replacements.size;
+    window.DANBO_CITY_PBR_STATS={style:currentCityStyle,promoted:cumulative,profile:_cityPBRProfile(currentCityStyle)};
+}
 function _cityCanvasSign(text,bg,fg){
     var c=document.createElement('canvas');c.width=256;c.height=80;
     var ctx=c.getContext('2d');
@@ -735,17 +798,21 @@ function buildCity() {
     if(cityGroundMode==='moon'){
         // Moon: large flat ground plane
         var moonGroundGeo=new THREE.PlaneGeometry(MOON_CITY_SIZE*2,MOON_CITY_SIZE*2,16,16);
-        var moonGround=new THREE.Mesh(moonGroundGeo,toon(st.ground));
+        if(typeof _visualScaleUVToMeters==='function')_visualScaleUVToMeters(moonGroundGeo,MOON_CITY_SIZE*2,MOON_CITY_SIZE*2,_cityPBRProfile(5).groundTile);
+        var moonGround=new THREE.Mesh(moonGroundGeo,_citySurfaceMaterial('ground',st.ground,{roughness:0.96,bumpScale:0.16,envMapIntensity:0.18}));
         moonGround.rotation.x=-Math.PI/2;moonGround.receiveShadow=true;
+        moonGround.name='moon-pbr-regolith-ground';
         cityGroup.add(moonGround);
         // Subtle surface detail — darker patches on flat ground
+        var _moonPatchMat=_citySurfaceMaterial('ground',0x666677,{roughness:0.98,bumpScale:0.20,envMapIntensity:0.10});
         for(var pi=0;pi<15;pi++){
             var ppx=(Math.random()-0.5)*MOON_CITY_SIZE*1.6;
             var ppz=(Math.random()-0.5)*MOON_CITY_SIZE*1.6;
             var pr=8+Math.random()*16;
-            var patch=new THREE.Mesh(new THREE.CircleGeometry(pr,16),toon(0x666677));
+            var patch=new THREE.Mesh(new THREE.CircleGeometry(pr,window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high?32:16),_moonPatchMat);
             patch.rotation.x=-Math.PI/2;
             patch.position.set(ppx,0.02,ppz);
+            patch.receiveShadow=true;patch.name='moon-regolith-crater-patch';
             cityGroup.add(patch);
         }
     } else if(cityGroundMode==='snowIsland'){
@@ -753,7 +820,7 @@ function buildCity() {
     var _snowGR=CITY_SIZE*0.8; // island radius ~128
     var _islandY=3; // island surface height
     // Irregular island base (bumpy edges using multiple overlapping cylinders)
-    var _iBaseM=toon(0x887766);
+    var _iBaseM=_citySurfaceMaterial('foundation',0x887766,{roughness:0.96,bumpScale:0.14,envMapIntensity:0.10});
     var snowGround=new THREE.Mesh(new THREE.CylinderGeometry(_snowGR,_snowGR+8,_islandY+1,12),_iBaseM);
     snowGround.position.y=_islandY/2-0.5;snowGround.castShadow=true;cityGroup.add(snowGround);
     // Extra bumps for irregular coastline
@@ -766,16 +833,15 @@ function buildCity() {
         cityGroup.add(bump);
     }
     // Snow surface (slightly irregular with patches)
-    var snowSurface=new THREE.Mesh(new THREE.CylinderGeometry(_snowGR-2,_snowGR,0.3,12),
-        new THREE.MeshPhongMaterial({color:0xCCD8EE,specular:0x8899CC,shininess:60}));
+    var _snowSurfaceMat=_citySurfaceMaterial('ground',0xDCE7F4,{roughness:0.66,bumpScale:0.055,clearcoat:0.08,clearcoatRoughness:0.72,envMapIntensity:0.34});
+    var snowSurface=new THREE.Mesh(new THREE.CylinderGeometry(_snowGR-2,_snowGR,0.3,window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high?32:16),_snowSurfaceMat);
     snowSurface.position.y=_islandY+0.05;cityGroup.add(snowSurface);
     // Snow bumps on top for each coastline bump
     for(var _ib2=0;_ib2<8;_ib2++){
         var _ibA2=_ib2/8*Math.PI*2+Math.random()*0.5;
         var _ibR2=_snowGR*0.7+Math.random()*_snowGR*0.35;
         var _ibS2=14+Math.random()*24;
-        var sbump=new THREE.Mesh(new THREE.CylinderGeometry(_ibS2-1,_ibS2,0.2,8),
-            new THREE.MeshPhongMaterial({color:0xCCD8EE,specular:0x8899CC,shininess:60}));
+        var sbump=new THREE.Mesh(new THREE.CylinderGeometry(_ibS2-1,_ibS2,0.2,12),_snowSurfaceMat);
         sbump.position.set(Math.sin(_ibA2)*_ibR2,_islandY+0.05,Math.cos(_ibA2)*_ibR2);
         cityGroup.add(sbump);
     }
@@ -785,20 +851,20 @@ function buildCity() {
         var _dpR=Math.random()*(_snowGR-15);
         var _dpSize=4+Math.random()*8;
         var patch=new THREE.Mesh(new THREE.CylinderGeometry(_dpSize,_dpSize+1,0.06,8),
-            toon([0x8899AA,0x778899,0x99AABB,0x667788][_dp%4]));
+            _citySurfaceMaterial('foundation',[0x8899AA,0x778899,0x99AABB,0x667788][_dp%4],{roughness:0.96,bumpScale:0.10}));
         patch.position.set(Math.sin(_dpA)*_dpR,_islandY+0.08,Math.cos(_dpA)*_dpR);
         cityGroup.add(patch);
     }
     // Dirt paths on island
-    var _pathM7=toon(0xAA9977); // warm amber path (street light glow)
+    var _pathM7=_citySurfaceMaterial('path',0xAA9977,{roughness:0.90,bumpScale:0.09}); // warm amber path (street light glow)
     [{w:3,d:200,x:0,z:0},{w:150,d:3,x:0,z:0},{w:100,d:2.5,x:0,z:-40},{w:100,d:2.5,x:0,z:40}].forEach(function(p7){
         var path7=new THREE.Mesh(new THREE.BoxGeometry(p7.w,0.06,p7.d),_pathM7);
         path7.position.set(p7.x,_islandY+0.04,p7.z);cityGroup.add(path7);
     });
     } else {
     const groundGeo = new THREE.PlaneGeometry(CITY_SIZE*2, CITY_SIZE*2, 32, 32);
-    if(currentCityStyle===0&&typeof _visualScaleUVToMeters==='function')_visualScaleUVToMeters(groundGeo,CITY_SIZE*2,CITY_SIZE*2,2.07);
-    const groundMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('grass',st.ground,{roughness:0.96}):toon(st.ground);
+    if(typeof _visualScaleUVToMeters==='function')_visualScaleUVToMeters(groundGeo,CITY_SIZE*2,CITY_SIZE*2,_cityPBRProfile(currentCityStyle).groundTile);
+    const groundMat=_citySurfaceMaterial('ground',st.ground,{roughness:currentCityStyle===4?0.52:(currentCityStyle===2?0.70:0.96),bumpScale:currentCityStyle===3?0.18:0.11,envMapIntensity:currentCityStyle===4?0.38:0.20});
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
     cityGroup.add(ground);
@@ -809,11 +875,11 @@ function buildCity() {
     // Paths — data is now editable in js/cities/common-layout.js or each city file.
     var cityPathList=_getCityPaths(currentCityStyle);
     if(cityPathList&&cityPathList.length){
-    const pathM = (currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('path',st.path,{roughness:0.90}):toon(st.path);
+    const pathM = _citySurfaceMaterial('path',st.path,{roughness:currentCityStyle===2?0.42:0.86,bumpScale:0.08,envMapIntensity:currentCityStyle===2?0.42:0.24});
     cityPathList.forEach((p,pathIndex)=>{
-        var pathGeo=(currentCityStyle===0&&typeof _visualRoundedRectGeometry==='function')?_visualRoundedRectGeometry(p.w,p.d,Math.min(1.6,Math.min(p.w,p.d)*0.22)):new THREE.BoxGeometry(p.w,0.06,p.d);
+        var pathGeo=typeof _visualRoundedRectGeometry==='function'?_visualRoundedRectGeometry(p.w,p.d,Math.min(1.6,Math.min(p.w,p.d)*0.22)):new THREE.BoxGeometry(p.w,0.06,p.d);
         const path=new THREE.Mesh(pathGeo,pathM);
-        if(currentCityStyle===0){path.rotation.x=-Math.PI/2;path.position.set(p.x,0.068,p.z);}
+        if(typeof _visualRoundedRectGeometry==='function'){path.rotation.x=-Math.PI/2;path.position.set(p.x,0.068,p.z);}
         else path.position.set(p.x,0.03,p.z);
         path.name='danbo-editor-path-'+pathIndex;
         path.userData.editorPathIndex=pathIndex;
@@ -822,9 +888,9 @@ function buildCity() {
     }
     // Sakura City: 銀山温泉 — high terrain + deep gorge + ryokan facing river
     if(currentCityStyle===6){
-    var _sPathM=toon(0xAA9977);
-    var _cliffM=toon(0x665544);
-    var _grassM=toon(0x88AA66);
+    var _sPathM=_citySurfaceMaterial('path',0xAA9977,{roughness:0.86,bumpScale:0.10});
+    var _cliffM=_citySurfaceMaterial('foundation',0x665544,{roughness:0.98,bumpScale:0.20});
+    var _grassM=_citySurfaceMaterial('ground',0x88AA66,{roughness:0.95,bumpScale:0.12});
     var _pH=8; // plateau height
     // === Left plateau ===
     var _leftPlat=new THREE.Mesh(new THREE.BoxGeometry(120,_pH,280),_cliffM);
@@ -845,7 +911,7 @@ function buildCity() {
     var _rpth=new THREE.Mesh(new THREE.BoxGeometry(8,0.06,240),_sPathM);
     _rpth.position.set(22,_pH+0.03,0);cityGroup.add(_rpth);
     // === Background mountains ===
-    var _hillM=toon(0x447744);
+    var _hillM=_citySurfaceMaterial('ground',0x447744,{roughness:0.98,bumpScale:0.16});
     [[-90,0,-60,30,40],[-110,0,50,35,45],[90,0,-50,32,42],[100,0,60,28,35]].forEach(function(hp){
         var hill=new THREE.Mesh(new THREE.ConeGeometry(hp[3],hp[4],6),_hillM);
         hill.position.set(hp[0],hp[4]/2,hp[2]);cityGroup.add(hill);
@@ -861,22 +927,22 @@ function buildCity() {
         if(currentCityStyle===6||currentCityStyle===7)return;
         const col = bColors[i%bColors.length];
         var _hopeFacadeColor=currentCityStyle===0?_cityMixHex(col,0xF7E7D2,0.10):col;
-        const bodyMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('facade',_hopeFacadeColor,{roughness:0.84,bumpScale:0.020,envMapIntensity:0.18,vertexColors:true}):toon(col);
-        var useRoundedBody=currentCityStyle===0&&typeof _visualRoundedBoxGeometry==='function'&&!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
+        const bodyMat=_citySurfaceMaterial('facade',_hopeFacadeColor,{roughness:currentCityStyle===4?0.56:0.84,bumpScale:currentCityStyle===3?0.065:0.026,envMapIntensity:currentCityStyle===4?0.34:0.20,vertexColors:true});
+        var useRoundedBody=typeof _visualRoundedBoxGeometry==='function'&&!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
         var _bodyGeo=useRoundedBody?_visualRoundedBoxGeometry(b.w,b.h,b.d,0.34):new THREE.BoxGeometry(b.w,b.h,b.d,2,2,2);
-        if(currentCityStyle===0&&typeof _visualBoxWorldUV==='function')_visualBoxWorldUV(_bodyGeo,3.0);
-        if(currentCityStyle===0&&typeof _visualAddVerticalDirtVertexColors==='function')_visualAddVerticalDirtVertexColors(_bodyGeo,0.18);
+        if(typeof _visualBoxWorldUV==='function')_visualBoxWorldUV(_bodyGeo,currentCityStyle===1?2.4:(currentCityStyle===4?1.8:3.0));
+        if(typeof _visualAddVerticalDirtVertexColors==='function')_visualAddVerticalDirtVertexColors(_bodyGeo,currentCityStyle===3?0.26:0.18);
         const bm = new THREE.Mesh(_bodyGeo, bodyMat);
-        if(currentCityStyle===0)bm.name='hope-building-body';
+        bm.name='city-'+currentCityStyle+'-pbr-building-body';
         bm.position.set(b.x, b.h/2, b.z); bm.castShadow=true; bm.receiveShadow=true;
         cityGroup.add(bm);
         const bMeshes = [bm]; // collect all meshes for this building
-        if(currentCityStyle===0){
-            var _baseMat=_visualSurfaceMaterial('stone',_cityMixHex(col,0xD8D0C4,0.72),{roughness:0.86,normalScale:new THREE.Vector2(0.30,0.30)});
+        if(typeof _visualRoundedBoxGeometry==='function'){
+            var _baseMat=_citySurfaceMaterial('foundation',_cityMixHex(col,currentCityStyle===3?0x3A2724:0xD8D0C4,currentCityStyle===3?0.48:0.72),{roughness:0.88,normalScale:new THREE.Vector2(0.30,0.30),bumpScale:0.055});
             var _baseGeo=_visualRoundedBoxGeometry(b.w+0.52,0.48,b.d+0.52,0.18);
             var _foundation=new THREE.Mesh(_baseGeo,_baseMat);_foundation.position.set(b.x,0.24,b.z);_foundation.castShadow=true;_foundation.receiveShadow=true;cityGroup.add(_foundation);bMeshes.push(_foundation);
             var _corniceColor=_cityMixHex(col,0xFFF7EA,0.62);
-            var _corniceMat=_citySharedPBR('cornice',_corniceColor,{roughness:0.72,envMapIntensity:0.18});
+            var _corniceMat=_citySharedPBR('cornice-'+currentCityStyle,_corniceColor,{roughness:currentCityStyle===4?0.44:0.72,clearcoat:currentCityStyle===4?0.18:0,clearcoatRoughness:0.56,envMapIntensity:currentCityStyle===4?0.36:0.18});
             var _cornice=new THREE.Mesh(_visualRoundedBoxGeometry(b.w+0.38,0.30,b.d+0.38,0.12),_corniceMat);
             _cornice.position.set(b.x,b.h-0.15,b.z);_cornice.castShadow=true;cityGroup.add(_cornice);bMeshes.push(_cornice);
         }
@@ -917,21 +983,21 @@ function buildCity() {
             _eave.castShadow=true;cityGroup.add(_eave);bMeshes.push(_eave);
         });
         } else {
-        var roofMat=toon(st.roof);
+        var roofMat=_citySurfaceMaterial('roof',st.roof,{roughness:currentCityStyle===4?0.40:(currentCityStyle===2?0.48:0.68),bumpScale:0.10,clearcoat:currentCityStyle===4?0.28:0.05,clearcoatRoughness:0.42,envMapIntensity:currentCityStyle===4?0.48:0.30});
         const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(b.w,b.d)*BUILDING_CONFIG.roofHeightMul, BUILDING_CONFIG.roofHeight, 4), roofMat);
         roof.position.set(b.x, b.h+BUILDING_CONFIG.roofHeight/2, b.z); roof.rotation.y=Math.PI/4; roof.castShadow=true;
         cityGroup.add(roof); bMeshes.push(roof);
         }
         // Windows — warm shouji for Sakura City, blue glass for others
-        const winM = currentCityStyle===6?toon(0xFFEECC,{emissive:0xFFDD88,emissiveIntensity:0.3}):(currentCityStyle===0&&typeof softPBR==='function'?_citySharedPBR('window-main',0x3F8DAA,{pastelAmount:0.02,roughness:0.11,metalness:0.03,clearcoat:0.68,clearcoatRoughness:0.13,ior:1.46,envMapIntensity:0.72,emissive:0x071923,emissiveIntensity:0.025}):toon(0xAADDFF, {emissive:0x4488AA, emissiveIntensity:0.2}));
-        var _windowFrameMat=currentCityStyle===0?_citySharedPBR('window-frame',0xE6E0D5,{pastelAmount:0.02,roughness:0.72,envMapIntensity:0.16}):null;
-        var _warmWindowMat=currentCityStyle===0?_citySharedPBR('window-warm',0xE9B66D,{pastelAmount:0.01,roughness:0.16,metalness:0.02,clearcoat:0.54,clearcoatRoughness:0.18,envMapIntensity:0.48,emissive:0xD88035,emissiveIntensity:0.22}):null;
-        var _hopeLow=currentCityStyle===0&&window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
+        const winM=_citySharedPBR('window-main-'+currentCityStyle,currentCityStyle===3?0x462C32:(currentCityStyle===4?0xA8DBF5:0x3F8DAA),{pastelAmount:0.02,roughness:0.11,metalness:0.03,clearcoat:0.68,clearcoatRoughness:0.13,ior:1.46,envMapIntensity:0.72,emissive:currentCityStyle===3?0x341008:0x071923,emissiveIntensity:currentCityStyle===3?0.10:0.025});
+        var _windowFrameMat=_citySharedPBR('window-frame-'+currentCityStyle,_cityMixHex(col,0xF1ECE3,0.64),{pastelAmount:0.02,roughness:0.72,envMapIntensity:0.16});
+        var _warmWindowMat=_citySharedPBR('window-warm-'+currentCityStyle,currentCityStyle===2?0xB9EFFF:0xE9B66D,{pastelAmount:0.01,roughness:0.16,metalness:0.02,clearcoat:0.54,clearcoatRoughness:0.18,envMapIntensity:0.48,emissive:currentCityStyle===2?0x4D91B8:0xD88035,emissiveIntensity:0.22});
+        var _hopeLow=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
         var _patternX=[1.0,1.18,0.88,1.08,1.28][i%5],_patternY=[1.0,1.10,0.92,1.06,1.16][i%5];
         var _winStepY=BUILDING_CONFIG.windowSpacingY*(_hopeLow?1.45:_patternY);
         var _winStepX=BUILDING_CONFIG.windowSpacingX*(_hopeLow?1.35:_patternX);
-        var _winGeo=currentCityStyle===0&&typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(BUILDING_CONFIG.windowSize.w*0.78,BUILDING_CONFIG.windowSize.h*0.76,BUILDING_CONFIG.windowSize.d,0.065):new THREE.BoxGeometry(BUILDING_CONFIG.windowSize.w,BUILDING_CONFIG.windowSize.h,BUILDING_CONFIG.windowSize.d);
-        if(currentCityStyle===0){
+        var _winGeo=typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(BUILDING_CONFIG.windowSize.w*0.78,BUILDING_CONFIG.windowSize.h*0.76,BUILDING_CONFIG.windowSize.d,0.065):new THREE.BoxGeometry(BUILDING_CONFIG.windowSize.w,BUILDING_CONFIG.windowSize.h,BUILDING_CONFIG.windowSize.d);
+        if(typeof _visualRoundedBoxGeometry==='function'){
             var _frontBackWindows=[],_frontBackWarmWindows=[],_frontBackFrames=[],_frontSills=[],_winDummy=new THREE.Object3D(),_patternIndex=0;
             for(let wy=2;wy<b.h-1;wy+=_winStepY){for(let wx=-b.w/2+1.5;wx<b.w/2-1;wx+=_winStepX){
                 if(!_hopeLow){
@@ -976,18 +1042,18 @@ function buildCity() {
             }}
         }
         // Door
-        var doorMat=(currentCityStyle===0&&typeof _visualSurfaceMaterial==='function')?_visualSurfaceMaterial('facade',0x885533,{roughness:0.88}):toon(0x885533);
-        if(currentCityStyle===0){
+        var doorMat=_citySurfaceMaterial(currentCityStyle===5?'metal':'wood',currentCityStyle===4?0xC66B91:0x885533,{roughness:currentCityStyle===4?0.48:0.86,bumpScale:0.06,envMapIntensity:0.20});
+        if(typeof _visualRoundedBoxGeometry==='function'){
             var _doorFrame=new THREE.Mesh(_visualRoundedBoxGeometry(BUILDING_CONFIG.doorSize.w+0.42,BUILDING_CONFIG.doorSize.h+0.38,BUILDING_CONFIG.doorSize.d*1.65,0.22),_windowFrameMat);
             _doorFrame.position.set(b.x,(BUILDING_CONFIG.doorSize.h+0.38)/2,b.z+b.d/2+0.08);_doorFrame.castShadow=true;cityGroup.add(_doorFrame);bMeshes.push(_doorFrame);
         }
-        const door=new THREE.Mesh(currentCityStyle===0&&typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(BUILDING_CONFIG.doorSize.w,BUILDING_CONFIG.doorSize.h,BUILDING_CONFIG.doorSize.d,0.18):new THREE.BoxGeometry(BUILDING_CONFIG.doorSize.w,BUILDING_CONFIG.doorSize.h,BUILDING_CONFIG.doorSize.d), doorMat);
-        door.position.set(b.x, BUILDING_CONFIG.doorSize.h/2, b.z+b.d/2+(currentCityStyle===0?0.19:0.07)); cityGroup.add(door); bMeshes.push(door);
+        const door=new THREE.Mesh(typeof _visualRoundedBoxGeometry==='function'?_visualRoundedBoxGeometry(BUILDING_CONFIG.doorSize.w,BUILDING_CONFIG.doorSize.h,BUILDING_CONFIG.doorSize.d,0.18):new THREE.BoxGeometry(BUILDING_CONFIG.doorSize.w,BUILDING_CONFIG.doorSize.h,BUILDING_CONFIG.doorSize.d), doorMat);
+        door.position.set(b.x, BUILDING_CONFIG.doorSize.h/2, b.z+b.d/2+(typeof _visualRoundedBoxGeometry==='function'?0.19:0.07)); cityGroup.add(door); bMeshes.push(door);
 
         if(currentCityStyle===0)_decorateHopePremiumBuilding(b,bMeshes,col,i);
         else _decorateDefaultBuilding(b,bMeshes,col,st,i);
 
-        cityColliders.push({x:b.x, z:b.z, hw:b.w/2+(currentCityStyle===0?0.85:0.5), hd:b.d/2+(currentCityStyle===0?1.05:0.5), h:b.h, roofR:Math.max(b.w,b.d)*BUILDING_CONFIG.roofHeightMul, roofH:BUILDING_CONFIG.roofHeight});
+        cityColliders.push({x:b.x, z:b.z, hw:b.w/2+(useRoundedBody?0.85:0.5), hd:b.d/2+(useRoundedBody?1.05:0.5), h:b.h, roofR:Math.max(b.w,b.d)*BUILDING_CONFIG.roofHeightMul, roofH:BUILDING_CONFIG.roofHeight});
         for(var _ebi=0;_ebi<bMeshes.length;_ebi++){
             if(bMeshes[_ebi]&&bMeshes[_ebi].userData)bMeshes[_ebi].userData.editorBuildingIndex=i;
         }
@@ -1054,12 +1120,12 @@ function buildCity() {
                 tg.add(_wpc);
             }
         } else {
-        var _hopeTree=currentCityStyle===0;
-        var _treeHigh=_hopeTree&&window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
+        var _hopeTree=true;
+        var _treeHigh=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
         var _treeSeg=_treeHigh?16:8;
-        var _trunkH=_hopeTree?3.25:TREE_CONFIG.trunkHeight;
-        var _trunkMat=_hopeTree&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('bark',0x765039,{roughness:0.94,bumpScale:0.13}):toon(0x8B5E3C);
-        const trunk=new THREE.Mesh(new THREE.CylinderGeometry(_hopeTree?0.27:TREE_CONFIG.trunkRadius.min,_hopeTree?0.43:TREE_CONFIG.trunkRadius.max,_trunkH,_treeSeg),_trunkMat);
+        var _trunkH=3.25;
+        var _trunkMat=_citySurfaceMaterial('wood',currentCityStyle===2?0x697A78:0x765039,{roughness:0.94,bumpScale:0.13,envMapIntensity:0.12});
+        const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.27,0.43,_trunkH,_treeSeg),_trunkMat);
         trunk.position.y=_trunkH/2; trunk.castShadow=true; trunk.receiveShadow=true;tg.add(trunk);
         if(_treeHigh){
             for(var _hbi=0;_hbi<3;_hbi++){
@@ -1069,10 +1135,10 @@ function buildCity() {
                 _branch.rotation.z=Math.cos(_hba)*0.68;_branch.rotation.x=-Math.sin(_hba)*0.68;_branch.castShadow=true;tg.add(_branch);
             }
         }
-        var _leafColor=_hopeTree?_cityMixHex(st.tree,0x315C32,0.18):st.tree;
-        var _crownMat=_hopeTree&&typeof softPBR==='function'?softPBR(_leafColor,{roughness:0.86,clearcoat:0.05,clearcoatRoughness:0.80,envMapIntensity:0.20}):toon(st.tree);
-        var _crownLightMat=_hopeTree&&typeof softPBR==='function'?_citySharedPBR('tree-sunlit',_cityMixHex(_leafColor,0x83B862,0.22),{roughness:0.90,envMapIntensity:0.14}):_crownMat;
-        var _crownR=_hopeTree?2.15:TREE_CONFIG.crownRadius;
+        var _leafColor=_cityMixHex(st.tree,currentCityStyle===4?0xFFB6D0:0x315C32,currentCityStyle===4?0.10:0.18);
+        var _crownMat=softPBR(_leafColor,{roughness:currentCityStyle===2?0.68:0.86,clearcoat:currentCityStyle===2?0.12:0.05,clearcoatRoughness:0.80,envMapIntensity:currentCityStyle===2?0.32:0.20});
+        var _crownLightMat=_citySharedPBR('tree-sunlit-'+currentCityStyle,_cityMixHex(_leafColor,currentCityStyle===4?0xFFD4E3:0x83B862,0.22),{roughness:0.90,envMapIntensity:0.14});
+        var _crownR=2.15;
         var _crownGeo=new THREE.IcosahedronGeometry(_crownR,_treeHigh?2:1);
         if(_treeHigh){
             var _cp=_crownGeo.attributes.position;
@@ -1085,7 +1151,7 @@ function buildCity() {
             _crownGeo.computeVertexNormals();
         }
         const crown=new THREE.Mesh(_crownGeo,_crownMat);
-        crown.position.y=_hopeTree?_trunkH+1.05:TREE_CONFIG.trunkHeight+1;crown.scale.set(_hopeTree?1.12:1,_hopeTree?0.88:TREE_CONFIG.crownScaleY,_hopeTree?1.05:1);crown.castShadow=true;crown.receiveShadow=true;tg.add(crown);
+        crown.position.y=_trunkH+1.05;crown.scale.set(1.12,0.88,1.05);crown.castShadow=true;crown.receiveShadow=true;tg.add(crown);
         if(_treeHigh){
             for(var _lobe=0;_lobe<3;_lobe++){
                 var _la=_lobe/3*Math.PI*2+i*0.71;
@@ -1132,15 +1198,16 @@ function buildCity() {
     var _fountainJetDef=_hopeFountainDef&&_hopeFountainDef.jets||{};
     var _hopeFountainLow=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
     var _hopeFountainHigh=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
-    var stoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xBDB6A9,{roughness:0.80,bumpScale:0.040,envMapIntensity:0.24}):toon(0xCCBBAA);
-    var stoneD=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x858982,{roughness:0.94,bumpScale:0.050,envMapIntensity:0.12}):toon(0xAA9988);
-    var marbleM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xDDD6C9,{roughness:0.57,bumpScale:0.022,clearcoat:0.08,clearcoatRoughness:0.74,envMapIntensity:0.32}):toon(0xEEE8DD);
-    var _wetStoneM=currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x65716E,{roughness:0.48,bumpScale:0.028,clearcoat:0.12,clearcoatRoughness:0.55,envMapIntensity:0.38}):stoneD;
-    var _waterSet=currentCityStyle===0&&typeof _visualSurfaceTextureSet==='function'?_visualSurfaceTextureSet('water'):null;
+    var _fountainStoneTint=currentCityStyle===1?0xC6A878:(currentCityStyle===2?0xC9E5EC:(currentCityStyle===3?0x5B4641:(currentCityStyle===4?0xF2C8D9:0xBDB6A9)));
+    var stoneM=_citySurfaceMaterial('foundation',_fountainStoneTint,{roughness:0.80,bumpScale:0.040,envMapIntensity:0.24});
+    var stoneD=_citySurfaceMaterial('foundation',_cityMixHex(_fountainStoneTint,0x32343A,0.32),{roughness:0.94,bumpScale:0.050,envMapIntensity:0.12});
+    var marbleM=_citySurfaceMaterial('foundation',_cityMixHex(_fountainStoneTint,0xFFFFFF,0.38),{roughness:0.57,bumpScale:0.022,clearcoat:0.08,clearcoatRoughness:0.74,envMapIntensity:0.32});
+    var _wetStoneM=_citySurfaceMaterial('foundation',_cityMixHex(_fountainStoneTint,0x263A42,0.44),{roughness:0.48,bumpScale:0.028,clearcoat:0.12,clearcoatRoughness:0.55,envMapIntensity:0.38});
+    var _waterSet=typeof _visualSurfaceTextureSet==='function'?_visualSurfaceTextureSet('water'):null;
     if(_waterSet)window._danboWaterBump=_waterSet.bumpMap;
-    var _fountainWaterOpacity=currentCityStyle===0?Math.max(0.24,Math.min(0.72,Number(_fountainWaterDef.opacity)||0.50)):0.55;
-    var waterM=currentCityStyle===0?(_hopeFountainLow?new THREE.MeshPhongMaterial({color:0x4D9EAE,shininess:78,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:Math.max(0.32,_fountainWaterOpacity),depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshPhysicalMaterial({color:0x4298AA,roughness:0.085,metalness:0.0,clearcoat:0.82,clearcoatRoughness:0.12,envMapIntensity:0.92,ior:1.333,transmission:0.10,thickness:0.55,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:_fountainWaterOpacity,depthWrite:false,side:THREE.DoubleSide})):toon(0x44AADD,{transparent:true,opacity:0.55});
-    var goldM=currentCityStyle===0&&typeof softPBR==='function'?softPBR(0xB78C3C,{roughness:0.38,metalness:0.42,envMapIntensity:0.68,emissive:0x2B1700,emissiveIntensity:0.018}):toon(0xFFDD44,{emissive:0xFFAA00,emissiveIntensity:0.3});
+    var _fountainWaterOpacity=Math.max(0.24,Math.min(0.72,Number(_fountainWaterDef.opacity)||0.50));
+    var waterM=_hopeFountainLow?new THREE.MeshPhongMaterial({color:currentCityStyle===3?0xA34828:0x4D9EAE,shininess:78,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:Math.max(0.32,_fountainWaterOpacity),depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshPhysicalMaterial({color:currentCityStyle===3?0xA34828:0x4298AA,roughness:0.085,metalness:0.0,clearcoat:0.82,clearcoatRoughness:0.12,envMapIntensity:0.92,ior:1.333,transmission:0.10,thickness:0.55,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:_fountainWaterOpacity,depthWrite:false,side:THREE.DoubleSide});
+    var goldM=softPBR(currentCityStyle===2?0xA9C9D4:0xB78C3C,{roughness:0.38,metalness:0.42,envMapIntensity:0.68,emissive:currentCityStyle===3?0x401000:0x2B1700,emissiveIntensity:0.018});
     if(currentCityStyle===0){
         // Broad cut-stone terraces replace the former floating donut silhouette.
         [[10.15,9.70,0.18],[9.45,9.05,0.34],[8.75,8.35,0.50]].forEach(function(ti,idx){
@@ -1165,7 +1232,7 @@ function buildCity() {
     }
     poolOuter.name=currentCityStyle===0?'hope-fountain-outer-basin':'';poolOuter.castShadow=true;poolOuter.receiveShadow=true;cityGroup.add(poolOuter);
     // Pool floor
-    var poolFloor=new THREE.Mesh(new THREE.CylinderGeometry(6.5,6.5,0.15,currentCityStyle===0?40:24),currentCityStyle===0&&typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0x6C9FA6,{roughness:0.88,bumpScale:0.045,envMapIntensity:0.10}):toon(0x88BBCC));
+    var poolFloor=new THREE.Mesh(new THREE.CylinderGeometry(6.5,6.5,0.15,currentCityStyle===0?40:24),_citySurfaceMaterial('foundation',currentCityStyle===3?0x6F392C:0x6C9FA6,{roughness:0.88,bumpScale:0.045,envMapIntensity:0.10}));
     poolFloor.position.y=0.08;poolFloor.receiveShadow=true;cityGroup.add(poolFloor);
     // Water surface
     var poolWater=new THREE.Mesh(currentCityStyle===0?new THREE.CircleGeometry(6.28,_hopeFountainLow?40:96):new THREE.CylinderGeometry(6.2,6.2,0.2,24),waterM);
@@ -2102,25 +2169,26 @@ function buildCity() {
     //  Sakura City — Ginzan Onsen (銀山温泉)
     // ===============================================================
     if(currentCityStyle===6){try{
-        var _jWinM=toon(0xFFDD88,{emissive:0xFFAA44,emissiveIntensity:0.5});
-        var _jStoneM=toon(0x888888);
-        var _jRedM=toon(0xCC3333);
-        var _jDarkRoof=toon(0x333333);
-        var _jWoodM=toon(0xBB9966);
+        var _jWinM=_citySharedPBR('sakura-window',0xFFDD88,{roughness:0.16,clearcoat:0.44,clearcoatRoughness:0.18,envMapIntensity:0.44,emissive:0xFFAA44,emissiveIntensity:0.5});
+        var _jStoneM=_citySurfaceMaterial('foundation',0x888888,{roughness:0.92,bumpScale:0.08});
+        var _jRedM=_citySurfaceMaterial('wood',0xCC3333,{roughness:0.46,bumpScale:0.045,clearcoat:0.18,clearcoatRoughness:0.42,envMapIntensity:0.30});
+        var _jDarkRoof=_citySurfaceMaterial('roof',0x333333,{roughness:0.72,bumpScale:0.11,envMapIntensity:0.26});
+        var _jWoodM=_citySurfaceMaterial('wood',0xBB9966,{roughness:0.82,bumpScale:0.10,envMapIntensity:0.18});
         // Helper: build a Japanese building with roof, engawa, windows, collider
         function _buildJpn(x,z,w,d,h,wallColor){
             var col=wallColor||0xDDAA88;
-            var body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),toon(col));
+            var bodyGeo=new THREE.BoxGeometry(w,h,d,2,2,2);if(typeof _visualBoxWorldUV==='function')_visualBoxWorldUV(bodyGeo,2.4);
+            var body=new THREE.Mesh(bodyGeo,_citySurfaceMaterial('facade',col,{roughness:0.86,bumpScale:0.028,vertexColors:false}));
             body.position.set(x,h/2,z);body.castShadow=true;body.receiveShadow=true;cityGroup.add(body);
             var ms=[body];
             // Flat overhanging roof
             var rW=w*1.4,rD=d*1.4,rH=0.4;
             var roof=new THREE.Mesh(new THREE.BoxGeometry(rW,rH,rD),_jDarkRoof);
             roof.position.set(x,h+rH/2,z);roof.castShadow=true;cityGroup.add(roof);ms.push(roof);
-            var roof2=new THREE.Mesh(new THREE.BoxGeometry(rW+0.8,0.15,rD+0.8),toon(0x444444));
+            var roof2=new THREE.Mesh(new THREE.BoxGeometry(rW+0.8,0.15,rD+0.8),_jDarkRoof);
             roof2.position.set(x,h+rH+0.08,z);cityGroup.add(roof2);ms.push(roof2);
             // Ridge beam
-            var ridge=new THREE.Mesh(new THREE.BoxGeometry(rW*0.7,0.18,0.18),toon(0x222222));
+            var ridge=new THREE.Mesh(new THREE.BoxGeometry(rW*0.7,0.18,0.18),_jDarkRoof);
             ridge.position.set(x,h+rH+0.22,z);cityGroup.add(ridge);ms.push(ridge);
             // Engawa porch
             var eng=new THREE.Mesh(new THREE.BoxGeometry(w+1.2,0.12,d+1.2),_jWoodM);
@@ -2135,15 +2203,15 @@ function buildCity() {
                 }
             }
             // Noren curtain (door)
-            var noren=new THREE.Mesh(new THREE.BoxGeometry(1.5,2,0.1),toon(0x884433));
+            var noren=new THREE.Mesh(new THREE.BoxGeometry(1.5,2,0.1),softPBR(0x884433,{roughness:0.96,sheen:0.12,sheenRoughness:0.92,sheenColor:new THREE.Color(0xAA6655)}));
             noren.position.set(x,1,z+d/2+0.1);cityGroup.add(noren);ms.push(noren);
             cityColliders.push({x:x,z:z,hw:w/2+0.5,hd:d/2+0.5,h:h});
             cityBuildingMeshes.push({meshes:ms,x:x,z:z,hw:w/2,hd:d/2,h:h});
         }
         // Helper: elevated Japanese building (on plateau)
         function _buildJpnElev(x,z,w,d,h,wallColor,baseY,faceDir){
-            var _darkWood=toon(0x3E2723);
-            var _plaster=(wallColor&&wallColor>0x100)?toon(wallColor):toon(0xF5F0E8); // white plaster unless special color
+            var _darkWood=_citySurfaceMaterial('wood',0x3E2723,{roughness:0.88,bumpScale:0.12,envMapIntensity:0.14});
+            var _plaster=_citySurfaceMaterial('facade',(wallColor&&wallColor>0x100)?wallColor:0xF5F0E8,{roughness:0.88,bumpScale:0.028,envMapIntensity:0.15}); // white plaster unless special color
             var ms=[];
             var floors=Math.max(2,Math.round(h/3)); // ~3 units per floor
             var floorH=h/floors;
@@ -2209,10 +2277,10 @@ function buildCity() {
             var rW=w*1.3,rD=d*1.3;
             var roof=new THREE.Mesh(new THREE.BoxGeometry(rW,0.4,rD),_jDarkRoof);
             roof.position.set(x,baseY+h+0.2,z);roof.castShadow=true;cityGroup.add(roof);ms.push(roof);
-            var roof2=new THREE.Mesh(new THREE.BoxGeometry(rW+0.5,0.15,rD+0.5),toon(0x444444));
+            var roof2=new THREE.Mesh(new THREE.BoxGeometry(rW+0.5,0.15,rD+0.5),_jDarkRoof);
             roof2.position.set(x,baseY+h+0.5,z);cityGroup.add(roof2);ms.push(roof2);
             // Ridge
-            var ridge=new THREE.Mesh(new THREE.BoxGeometry(rW*0.6,0.2,0.2),toon(0x333333));
+            var ridge=new THREE.Mesh(new THREE.BoxGeometry(rW*0.6,0.2,0.2),_jDarkRoof);
             ridge.position.set(x,baseY+h+0.7,z);cityGroup.add(ridge);ms.push(ridge);
             // Ground floor noren
             var _norenSide=faceDir>0?1:(faceDir<0?-1:0);
@@ -2694,20 +2762,8 @@ function buildCity() {
         // === 8. Massive Falling Petal Particles (満開の桜吹雪) ===
         window._sakuraPetals=[];
         var _petalMats=[toon(0xFFAABB),toon(0xFFBBCC),toon(0xFFCCDD),toon(0xFF99AA),toon(0xFFDDEE)];
-        for(var _spi3=0;_spi3<3000;_spi3++){
-            var _spGeo2=new THREE.PlaneGeometry(0.2+Math.random()*0.15,0.2+Math.random()*0.15);
-            var _spMesh2=new THREE.Mesh(_spGeo2,_petalMats[_spi3%_petalMats.length]);
-            _spMesh2.material.side=THREE.DoubleSide;
-            var _spx2=(Math.random()-0.5)*CITY_SIZE*2;
-            var _spy2=10+Math.random()*25;
-            var _spz2=(Math.random()-0.5)*CITY_SIZE*2;
-            _spMesh2.position.set(_spx2,_spy2,_spz2);
-            _spMesh2.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
-            cityGroup.add(_spMesh2);
-            window._sakuraPetals.push({mesh:_spMesh2,x:_spx2,y:_spy2,z:_spz2,
-                vx:(Math.random()-0.5)*0.015,vy:-0.012-Math.random()*0.008,vz:(Math.random()-0.5)*0.015,
-                rotSpeed:0.02+Math.random()*0.03});
-        }
+        // The dense airborne layer is now a single animated GPU Points buffer in
+        // visuals.js. The 60 floating water petals below remain authored meshes.
         // Some petals floating on water surface (static decoration)
         for(var _wpi=0;_wpi<60;_wpi++){
             var _wpx=(Math.random()-0.5)*14;
@@ -2798,16 +2854,17 @@ function buildCity() {
     //  Snow Village — 雪之乡 (地面=白川郷岛, 海=洞爺湖, 外围=温泉街)
     // ===============================================================
     if(currentCityStyle===7){try{
-        var _snowM=toon(0xDDE4F0); // blue-tinted snow for twilight
-        var _woodM7=toon(0x8B7355);
-        var _stoneM2=toon(0x999999);
-        var _winM7=toon(0xFFCC66,{emissive:0xFFAA33,emissiveIntensity:1.0}); // strong warm glow
+        var _snowM=_citySurfaceMaterial('ground',0xDDE4F0,{roughness:0.64,bumpScale:0.055,clearcoat:0.08,clearcoatRoughness:0.72,envMapIntensity:0.34}); // blue-tinted snow for twilight
+        var _woodM7=_citySurfaceMaterial('wood',0x8B7355,{roughness:0.88,bumpScale:0.12,envMapIntensity:0.16});
+        var _stoneM2=_citySurfaceMaterial('foundation',0x999999,{roughness:0.92,bumpScale:0.09});
+        var _winM7=_citySharedPBR('snow-window',0xFFCC66,{roughness:0.14,clearcoat:0.52,clearcoatRoughness:0.16,envMapIntensity:0.42,emissive:0xFFAA33,emissiveIntensity:1.0}); // strong warm glow
 
         // Helper: Gassho-zukuri house (合掌造り) — built at island height
         var _by7=3; // island surface Y
         function _buildGassho(x,z,w,d,h){
             var ms=[];
-            var wall=new THREE.Mesh(new THREE.BoxGeometry(w,h*0.55,d),toon(0xF5F0E8));
+            var wallGeo=new THREE.BoxGeometry(w,h*0.55,d,2,2,2);if(typeof _visualBoxWorldUV==='function')_visualBoxWorldUV(wallGeo,2.6);
+            var wall=new THREE.Mesh(wallGeo,_citySurfaceMaterial('facade',0xF5F0E8,{roughness:0.90,bumpScale:0.030,envMapIntensity:0.15}));
             wall.position.set(x,_by7+h*0.275,z);wall.castShadow=true;wall.receiveShadow=true;cityGroup.add(wall);ms.push(wall);
             var _roofH=h*0.55,_roofW=w*1.2;
             [-1,1].forEach(function(s){
@@ -2817,7 +2874,7 @@ function buildCity() {
                 var sr=new THREE.Mesh(new THREE.BoxGeometry(_roofW,0.15,d*1.15),_snowM);
                 sr.position.set(x+s*w*0.25,_by7+h*0.55+_roofH*0.45,z);sr.rotation.z=s*0.75;cityGroup.add(sr);ms.push(sr);
             });
-            var ridge=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,d*1.1),toon(0x6B5B3A));
+            var ridge=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,d*1.1),_woodM7);
             ridge.position.set(x,_by7+h*0.55+_roofH*0.75,z);cityGroup.add(ridge);ms.push(ridge);
             for(var wy=1.5;wy<h*0.5;wy+=2.5){
                 for(var wx=-w/2+1.5;wx<w/2-1;wx+=2.5){
@@ -2827,7 +2884,7 @@ function buildCity() {
                     wn2.position.set(x+wx,_by7+wy,z-d/2-0.06);cityGroup.add(wn2);ms.push(wn2);
                 }
             }
-            var porch=new THREE.Mesh(new THREE.BoxGeometry(w+1,0.1,d+1),toon(0xBB9966));
+            var porch=new THREE.Mesh(new THREE.BoxGeometry(w+1,0.1,d+1),_citySurfaceMaterial('wood',0xBB9966,{roughness:0.84,bumpScale:0.10}));
             porch.position.set(x,_by7+0.05,z);cityGroup.add(porch);ms.push(porch);
             cityColliders.push({x:x,z:z,hw:w/2+0.5,hd:d/2+0.5,h:_by7+h*0.55});
             cityBuildingMeshes.push({meshes:ms,x:x,z:z,hw:w/2+1,hd:d/2+1,h:_by7+h});
@@ -3050,16 +3107,9 @@ function buildCity() {
         }
 
         // === 8. Falling Snow ===
+        // The full-density storm is rendered by a single GPU Points layer in
+        // visuals.js instead of 3000 independently submitted transparent planes.
         window._snowParticles=[];
-        for(var _spi7=0;_spi7<3000;_spi7++){
-            var _spG7=new THREE.PlaneGeometry(0.12,0.12);
-            var _spM7=new THREE.Mesh(_spG7,new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.8,side:THREE.DoubleSide}));
-            var _sx7=(Math.random()-0.5)*_snowIslandR*3,_sy7=5+Math.random()*35,_sz7=(Math.random()-0.5)*_snowIslandR*3;
-            _spM7.position.set(_sx7,_sy7,_sz7);cityGroup.add(_spM7);
-            window._snowParticles.push({mesh:_spM7,x:_sx7,y:_sy7,z:_sz7,
-                vx:(Math.random()-0.5)*0.008,vy:-0.008-Math.random()*0.007,vz:(Math.random()-0.5)*0.008,
-                rotSpeed:0.01+Math.random()*0.01});
-        }
 
         // === 9. Warm street lanterns (暖かい街灯) — both sides of paths ===
         var _lanternGlow=new THREE.MeshBasicMaterial({color:0xFFCC44,transparent:true,opacity:0.9});
@@ -3874,6 +3924,11 @@ function buildCity() {
             }
         }
     }
+
+    // Promote legacy landmark pieces after every city-specific builder has run.
+    // This is what gives all eight cities full HDR/PBR material coverage rather
+    // than limiting the authored surface response to Hope City alone.
+    _cityUpgradeMaterialsToPBR();
 
     // This optimizer was introduced with the detailed city geometry, but the
     // build path never invoked it. Without this call Hope City submits well over

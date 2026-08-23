@@ -317,6 +317,7 @@ function buildPluginEntrances(){
             var entrance=def.create({
                 THREE:THREE,
                 toon:toon,
+                softPBR:softPBR,
                 cityGroup:cityGroup,
                 currentCityStyle:currentCityStyle,
                 lang:_langCode,
@@ -1227,6 +1228,7 @@ function updatePipeTravel(){
         buildCityCoins();
         buildCityChests();
         buildWarpPipes();
+        if(typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();
         _optimizeCityInstances();
         addClouds();
         spawnCityNPCs();
@@ -1282,6 +1284,7 @@ function switchCity(targetStyle){
     buildCityCoins();
     buildCityChests();
     buildWarpPipes();
+    if(typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();
     _optimizeCityInstances();
     addClouds();
     spawnCityNPCs();

@@ -103,26 +103,62 @@ function _visualSurfaceTextureSet(kind){
     var albedo=document.createElement('canvas'),height=document.createElement('canvas'),rough=document.createElement('canvas');
     albedo.width=albedo.height=height.width=height.height=rough.width=rough.height=size;
     var ac=albedo.getContext('2d'),hc=height.getContext('2d'),rc=rough.getContext('2d');
-    var seed={grass:713,path:1223,roof:2213,facade:3371,stone:4517,bark:5519}[kind]||6619;
+    var seed={grass:713,path:1223,roof:2213,facade:3371,stone:4517,bark:5519,
+        sand:6619,snow:7127,ice:8017,lava:9011,candy:10103,lunar:11113,wood:12109,metal:13121}[kind]||14107;
     var rnd=_visualSeededRandom(seed);
     ac.fillStyle='#d8d8d8';ac.fillRect(0,0,size,size);
     hc.fillStyle='#808080';hc.fillRect(0,0,size,size);
-    rc.fillStyle=kind==='roof'?'#a8a8a8':(kind==='facade'?'#c2c2c2':'#dddddd');rc.fillRect(0,0,size,size);
+    rc.fillStyle=kind==='roof'?'#a8a8a8':(kind==='facade'?'#c2c2c2':(kind==='ice'||kind==='candy'||kind==='metal'?'#888888':'#dddddd'));rc.fillRect(0,0,size,size);
     // Dense micro variation.  It is deliberately stored in material channels instead of
     // spawning geometry, so the original scene gains surface depth without extra clutter.
     var img=ac.getImageData(0,0,size,size),himg=hc.getImageData(0,0,size,size),rimg=rc.getImageData(0,0,size,size);
     for(var p=0;p<size*size;p++){
         var n=(rnd()+rnd()+rnd())/3-0.5,large=Math.sin((p%size)*0.031)+Math.sin(Math.floor(p/size)*0.027);
         var isStucco=kind==='facade';
-        var av=isStucco?238:Math.max(0,Math.min(255,216+n*32+large*2.2));
-        var hv=isStucco?128:Math.max(0,Math.min(255,128+n*(kind==='stone'?24:40)));
-        var rv=isStucco?218:Math.max(0,Math.min(255,(kind==='roof'?168:220)+n*22));
+        var materialBase=kind==='lava'?154:(kind==='lunar'?184:(kind==='metal'?205:(kind==='snow'||kind==='ice'?238:216)));
+        var av=isStucco?238:Math.max(0,Math.min(255,materialBase+n*(kind==='snow'?12:32)+large*2.2));
+        var hv=isStucco?128:Math.max(0,Math.min(255,128+n*((kind==='snow'||kind==='metal')?12:(kind==='stone'?24:40))));
+        var roughBase=(kind==='ice'||kind==='candy')?126:(kind==='metal'?142:(kind==='roof'?168:(kind==='snow'?196:220)));
+        var rv=isStucco?218:Math.max(0,Math.min(255,roughBase+n*22));
         img.data[p*4]=img.data[p*4+1]=img.data[p*4+2]=av;img.data[p*4+3]=255;
         himg.data[p*4]=himg.data[p*4+1]=himg.data[p*4+2]=hv;himg.data[p*4+3]=255;
         rimg.data[p*4]=rimg.data[p*4+1]=rimg.data[p*4+2]=rv;rimg.data[p*4+3]=255;
     }
     ac.putImageData(img,0,0);hc.putImageData(himg,0,0);rc.putImageData(rimg,0,0);
-    if(kind==='grass'){
+    if(kind==='sand'){
+        // Wind-combed dunes: broad height waves plus fine mineral grains.
+        ac.strokeStyle='rgba(102,72,34,.12)';hc.strokeStyle='rgba(176,176,176,.34)';
+        for(var sy=8;sy<size;sy+=18){
+            ac.lineWidth=0.8;hc.lineWidth=1.2;ac.beginPath();hc.beginPath();
+            for(var sx=0;sx<=size;sx+=8){var sway=sy+Math.sin(sx*.035+sy*.08)*3.2;if(sx===0){ac.moveTo(sx,sway);hc.moveTo(sx,sway);}else{ac.lineTo(sx,sway);hc.lineTo(sx,sway);}}
+            ac.stroke();hc.stroke();
+        }
+        for(var sgr=0;sgr<(high?1800:640);sgr++){var sgx=rnd()*size,sgy=rnd()*size,sga=.25+rnd()*.8;ac.fillStyle=rnd()>.5?'rgba(255,255,255,.16)':'rgba(70,48,26,.10)';ac.fillRect(sgx,sgy,sga,sga);}
+    }else if(kind==='snow'){
+        // Soft wind-packed snow with shallow blue-grey depressions.
+        for(var sn=0;sn<(high?210:80);sn++){var snx=rnd()*size,sny=rnd()*size,snr=3+rnd()*18;ac.fillStyle=rnd()>.45?'rgba(255,255,255,.12)':'rgba(95,125,158,.07)';hc.fillStyle=rnd()>.5?'rgba(154,154,154,.10)':'rgba(104,104,104,.08)';ac.beginPath();hc.beginPath();ac.ellipse(snx,sny,snr,snr*.5,rnd()*Math.PI,0,Math.PI*2);hc.ellipse(snx,sny,snr,snr*.5,rnd()*Math.PI,0,Math.PI*2);ac.fill();hc.fill();}
+    }else if(kind==='ice'){
+        // Fine branching cracks retain the stylised silhouette while giving specular depth.
+        ac.strokeStyle='rgba(70,118,154,.20)';hc.strokeStyle='rgba(68,68,68,.44)';
+        for(var ic=0;ic<(high?54:24);ic++){var ix=rnd()*size,iy=rnd()*size;ac.lineWidth=.45+rnd()*.7;hc.lineWidth=.65;ac.beginPath();hc.beginPath();ac.moveTo(ix,iy);hc.moveTo(ix,iy);for(var is=0;is<5;is++){ix+=(rnd()-.5)*26;iy+=(rnd()-.5)*22;ac.lineTo(ix,iy);hc.lineTo(ix,iy);}ac.stroke();hc.stroke();}
+    }else if(kind==='lava'){
+        // Cooled basalt plates; emissive city cracks are layered separately by the VFX pass.
+        ac.strokeStyle='rgba(20,12,10,.34)';hc.strokeStyle='rgba(42,42,42,.62)';
+        for(var lv=0;lv<(high?72:30);lv++){var lx=rnd()*size,ly=rnd()*size;ac.lineWidth=1+rnd()*2;hc.lineWidth=1.3;ac.beginPath();hc.beginPath();ac.moveTo(lx,ly);hc.moveTo(lx,ly);for(var ls=0;ls<4;ls++){lx+=(rnd()-.5)*32;ly+=(rnd()-.5)*30;ac.lineTo(lx,ly);hc.lineTo(lx,ly);}ac.stroke();hc.stroke();}
+    }else if(kind==='candy'){
+        // Glossy sugar shell with restrained crystalline flecks.
+        for(var ca=0;ca<(high?1400:480);ca++){var cax=rnd()*size,cay=rnd()*size,car=.35+rnd()*1.3;ac.fillStyle=rnd()>.35?'rgba(255,255,255,.24)':'rgba(145,58,105,.08)';ac.beginPath();ac.arc(cax,cay,car,0,Math.PI*2);ac.fill();}
+    }else if(kind==='lunar'){
+        // Overlapping regolith craters, all in texture space to keep draw calls flat.
+        for(var lu=0;lu<(high?220:82);lu++){var lux=rnd()*size,luy=rnd()*size,lur=1.5+rnd()*12;ac.fillStyle='rgba(44,48,62,'+(0.05+rnd()*.10)+')';hc.fillStyle='rgba(72,72,72,.22)';ac.beginPath();hc.beginPath();ac.ellipse(lux,luy,lur,lur*(.55+rnd()*.35),rnd()*Math.PI,0,Math.PI*2);hc.ellipse(lux,luy,lur,lur*(.55+rnd()*.35),rnd()*Math.PI,0,Math.PI*2);ac.fill();hc.fill();}
+    }else if(kind==='wood'){
+        // Long grain and occasional knots for bridges, porches and traditional frames.
+        ac.strokeStyle='rgba(70,35,15,.20)';hc.strokeStyle='rgba(88,88,88,.34)';
+        for(var wg=0;wg<(high?150:70);wg++){var wy=rnd()*size,phase=rnd()*6.28;ac.lineWidth=.35+rnd();hc.lineWidth=.55;ac.beginPath();hc.beginPath();for(var wx=0;wx<=size;wx+=10){var wgy=wy+Math.sin(wx*.055+phase)*(1+rnd()*2);if(wx===0){ac.moveTo(wx,wgy);hc.moveTo(wx,wgy);}else{ac.lineTo(wx,wgy);hc.lineTo(wx,wgy);}}ac.stroke();hc.stroke();}
+    }else if(kind==='metal'){
+        // Brushed metal response for the lunar city and mechanical landmarks.
+        ac.strokeStyle='rgba(255,255,255,.07)';hc.strokeStyle='rgba(170,170,170,.16)';for(var ml=0;ml<(high?260:100);ml++){var my=rnd()*size;ac.lineWidth=.35;hc.lineWidth=.35;ac.beginPath();hc.beginPath();ac.moveTo(0,my);hc.moveTo(0,my);ac.lineTo(size,my+(rnd()-.5)*2);hc.lineTo(size,my+(rnd()-.5)*2);ac.stroke();hc.stroke();}
+    }else if(kind==='grass'){
         for(var gi=0;gi<(high?4200:1400);gi++){
             var gx=rnd()*size,gy=rnd()*size,gl=1.5+rnd()*5;
             ac.strokeStyle=rnd()>.5?'rgba(250,255,238,.24)':'rgba(45,65,36,.20)';ac.lineWidth=.45+rnd();
@@ -176,7 +212,8 @@ function _visualSurfaceTextureSet(kind){
         ac.strokeStyle='rgba(48,30,18,.28)';hc.strokeStyle='rgba(224,224,224,.45)';
         for(var bi=0;bi<120;bi++){var bx=rnd()*size;ac.lineWidth=.5+rnd()*2;hc.lineWidth=1;ac.beginPath();hc.beginPath();ac.moveTo(bx,0);hc.moveTo(bx,0);for(var by=0;by<=size;by+=28){bx+=(rnd()-.5)*7;ac.lineTo(bx,by);hc.lineTo(bx,by);}ac.stroke();hc.stroke();}
     }
-    var repeat=kind==='grass'?20:(kind==='path'?8:(kind==='roof'?5:(kind==='facade'?1:(kind==='bark'?3:6))));
+    var repeats={grass:20,sand:10,snow:9,ice:7,lava:8,candy:7,lunar:12,wood:4,metal:6,path:8,roof:5,facade:1,bark:3};
+    var repeat=repeats[kind]||6;
     var set={map:_visualCanvasTexture(albedo,true,repeat),bumpMap:_visualCanvasTexture(height,false,repeat),roughnessMap:_visualCanvasTexture(rough,false,repeat)};
     _visualSurfaceTextureSets[kind]=set;_visualSurfaceTextures[kind]=set.map;
     return set;
@@ -742,7 +779,8 @@ function _visualAddCitySpecific(style,st,mood){
     } else if(style===5){
         _visualAddMoonVisuals();
     } else if(style===6){
-        _visualAddPointsCloud('sakura-pink-haze',360,style,{xMin:-range,xMax:range,zMin:-range,zMax:range,yMin:6,yMax:30},0xFFD7E8,0xFF8FB7,1.8,{opacity:0.38,vx:0.025,vxRand:0.025,vy:-0.01,vyRand:0.012,vzRand:0.025,wrap:true,twinkle:true});
+        var sakuraPetalCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?360:1600;
+        _visualAddPointsCloud('sakura-gpu-petal-storm',sakuraPetalCount,style,{xMin:-range,xMax:range,zMin:-range,zMax:range,yMin:2,yMax:38},0xFFD7E8,0xFF7FAF,1.75,{opacity:0.48,vx:0.025,vxRand:0.025,vy:-0.014,vyRand:0.012,vzRand:0.025,wrap:true,twinkle:true,additive:false});
         for(var si=0;si<18;si++){
             var z=-110+si*13;
             _visualAddGlow(-10,10,z,0xFFB866,6,5,0.12,si*0.2,_visualFlareTex);
@@ -751,7 +789,8 @@ function _visualAddCitySpecific(style,st,mood){
     } else if(style===7){
         _visualAddAurora(7);
         _visualAddIceCrystals(style);
-        _visualAddPointsCloud('snow-soft-glitter',430,style,{xMin:-range,xMax:range,zMin:-range,zMax:range,yMin:3.3,yMax:34},0xFFFFFF,0xBFDFFF,1.55,{opacity:0.64,vxRand:0.025,vy:-0.025,vyRand:0.018,vzRand:0.025,wrap:true,twinkle:true});
+        var snowParticleCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?430:1800;
+        _visualAddPointsCloud('snow-gpu-full-flurry',snowParticleCount,style,{xMin:-range,xMax:range,zMin:-range,zMax:range,yMin:3.3,yMax:42},0xFFFFFF,0xBFDFFF,1.65,{opacity:0.68,vxRand:0.025,vy:-0.025,vyRand:0.018,vzRand:0.025,wrap:true,twinkle:true,additive:false});
         for(var wi=0;wi<26;wi++){
             var p=_visualRandomInCity(7);
             if(_visualAvoidColliders(p.x,p.z,1.0))continue;
