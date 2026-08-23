@@ -463,7 +463,7 @@
             var locked=i>unlocked, st=STAGES[i];
             html+='<button class="rr-menu-btn" '+(locked?'disabled ':'')+'data-action="stage" data-stage="'+i+'">'+(locked?'🔒 ':'')+(i+1)+'. '+esc(st.name.replace(/^STAGE \d+ · /,''))+(locked?'':' <span style="font-size:12px;opacity:.72">可挑战</span>')+'</button>';
         }
-        html+='<button class="rr-menu-btn" data-action="title">返回标题</button><div class="rr-small">←/→ 或 A/D 转向，↑/Space/W 高速，↓/S 减速。</div>';
+        html+='<button class="rr-menu-btn" data-action="title">返回标题</button><div class="rr-small">使用方向控制转向、加速和减速；触屏设备可直接点按画面按钮。</div>';
         this.panel.innerHTML=html;
     };
 

@@ -400,10 +400,10 @@ function _drawWorldMapLegacy(size){
 var _worldMapRAF=0;
 function _worldMapCopy(){
     var all={
-        zhs:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'蛋宝世界 · 冒险打卡地图',here:'当前位置',progress:'探索进度',visited:'已打卡',current:'当前位置',locked:'未到达',hint:'按 M 键或点击空白区域关闭'},
-        zht:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'蛋寶世界 · 冒險打卡地圖',here:'目前位置',progress:'探索進度',visited:'已打卡',current:'目前位置',locked:'未到達',hint:'按 M 鍵或點擊空白區域關閉'},
-        ja:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'エッグワールド・冒険チェックイン地図',here:'現在地',progress:'探索進捗',visited:'チェック済み',current:'現在地',locked:'未到達',hint:'Mキーまたは外側をクリックして閉じる'},
-        en:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'DANBO World Adventure Atlas',here:'Current location',progress:'Exploration',visited:'Checked in',current:'You are here',locked:'Undiscovered',hint:'Press M or click outside to close'}
+        zhs:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'蛋宝世界 · 冒险打卡地图',here:'当前位置',progress:'探索进度',visited:'已打卡',current:'当前位置',locked:'未到达',hint:'再次点击地图按钮，或点击空白区域关闭'},
+        zht:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'蛋寶世界 · 冒險打卡地圖',here:'目前位置',progress:'探索進度',visited:'已打卡',current:'目前位置',locked:'未到達',hint:'再次點擊地圖按鈕，或點擊空白區域關閉'},
+        ja:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'エッグワールド・冒険チェックイン地図',here:'現在地',progress:'探索進捗',visited:'チェック済み',current:'現在地',locked:'未到達',hint:'地図ボタンをもう一度押すか、外側をタップして閉じる'},
+        en:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'DANBO World Adventure Atlas',here:'Current location',progress:'Exploration',visited:'Checked in',current:'You are here',locked:'Undiscovered',hint:'Tap the map button again or tap outside to close'}
     };
     return all[_langCode]||all.en;
 }

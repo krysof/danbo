@@ -42,6 +42,22 @@
         return obj;
     }
 
+    function friendlyAbilityInput(raw){
+        var lang=(typeof _langCode==='string'&&_langCode)||'zhs';
+        var copy={
+            '\u2192\u2192+R':{zhs:'向前连推两次，再使用拳击',zht:'向前連推兩次，再使用拳擊',ja:'前方向を2回入力してパンチ',en:'Move forward twice, then punch'},
+            '\u2193\u2191+R':{zhs:'先向下蓄势，再向上并使用拳击',zht:'先向下蓄勢，再向上並使用拳擊',ja:'下にためて、上方向とパンチで発動',en:'Charge down, then move up and punch'},
+            '\u2190\u2192+T':{zhs:'先后退再前进，并使用踢击',zht:'先後退再前進，並使用踢擊',ja:'後ろから前へ入力してキック',en:'Move back, then forward and kick'},
+            'R (always)':{zhs:'使用拳击即可发动',zht:'使用拳擊即可發動',ja:'パンチで発動',en:'Use punch to activate'},
+            '\u2190\u2192+R':{zhs:'先后退再前进，并使用拳击',zht:'先後退再前進，並使用拳擊',ja:'後ろから前へ入力してパンチ',en:'Move back, then forward and punch'},
+            'T (always)':{zhs:'使用踢击即可发动',zht:'使用踢擊即可發動',ja:'キックで発動',en:'Use kick to activate'},
+            'R+T (hold)':{zhs:'同时长按拳击与踢击',zht:'同時長按拳擊與踢擊',ja:'パンチとキックを同時に長押し',en:'Hold punch and kick together'},
+            '\u2192\u2190\u2192+F':{zhs:'前后变向后使用抓取',zht:'前後變向後使用抓取',ja:'前・後ろ・前と入力してつかむ',en:'Move forward, back, forward, then grab'}
+        };
+        var item=copy[String(raw||'')];
+        return item?(item[lang]||item.en):'';
+    }
+
     function abilityListFor(charKey){
         var moves=(typeof MOVE_PARAMS!=='undefined'&&MOVE_PARAMS)?MOVE_PARAMS[charKey]:null;
         if(!moves)return [];
@@ -52,6 +68,7 @@
                 name:m.name||id,
                 type:m.type||id,
                 input:m.input||'',
+                inputDescription:friendlyAbilityInput(m.input),
                 trigger:m.trigger||'',
                 cooldown:m.cd||0,
                 damage:m.damage||0,
