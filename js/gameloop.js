@@ -628,8 +628,11 @@ function updateCity(){
             c.collected=true; c.mesh.visible=false;
             coins++; document.getElementById('coin-hud').textContent='⭐ '+coins;
             playCoinSound();
-            // Tower of Babel trigger at 10 coins
-            if(coins>=10&&!_babylonTriggered){_triggerBabylonEvent();}
+            // Shop currency is persistent, so using the total made Babel rise
+            // immediately after character selection for returning players.  Only
+            // coins newly collected during this city visit count toward the event.
+            if(currentCityStyle>=0&&currentCityStyle<=4)_babylonCoinsCollected++;
+            if(_babylonCoinsCollected>=10&&!_babylonTriggered){_triggerBabylonEvent();}
         }
     }
 
@@ -643,7 +646,6 @@ function updateCity(){
         if(ch.glow)ch.glow.material.opacity=(ch.tier==='legendary'?0.22:0.12)+Math.sin(Date.now()*0.005+ch.x)*0.06;
         if(DANBO_WASM.within3D(px,py,pz,ch.x,ch.y+0.4,ch.z,1.8)){
             if(typeof Explorer!=='undefined')Explorer.openChest(ch);
-            if(coins>=10&&!_babylonTriggered){_triggerBabylonEvent();}
         }
     }
     // ---- Hidden-area discovery (+5 EXP, first time only) ----
@@ -2534,6 +2536,7 @@ function showScreen(id){
 
 function enterCity(spawnX,spawnZ){
     gameState='city';
+    _babylonCoinsCollected=0;
     _spinDashing=false;_spinDashTimer=0;_spinDashTimerMax=0;_spinDashSpeed=0;if(_spinDashBar)_spinDashBar.visible=false;
     showScreen(null);
     stopSelectBGM();
@@ -2571,8 +2574,6 @@ function enterCity(spawnX,spawnZ){
     playerEgg.finished=false;playerEgg.alive=true;
     camera.position.set(sx,12,sz+14);camera.lookAt(sx,0,sz);
     camera.up.set(0,1,0);
-    // Check if Tower of Babel should already be triggered
-    if(coins>=10&&!_babylonTriggered&&currentCityStyle!==5){_triggerBabylonEvent();}
     // SOTN area name reveal
     _showCityAreaName(currentCityStyle);
 }

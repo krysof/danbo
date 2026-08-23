@@ -334,6 +334,7 @@ let gameState = 'menu'; // menu, city, raceIntro, racing, raceResult
 let coins = 0, nearPortal = null, countdownTimer = null;
 // ---- Tower of Babel state ----
 var _babylonTriggered=false, _babylonTower=null, _babylonRising=false, _babylonRiseY=-52;
+var _babylonCoinsCollected=0; // coins picked up during the current city visit
 var _earthquakeTimer=0, _earthquakeIntensity=0;
 var _babylonPromptDismissed=false;
 var _babylonElevator=false, _babylonElevDir=0, _babylonElevY=0; // elevator ride state

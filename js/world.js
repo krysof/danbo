@@ -1071,7 +1071,7 @@ function clearCity(){
     if(window._solarLight){scene.remove(window._solarLight);window._solarLight=null;}
     // Remove Tower of Babel
     if(_babylonTower){scene.remove(_babylonTower.group);_babylonTower=null;}
-    _babylonTriggered=false;_babylonRising=false;_babylonRiseY=-52;_earthquakeTimer=0;
+    _babylonTriggered=false;_babylonRising=false;_babylonRiseY=-52;_earthquakeTimer=0;_babylonCoinsCollected=0;
     _moonPipeDismissed=false;_moonPipePromptOpen=false;
 }
 
@@ -1982,7 +1982,9 @@ function _buildBabylonTower(){
 
 function _triggerBabylonEvent(){
     if(_babylonTriggered)return;
-    if(currentCityStyle===5)return; // not on moon
+    // Cloud Egg and its Moon pipe exist only above the five original ground
+    // cities. Sakura, Snow and Moon must not raise a destination-less tower.
+    if(currentCityStyle<0||currentCityStyle>4)return;
     if(typeof Explorer!=='undefined')Explorer.discoverHidden('babel_tower','\u5DF4\u522B\u5854');
     _babylonTriggered=true;
     _earthquakeTimer=180; // 3 seconds at 60fps
