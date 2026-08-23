@@ -18,7 +18,8 @@
             var panel=document.createElement('div');
             panel.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(86vw,420px);max-height:76vh;overflow:auto;border-radius:24px;padding:18px;background:rgba(255,250,235,.96);box-shadow:0 18px 50px rgba(54,39,20,.35);border:3px solid rgba(255,255,255,.85);font-family:Segoe UI,Arial,sans-serif;color:#4a3524;text-align:left;';
             var abilities=(ch.abilities||[]).slice(0,6).map(function(a){
-                return '<li><b>'+esc(a.name)+'</b> <span style="opacity:.68">'+esc(a.inputDescription||a.type||'')+'</span></li>';
+                var input=[a.input,a.inputDescription].filter(Boolean).join(' · ');
+                return '<li><b>'+esc(a.name)+'</b> <span style="opacity:.68">'+esc(input||a.type||'')+'</span></li>';
             }).join('') || '<li>无特殊能力</li>';
             panel.innerHTML=
                 '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'+
