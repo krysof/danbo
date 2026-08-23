@@ -5,6 +5,7 @@
     window.DANBO_PLUGIN_HOST.register({
         id:'legacy-platformer',
         version:'0.2.0',
+        integratedScene:true,
         name:{zhs:'蛋宝冒险',en:'Danbo Adventure'},
         description:'Side-scrolling platformer minigame plugin. Runtime code is loaded from plugins/legacy-platformer/platformer-core.js and started through the plugin host.',
         create:function(ctx){

@@ -2353,6 +2353,11 @@ function showPortalConfirm(portal){
     document.getElementById('portal-confirm-name').textContent=portal.name;
     document.getElementById('portal-confirm-desc').textContent=portal.desc;
     box.style.display='flex';_portalSel=0;_updatePortalSel();
+    // Warm the legacy race runtime while the confirmation is on screen. The
+    // first visit then does not wait for three sequential plugin script fetches.
+    if(portal.raceIndex>=0&&window.DANBO_PLUGIN_HOST&&typeof DANBO_PLUGIN_HOST.preload==='function'){
+        DANBO_PLUGIN_HOST.preload('legacy-race').catch(function(err){console.warn('Race preload failed',err);});
+    }
 }
 function _danboPortalPromptActive(){
     var pp=document.getElementById('portal-prompt');
@@ -2641,7 +2646,10 @@ function animate(now){
 function _gameUpdate(){
     const dt=1/60;
     if(window.DANBO_PLUGIN_HOST&&typeof window.DANBO_PLUGIN_HOST.update==='function')window.DANBO_PLUGIN_HOST.update(dt);
-    var _pluginBusy=!!(window._danboPluginTransition||(window.DANBO_PLUGIN_HOST&&window.DANBO_PLUGIN_HOST.getActive&&window.DANBO_PLUGIN_HOST.getActive()));
+    var _activePlugin=(window.DANBO_PLUGIN_HOST&&window.DANBO_PLUGIN_HOST.getActive)?window.DANBO_PLUGIN_HOST.getActive():null;
+    // Integrated legacy games share this scene and this update loop. Only an
+    // isolated plugin owns the whole frame and pauses the city/race simulation.
+    var _pluginBusy=!!(window._danboPluginTransition||(_activePlugin&&!_activePlugin.integratedScene));
     if(_pluginBusy){
         // A mini-game/plugin owns the screen now. Treat the city as the inactive scene:
         // hide prompts and pause city simulation/SFX until the plugin scene returns.

@@ -5,6 +5,7 @@
     window.DANBO_PLUGIN_HOST.register({
         id:'legacy-race',
         version:'0.2.0',
+        integratedScene:true,
         name:{zhs:'经典竞速赛道',en:'Legacy Race Course'},
         description:'Race-course minigame plugin. Runtime code is loaded from plugins/legacy-race/race-core.js and started through the plugin host.',
         create:function(ctx){

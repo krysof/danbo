@@ -255,13 +255,15 @@
                 else mesh.material.dispose();
             }
         }
-        function setGeom(mesh,geom){if(mesh.geometry)mesh.geometry.dispose();mesh.geometry=geom;}
-
         // 2026-06-17 old Bifrost shape: tiny ground rings that grow, 6 golden runes, 14 participant beams, 30 white particles.
         for(var i=0;i<7;i++){
-            var ring=new THREE.Mesh(new THREE.TorusGeometry(0.1,0.08,6,32),mat(colors[i],0.8));
+            // Build the final ring once and animate its transform. Replacing and
+            // disposing TorusGeometry every frame caused large GC stalls on phones.
+            var ringRadius=0.3+i*0.4;
+            var ring=new THREE.Mesh(new THREE.TorusGeometry(ringRadius,0.12,6,32),mat(colors[i],0.8));
             ring.rotation.x=Math.PI/2;
             ring.position.set(origin.x,0.1+i*0.05,origin.z);
+            ring.scale.setScalar(0.001);
             ring.renderOrder=900;
             group.add(ring);rings.push(ring);
         }
@@ -274,8 +276,10 @@
         }
         var pillarCount=14;
         for(var p=0;p<pillarCount;p++){
-            var pillar=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.3,0.1,8),mat(colors[p%7],0.6));
+            // Unit-height geometry is stretched instead of rebuilt every frame.
+            var pillar=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.25,1,6),mat(colors[p%7],0.6));
             pillar.position.set(origin.x,0.05,origin.z);
+            pillar.scale.y=0.1;
             pillar.renderOrder=895;
             group.add(pillar);pillars.push(pillar);
         }
@@ -345,7 +349,7 @@
                 var pillarH=pillarTop-pillarBot;
                 for(var a=0;a<pillars.length;a++){
                     var pl=pillars[a];
-                    setGeom(pl,new THREE.CylinderGeometry(0.12,0.25,Math.max(0.1,pillarH),6));
+                    pl.scale.y=Math.max(0.1,pillarH);
                     var spiral=elapsed*0.003+a*(Math.PI*2/pillarCount);
                     var sr=0.3+(a%5)*0.25+Math.floor(a/5)*0.4;
                     pl.position.set(origin.x+Math.cos(spiral)*sr,pillarBot+pillarH/2,origin.z+Math.sin(spiral)*sr);
@@ -353,8 +357,7 @@
                 }
                 for(var r=0;r<rings.length;r++){
                     var ringP=Math.max(0,(p1-0.5)*2);
-                    var targetR=0.3+r*0.4;
-                    setGeom(rings[r],new THREE.TorusGeometry(Math.max(0.001,targetR*ringP),0.06+ringP*0.06,6,32));
+                    rings[r].scale.setScalar(Math.max(0.001,ringP));
                     rings[r].rotation.x=Math.PI/2;rings[r].rotation.z=elapsed*0.002+r*0.5;
                     rings[r].position.set(origin.x,0.1+r*0.05,origin.z);
                     rings[r].material.opacity=ringP*0.8;
@@ -377,16 +380,15 @@
                 var ep2=ease(p2);
                 for(var b=0;b<pillars.length;b++){
                     var pl2=pillars[b];
-                    setGeom(pl2,new THREE.CylinderGeometry(0.12,0.25,120,6));
+                    pl2.scale.y=120;
                     var spiral2=elapsed*0.003+b*(Math.PI*2/pillarCount);
                     var sr2=0.3+(b%5)*0.25+Math.floor(b/5)*0.4;
                     pl2.position.set(origin.x+Math.cos(spiral2)*sr2,60,origin.z+Math.sin(spiral2)*sr2);
                     pl2.material.opacity=0.6+Math.sin(elapsed*0.01+b)*0.3;
                 }
                 for(var r2=0;r2<rings.length;r2++){
-                    var fullR=0.3+r2*0.4;
                     var constrict=1-p2*0.3;
-                    setGeom(rings[r2],new THREE.TorusGeometry(Math.max(0.001,fullR*constrict),0.12,6,32));
+                    rings[r2].scale.setScalar(Math.max(0.001,constrict));
                     rings[r2].rotation.x=Math.PI/2;rings[r2].rotation.z=elapsed*0.005+r2*0.5;
                     rings[r2].position.set(origin.x,origin.y+ep2*40,origin.z);
                     rings[r2].material.opacity=0.8;
@@ -429,7 +431,8 @@
                 flash.material.opacity=Math.max(0,0.95*(1-Math.abs(pf-0.22)/0.22));
             }
             if(typeof camera!=='undefined'&&camera){flash.position.copy(camera.position);flash.quaternion.copy(camera.quaternion);flash.translateZ(-1);}
-            if(typeof R!=='undefined'&&R&&typeof R.render==='function')R.render(scene,camera);
+            // The shared game loop already renders this scene every frame. A second
+            // R.render here doubled GPU work throughout every portal transition.
             raf=requestAnimationFrame(frame);
         }
         frame();
@@ -593,10 +596,36 @@
         next();
     }
 
+    function preload(pluginId){
+        return new Promise(function(resolve,reject){
+            if(registry[pluginId]){resolve(registry[pluginId]);return;}
+            if(!manifestEntry(pluginId)){reject(new Error('Plugin not registered: '+pluginId));return;}
+            loadPluginRuntime(pluginId,function(){resolve(registry[pluginId]||null);},reject);
+        });
+    }
+
+    function isIntegratedPlugin(pluginId,def){
+        var m=manifestEntry(pluginId)||{};
+        return !!((def&&def.integratedScene===true)||m.integratedScene===true);
+    }
+
     function startLoaded(pluginId,options){
         var def=registry[pluginId];
         if(!def)throw new Error('Plugin not registered: '+pluginId);
         stop({status:'replaced'});
+        var integrated=isIntegratedPlugin(pluginId,def);
+        if(integrated){
+            // Legacy in-scene games already own their city/race transition and are
+            // updated by the shared game loop. Do not hide their Three.js scene or
+            // run the host Bifrost a second time.
+            cleanupSceneBifrost();
+            window._danboPluginTransition=false;
+            if(layer){layer.innerHTML='';setLayerVisible(false);}
+            var integratedCtx=makeContext(pluginId,options||{});
+            var integratedInstance=def.create(integratedCtx)||{};
+            active={id:pluginId,def:def,ctx:integratedCtx,instance:integratedInstance,startedAt:Date.now(),integratedScene:true};
+            return active;
+        }
         beginPluginIsolation();
         var ctx=makeContext(pluginId,options||{});
         cleanupSceneBifrost();
@@ -611,6 +640,22 @@
     function start(pluginId,options){
         var m=manifestEntry(pluginId);
         if(!registry[pluginId]&&!m)throw new Error('Plugin not registered: '+pluginId);
+        var integrated=isIntegratedPlugin(pluginId,registry[pluginId]);
+        if(integrated){
+            stop({status:'replaced'});
+            var integratedSeq=++loadSeq;
+            window._danboPluginTransition=true;
+            function startIntegrated(){
+                if(integratedSeq===loadSeq)startLoaded(pluginId,options||{});
+            }
+            if(registry[pluginId])startIntegrated();
+            else loadPluginRuntime(pluginId,startIntegrated,function(e){
+                if(integratedSeq!==loadSeq)return;
+                window._danboPluginTransition=false;
+                console.error('[PluginHost] lazy load failed',e);
+            });
+            return {id:pluginId,loading:!registry[pluginId],integratedScene:true,startedAt:Date.now()};
+        }
         var mount=ensureLayer();
         stop({status:'replaced'});
         var seq=++loadSeq;
@@ -677,10 +722,11 @@
         get:function(id){return registry[id]||manifestEntry(id)||null;},
         getEntrance:function(id){return entrances[id]||null;},
         getEntrances:entranceList,
+        preload:preload,
         start:start,
         stop:stop,
         update:update,
-        getActive:function(){return active?{id:active.id,startedAt:active.startedAt}:null;},
+        getActive:function(){return active?{id:active.id,startedAt:active.startedAt,integratedScene:active.integratedScene===true}:null;},
         getCharacterSnapshot:selectedCharacterSnapshot
     };
 })();

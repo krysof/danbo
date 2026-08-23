@@ -100,11 +100,12 @@ function enterRace(raceIndex){
     var _bfRings=[];
     for(var _bri=0;_bri<7;_bri++){
         var _ring=new THREE.Mesh(
-            new THREE.TorusGeometry(0.1,0.08,6,32),
+            new THREE.TorusGeometry(0.3+_bri*0.4,0.12,6,32),
             new THREE.MeshBasicMaterial({color:_bfColors[_bri],transparent:true,opacity:0.8})
         );
         _ring.rotation.x=Math.PI/2;
         _ring.position.set(_bfPlayerX,0.1+_bri*0.05,_bfPlayerZ);
+        _ring.scale.setScalar(0.001);
         _bifrostGroup.add(_ring);
         _bfRings.push(_ring);
     }
@@ -127,10 +128,11 @@ function enterRace(raceIndex){
     var _bfPillars=[];
     for(var _bpi=0;_bpi<_bfPillarCount;_bpi++){
         var _pillar=new THREE.Mesh(
-            new THREE.CylinderGeometry(0.15,0.3,0.1,8),
+            new THREE.CylinderGeometry(0.12,0.25,1,6),
             new THREE.MeshBasicMaterial({color:_bfColors[_bpi%7],transparent:true,opacity:0.6})
         );
         _pillar.position.set(_bfPlayerX,0.05,_bfPlayerZ);
+        _pillar.scale.y=0.1;
         _bifrostGroup.add(_pillar);
         _bfPillars.push(_pillar);
     }
@@ -240,8 +242,7 @@ function enterRace(raceIndex){
             var pillarBot=pillarTop*(1-p1);
             var pillarH=pillarTop-pillarBot;
             for(var _pp=0;_pp<_bfPillars.length;_pp++){
-                _bfPillars[_pp].geometry.dispose();
-                _bfPillars[_pp].geometry=new THREE.CylinderGeometry(0.12,0.25,Math.max(0.1,pillarH),6);
+                _bfPillars[_pp].scale.y=Math.max(0.1,pillarH);
                 _bfPillars[_pp].position.y=pillarBot+pillarH/2;
                 var spiralAngle=elapsed*0.003+_pp*(Math.PI*2/_bfPillarCount);
                 var spiralR=0.3+(_pp%5)*0.25+Math.floor(_pp/5)*0.4;
@@ -252,9 +253,7 @@ function enterRace(raceIndex){
             // Rings appear on ground as pillar arrives
             for(var _ri2=0;_ri2<_bfRings.length;_ri2++){
                 var ringP=Math.max(0,(p1-0.5)*2);
-                var targetR=0.3+_ri2*0.4;
-                _bfRings[_ri2].geometry.dispose();
-                _bfRings[_ri2].geometry=new THREE.TorusGeometry(targetR*ringP,0.06+ringP*0.06,6,32);
+                _bfRings[_ri2].scale.setScalar(Math.max(0.001,ringP));
                 _bfRings[_ri2].rotation.x=Math.PI/2;
                 _bfRings[_ri2].rotation.z=elapsed*0.002+_ri2*0.5;
                 _bfRings[_ri2].material.opacity=ringP*0.8;
@@ -281,16 +280,15 @@ function enterRace(raceIndex){
             for(var _pp2=0;_pp2<_bfPillars.length;_pp2++){
                 var spiralAngle2=elapsed*0.003+_pp2*(Math.PI*2/_bfPillarCount);
                 var spiralR2=0.3+(_pp2%5)*0.25+Math.floor(_pp2/5)*0.4;
+                _bfPillars[_pp2].scale.y=120;
                 _bfPillars[_pp2].position.x=_bfPlayerX+Math.cos(spiralAngle2)*spiralR2;
                 _bfPillars[_pp2].position.z=_bfPlayerZ+Math.sin(spiralAngle2)*spiralR2;
                 _bfPillars[_pp2].material.opacity=0.6+Math.sin(elapsed*0.01+_pp2)*0.3;
             }
             // Rings spin fast + constrict around player
             for(var _ri3=0;_ri3<_bfRings.length;_ri3++){
-                var fullR2=0.3+_ri3*0.4;
                 var constrict=1-p2*0.3;
-                _bfRings[_ri3].geometry.dispose();
-                _bfRings[_ri3].geometry=new THREE.TorusGeometry(fullR2*constrict,0.12,6,32);
+                _bfRings[_ri3].scale.setScalar(Math.max(0.001,constrict));
                 _bfRings[_ri3].rotation.x=Math.PI/2;
                 _bfRings[_ri3].rotation.z=elapsed*0.005+_ri3*0.5;
                 _bfRings[_ri3].position.y=_bfPlayerY+p2*40;
@@ -471,8 +469,7 @@ function enterRace(raceIndex){
                 // Rings shrink and fade
                 for(var _ri6=0;_ri6<_bfRings.length;_ri6++){
                     var _shrink=1-rp1;
-                    _bfRings[_ri6].geometry.dispose();
-                    _bfRings[_ri6].geometry=new THREE.TorusGeometry((0.3+_ri6*0.4)*_shrink,0.08,6,32);
+                    _bfRings[_ri6].scale.setScalar(Math.max(0.001,_shrink));
                     _bfRings[_ri6].material.opacity=Math.max(0,0.6*(1-rp1));
                 }
                 // Particles fade
@@ -487,8 +484,8 @@ function enterRace(raceIndex){
             }
         }
 
-        // Render the 3D scene each frame
-        if(R)R.render(scene,camera);
+        // The shared game loop renders raceIntro continuously. Rendering again
+        // here doubled GPU work and made the portal transition stutter.
         _bfAnimId=requestAnimationFrame(_animateBifrost3D);
     }
     _animateBifrost3D();
