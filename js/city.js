@@ -120,6 +120,11 @@ function _cityMixHex(a,b,t){
     return (r<<16)|(g<<8)|bl;
 }
 var _cityPBRCache={};
+// Legacy city builders create thousands of identical Toon/Phong material objects.
+// Keep one immutable PBR replacement per actual set of material properties.  This
+// preserves the exact appearance while avoiding a large allocation/shader churn
+// spike when Sakura, Snow and Moon are constructed.
+var _cityLegacyPBRCache={};
 function _citySharedPBR(key,color,opts){
     var q=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced';
     var cacheKey=q+'|'+key+'|'+(color>>>0).toString(16);
@@ -149,16 +154,37 @@ function _cityUpgradeMaterialsToPBR(){
     // remaining surfaces after the city is built so every city participates in HDRI,
     // ACES, GTAO and physically based roughness without deleting any authored objects.
     if(!cityGroup||typeof softPBR!=='function')return;
-    var replacements=new Map(),oldMaterials=[];
+    var replacements=new Map(),oldMaterials=new Set(),created=0,reused=0;
+    function textureId(value){return value&&value.isTexture?value.uuid:'';}
+    function numberValue(value){return typeof value==='number'&&isFinite(value)?Number(value.toFixed(6)):'';}
+    function vectorValue(value){return value&&typeof value.x==='number'?(numberValue(value.x)+','+numberValue(value.y)):'';}
+    function sharedKey(material,color,isWater,isMetal,isEmissive,opts){
+        return [
+            (window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced',
+            color,isWater?1:0,isMetal?1:0,isEmissive?1:0,
+            numberValue(opts.roughness),numberValue(opts.metalness),numberValue(opts.envMapIntensity),
+            opts.transparent?1:0,numberValue(opts.opacity),opts.side,opts.depthWrite?1:0,opts.depthTest?1:0,
+            opts.blending,opts.vertexColors?1:0,opts.flatShading?1:0,
+            textureId(opts.map),textureId(opts.alphaMap),textureId(opts.bumpMap),numberValue(opts.bumpScale),
+            textureId(opts.normalMap),vectorValue(opts.normalScale),textureId(opts.roughnessMap),
+            textureId(opts.metalnessMap),textureId(opts.aoMap),numberValue(opts.aoMapIntensity),
+            opts.emissive||0,textureId(opts.emissiveMap),numberValue(opts.emissiveIntensity),
+            numberValue(opts.clearcoat),numberValue(opts.clearcoatRoughness),numberValue(opts.ior),
+            material.alphaTest||0,material.wireframe?1:0,material.toneMapped===false?0:1,
+            material.fog===false?0:1,material.polygonOffset?1:0,
+            material.polygonOffsetFactor||0,material.polygonOffsetUnits||0
+        ].join('|');
+    }
     function promote(material,mesh){
         if(!material||material.isMeshStandardMaterial||material.isMeshPhysicalMaterial||material.isMeshLambertMaterial||material.isMeshBasicMaterial||material.isSpriteMaterial)return material;
         if(!(material.isMeshToonMaterial||material.isMeshPhongMaterial))return material;
-        if(replacements.has(material.uuid))return replacements.get(material.uuid);
         var color=material.color?material.color.getHex():0xFFFFFF;
         var isEmissive=!!(material.emissive&&material.emissive.getHex()!==0&&material.emissiveIntensity>0);
         var isWater=!!(material.transparent&&material.opacity<0.86&&material.color&&material.color.b>material.color.r*1.08&&material.color.b>material.color.g*0.92);
         var name=((mesh&&mesh.name)||'').toLowerCase();
         var isMetal=/(metal|rail|pole|ship|funnel|antenna|tank|barrel)/.test(name);
+        var replacementKey=material.uuid+'|'+(isWater?1:0)+'|'+(isMetal?1:0)+'|'+(isEmissive?1:0);
+        if(replacements.has(replacementKey))return replacements.get(replacementKey);
         var opts={
             roughness:isWater?0.10:(isEmissive?0.22:(isMetal?0.46:0.78)),
             metalness:isMetal?0.28:0,
@@ -176,18 +202,34 @@ function _cityUpgradeMaterialsToPBR(){
         };
         if(isWater){opts.clearcoat=0.72;opts.clearcoatRoughness=0.12;opts.ior=1.333;opts.depthWrite=false;}
         else if(isEmissive){opts.clearcoat=0.38;opts.clearcoatRoughness=0.22;}
-        var next=softPBR(color,opts);next.name=(material.name||'city-material')+'-pbr';next.userData=Object.assign({},material.userData||{},{danboCityPBR:true});
-        replacements.set(material.uuid,next);oldMaterials.push(material);return next;
+        // Texture-backed legacy materials (canvas signs, unique water masks, etc.)
+        // stay city-local so their textures can be released on the next transfer.
+        // The numerous untextured solid materials are safe to share globally.
+        var hasLocalTexture=!!(opts.map||opts.alphaMap||opts.bumpMap||opts.normalMap||opts.roughnessMap||opts.metalnessMap||opts.aoMap||opts.emissiveMap);
+        var signature=sharedKey(material,color,isWater,isMetal,isEmissive,opts),next;
+        if(!hasLocalTexture&&_cityLegacyPBRCache[signature]){
+            next=_cityLegacyPBRCache[signature];reused++;
+        }else{
+            next=softPBR(color,opts);
+            next.name=(material.name||'city-material')+'-pbr';
+            next.userData=Object.assign({},material.userData||{},{danboCityPBR:true,danboSharedLegacyPBR:!hasLocalTexture});
+            if(!hasLocalTexture)_cityLegacyPBRCache[signature]=next;
+            created++;
+        }
+        replacements.set(replacementKey,next);oldMaterials.add(material);return next;
     }
     cityGroup.traverse(function(object){
         if(!object||!object.material)return;
         if(Array.isArray(object.material))object.material=object.material.map(function(m){return promote(m,object);});
         else object.material=promote(object.material,object);
     });
-    for(var i=0;i<oldMaterials.length;i++)if(oldMaterials[i]&&oldMaterials[i].dispose)oldMaterials[i].dispose();
+    oldMaterials.forEach(function(material){if(material&&material.dispose)material.dispose();});
     var previous=window.DANBO_CITY_PBR_STATS;
     var cumulative=(previous&&previous.style===currentCityStyle?previous.promoted:0)+replacements.size;
-    window.DANBO_CITY_PBR_STATS={style:currentCityStyle,promoted:cumulative,profile:_cityPBRProfile(currentCityStyle)};
+    var cumulativeCreated=(previous&&previous.style===currentCityStyle?previous.uniqueMaterials||0:0)+created;
+    var cumulativeReused=(previous&&previous.style===currentCityStyle?previous.reusedMaterials||0:0)+reused;
+    window.DANBO_CITY_PBR_STATS={style:currentCityStyle,promoted:cumulative,uniqueMaterials:cumulativeCreated,
+        reusedMaterials:cumulativeReused,sharedCacheSize:Object.keys(_cityLegacyPBRCache).length,profile:_cityPBRProfile(currentCityStyle)};
 }
 function _cityCanvasSign(text,bg,fg){
     var c=document.createElement('canvas');c.width=256;c.height=80;
@@ -217,7 +259,9 @@ function _optimizeCityInstances(){
     var propRootByMesh=new Map();
     var excluded=new Set();
     var stats={drawsBefore:0,drawsAfter:0,instances:0,batches:0,batchedMeshes:0,dynamicInstances:0,
-        instanceCandidates:0,batchCandidates:0,instanceGroups:0,batchGroups:0};
+        instanceCandidates:0,batchCandidates:0,instanceGroups:0,batchGroups:0,
+        batchSourceGeometries:0,batchUniqueGeometries:0,batchReusedGeometries:0};
+    var geometryContentKeys=new WeakMap();
 
     function markTree(root,set){
         if(!root||!root.isObject3D)return;
@@ -323,6 +367,25 @@ function _optimizeCityInstances(){
         }
         return (geometry.getIndex()?1:0)+'|'+parts.join(',');
     }
+    function hashTypedArray(array){
+        if(!array||!array.buffer)return '0';
+        var bytes=new Uint8Array(array.buffer,array.byteOffset||0,array.byteLength||0),hash=2166136261;
+        for(var i=0;i<bytes.length;i++){hash^=bytes[i];hash=Math.imul(hash,16777619);}
+        return bytes.length+':'+(hash>>>0).toString(16);
+    }
+    function geometryContentKey(geometry){
+        if(geometryContentKeys.has(geometry))return geometryContentKeys.get(geometry);
+        var names=Object.keys(geometry.attributes||{}).sort(),parts=[geometry.type];
+        for(var i=0;i<names.length;i++){
+            var attribute=geometry.attributes[names[i]],array=attribute.array||(attribute.data&&attribute.data.array);
+            parts.push(names[i]+':'+attribute.itemSize+':'+(attribute.normalized?1:0)+':'+hashTypedArray(array));
+        }
+        var index=geometry.getIndex(),indexArray=index&&(index.array||(index.data&&index.data.array));
+        parts.push('i:'+hashTypedArray(indexArray));
+        parts.push('g:'+(geometry.groups||[]).map(function(group){return group.start+','+group.count+','+group.materialIndex;}).join(';'));
+        parts.push('d:'+(geometry.drawRange?geometry.drawRange.start+','+geometry.drawRange.count:''));
+        var key=parts.join('|');geometryContentKeys.set(geometry,key);return key;
+    }
     function buildBatches(candidates,label,onCreated){
         if(typeof THREE.BatchedMesh!=='function')return;
         var groups=new Map();
@@ -339,11 +402,14 @@ function _optimizeCityInstances(){
             stats.batchGroups++;
             var first=items[0],batched;
             try{
-                var geometries=new Map(),vertexCount=0,indexCount=0;
+                var geometries=new Map(),sourceGeometryKeys=new Map(),vertexCount=0,indexCount=0;
                 items.forEach(function(item){
                     var geometry=item.geometry;
-                    if(geometries.has(geometry.uuid))return;
-                    geometries.set(geometry.uuid,geometry);
+                    var contentKey=geometryContentKey(geometry);
+                    sourceGeometryKeys.set(geometry.uuid,contentKey);
+                    stats.batchSourceGeometries++;
+                    if(geometries.has(contentKey)){stats.batchReusedGeometries++;return;}
+                    geometries.set(contentKey,geometry);stats.batchUniqueGeometries++;
                     vertexCount+=geometry.getAttribute('position').count;
                     if(geometry.getIndex())indexCount+=geometry.getIndex().count;
                 });
@@ -359,7 +425,7 @@ function _optimizeCityInstances(){
                     var source=items[i];
                     source.updateWorldMatrix(true,false);
                     var matrix=new THREE.Matrix4().multiplyMatrices(cityInverse,source.matrixWorld);
-                    var instanceId=batched.addInstance(geometryIds.get(source.geometry.uuid));
+                    var instanceId=batched.addInstance(geometryIds.get(sourceGeometryKeys.get(source.geometry.uuid)));
                     batched.setMatrixAt(instanceId,matrix);
                     if(source.parent)source.parent.remove(source);
                 }
@@ -3925,16 +3991,9 @@ function buildCity() {
         }
     }
 
-    // Promote legacy landmark pieces after every city-specific builder has run.
-    // This is what gives all eight cities full HDR/PBR material coverage rather
-    // than limiting the authored surface response to Hope City alone.
-    _cityUpgradeMaterialsToPBR();
-
-    // This optimizer was introduced with the detailed city geometry, but the
-    // build path never invoked it. Without this call Hope City submits well over
-    // two thousand individual meshes per frame. It preserves every object and
-    // combines compatible opaque geometry/material work.
-    _optimizeCityInstances();
+    // PBR promotion and batching run once after portals, collectibles and pipes
+    // have also been built (main.js / world.js). Running them here as well caused
+    // a redundant full-scene traversal during every transfer.
 }
 
 function _buildMobileSuit(msType,weaponType,customColor){

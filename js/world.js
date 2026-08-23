@@ -903,11 +903,99 @@ function buildWarpPipes(){
     }
 }
 
+var _danboCityTextureSlots=['map','alphaMap','aoMap','bumpMap','normalMap','roughnessMap','metalnessMap',
+    'emissiveMap','lightMap','displacementMap','envMap','gradientMap','clearcoatMap','clearcoatNormalMap',
+    'clearcoatRoughnessMap','sheenColorMap','sheenRoughnessMap','transmissionMap','thicknessMap',
+    'iridescenceMap','iridescenceThicknessMap','specularMap','specularColorMap','specularIntensityMap'];
+function _disposeCityGroupResources(){
+    if(!cityGroup)return;
+    var keepGeometry=new Set(),keepMaterial=new Set(),keepTexture=new Set();
+    var cityGeometry=new Set(),cityMaterial=new Set(),cityTexture=new Set(),cityBatches=new Set();
+    function collectMaterial(material,materials,textures){
+        if(!material)return;
+        if(Array.isArray(material)){for(var ai=0;ai<material.length;ai++)collectMaterial(material[ai],materials,textures);return;}
+        if(!material.isMaterial)return;
+        materials.add(material);
+        for(var ti=0;ti<_danboCityTextureSlots.length;ti++){
+            var texture=material[_danboCityTextureSlots[ti]];
+            if(texture&&texture.isTexture)textures.add(texture);
+        }
+        if(material.uniforms)Object.keys(material.uniforms).forEach(function(key){
+            var value=material.uniforms[key]&&material.uniforms[key].value;
+            if(value&&value.isTexture)textures.add(value);
+        });
+    }
+    function collectObject(root,geometries,materials,textures,batches){
+        if(!root||!root.isObject3D)return;
+        root.traverse(function(object){
+            if(object.geometry&&object.geometry.isBufferGeometry)geometries.add(object.geometry);
+            collectMaterial(object.material,materials,textures);
+            if(batches&&object.isBatchedMesh)batches.add(object);
+        });
+    }
+    // Anything still used outside cityGroup must remain alive.  Cached PBR assets
+    // are also protected because later cities intentionally reuse them.
+    if(typeof scene!=='undefined'&&scene&&scene.children){
+        for(var si=0;si<scene.children.length;si++)if(scene.children[si]!==cityGroup)
+            collectObject(scene.children[si],keepGeometry,keepMaterial,keepTexture,null);
+        if(scene.background&&scene.background.isTexture)keepTexture.add(scene.background);
+        if(scene.environment&&scene.environment.isTexture)keepTexture.add(scene.environment);
+    }
+    function protectValue(value,seen,depth){
+        if(!value||depth>5)return;
+        if(value.isTexture){keepTexture.add(value);return;}
+        if(value.isMaterial){collectMaterial(value,keepMaterial,keepTexture);return;}
+        if(value.isBufferGeometry){keepGeometry.add(value);return;}
+        if(typeof value!=='object')return;
+        if(seen.has(value))return;seen.add(value);
+        if(Array.isArray(value)){for(var ai=0;ai<value.length;ai++)protectValue(value[ai],seen,depth+1);return;}
+        Object.keys(value).forEach(function(key){protectValue(value[key],seen,depth+1);});
+    }
+    var seen=new Set();
+    [
+        typeof _visualGeometryCache!=='undefined'?_visualGeometryCache:null,
+        typeof _visualSurfaceMaterials!=='undefined'?_visualSurfaceMaterials:null,
+        typeof _visualSurfaceTextureSets!=='undefined'?_visualSurfaceTextureSets:null,
+        typeof _visualSoftTex!=='undefined'?_visualSoftTex:null,
+        typeof _visualFlareTex!=='undefined'?_visualFlareTex:null,
+        typeof _cityPBRCache!=='undefined'?_cityPBRCache:null,
+        typeof _cityLegacyPBRCache!=='undefined'?_cityLegacyPBRCache:null,
+        typeof toonTex!=='undefined'?toonTex:null,
+        window._danboPortalGeometryCache,window._danboPortalTextures,window._danboPortalCurtainTextures,
+        window._danboCinematicCoinCache,window._danboReflectionEnvironment,window._danboHDRIBackground
+    ].forEach(function(value){protectValue(value,seen,0);});
+
+    collectObject(cityGroup,cityGeometry,cityMaterial,cityTexture,cityBatches);
+    cityBatches.forEach(function(batch){if(batch&&batch.dispose)batch.dispose();});
+    cityGeometry.forEach(function(geometry){if(!keepGeometry.has(geometry)&&geometry.dispose)geometry.dispose();});
+    cityMaterial.forEach(function(material){if(!keepMaterial.has(material)&&material.dispose)material.dispose();});
+    cityTexture.forEach(function(texture){if(!keepTexture.has(texture)&&texture.dispose)texture.dispose();});
+    window.DANBO_CITY_DISPOSE_STATS={geometries:cityGeometry.size-Array.from(cityGeometry).filter(function(v){return keepGeometry.has(v);}).length,
+        materials:cityMaterial.size-Array.from(cityMaterial).filter(function(v){return keepMaterial.has(v);}).length,
+        textures:cityTexture.size-Array.from(cityTexture).filter(function(v){return keepTexture.has(v);}).length,
+        batches:cityBatches.size};
+}
+
+function _prewarmCityShaders(){
+    // On browsers exposing KHR_parallel_shader_compile, Three's async prewarm
+    // moves program compilation into the remaining pipe-flight time instead of
+    // making the first visible city frame pay the entire shader cost.
+    if(typeof R==='undefined'||!R.compileAsync||typeof scene==='undefined'||typeof camera==='undefined')return;
+    try{
+        var pending=R.compileAsync(scene,camera);
+        window.DANBO_CITY_SHADER_PREWARM=pending;
+        if(pending&&pending.catch)pending.catch(function(error){console.warn('City shader prewarm skipped:',error);});
+    }catch(error){console.warn('City shader prewarm skipped:',error);}
+}
+
 function clearCity(){
     if(typeof _clearCityVisualFX==='function')_clearCityVisualFX();
     cityGroup.userData._danboInstancesOptimized=false;
-    // Remove everything from cityGroup
+    // Release transient city GPU resources before dropping the last references.
+    // Shared geometry, PBR textures and player/world resources remain cached.
+    _disposeCityGroupResources();
     while(cityGroup.children.length>0)cityGroup.remove(cityGroup.children[0]);
+    if(typeof R!=='undefined'&&R.renderLists&&R.renderLists.dispose)R.renderLists.dispose();
     cityColliders.length=0;
     cityBuildingMeshes.length=0;
     // Remove scene-added coins (cloud world coins)
@@ -1233,6 +1321,7 @@ function updatePipeTravel(){
         addClouds();
         spawnCityNPCs();
         applyCityTheme();
+        _prewarmCityShaders();
         stopBGM();stopRaceBGM();
         startBGM();
     }
@@ -1289,6 +1378,7 @@ function switchCity(targetStyle){
     addClouds();
     spawnCityNPCs();
     applyCityTheme();
+    _prewarmCityShaders();
     // Stop old BGM, start city BGM
     stopBGM();stopRaceBGM();
     startBGM();

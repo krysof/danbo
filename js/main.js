@@ -10,6 +10,7 @@ buildWarpPipes();
 if(typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();
 _optimizeCityInstances();
 applyCityTheme();
+_prewarmCityShaders();
 // Initial portrait draw (after entity.js loaded)
 if(typeof _updateSF2Select==='function')_updateSF2Select(0);
 
