@@ -13,7 +13,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260902.1">
+<link rel="stylesheet" href="style.css?v=20260902.2">
 </head>
 <body>
 <div id="game-container">
@@ -174,7 +174,7 @@
       <details class="multiplayer-advanced">
         <summary>高级设置 · 联机服务器</summary>
         <label><span>服务器地址</span><input id="multiplayer-endpoint" inputmode="url" autocomplete="url" placeholder="wss://你的服务器"></label>
-        <p>GitHub Pages 只承载游戏画面，实时房间服务需单独部署。</p>
+        <p>默认由 Cloudflare Tunnel 转发到本机联机服务器，测试时也可临时覆盖地址。</p>
       </details>
     </section>
   </div>
@@ -235,7 +235,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260902.1';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260902.2';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   var warmStart=false;

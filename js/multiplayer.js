@@ -50,8 +50,9 @@
         var saved='';
         try{saved=localStorage.getItem('danbo_multiplayer_server')||'';}catch(e){}
         var declared=window.DANBO_MULTIPLAYER_URL||'';
-        if(!query&&!saved&&!declared&&(location.hostname==='localhost'||location.hostname==='127.0.0.1')){
-            declared='ws://'+location.hostname+':2567';
+        if(!query&&!saved&&!declared){
+            if(location.hostname==='localhost'||location.hostname==='127.0.0.1')declared='ws://'+location.hostname+':2567';
+            else declared='wss://online.ff18.com';
         }
         return normalizeEndpoint(query||saved||declared);
     }
