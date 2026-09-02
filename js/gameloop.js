@@ -1865,7 +1865,7 @@ function _ensureChatInput(){
                     field.value='';_closeChatInput();
                     return;
                 }
-                if(playerEgg)_showChatBubble(playerEgg,msg);
+                if(!(window.DANBO_MULTIPLAYER&&DANBO_MULTIPLAYER.sendChat&&DANBO_MULTIPLAYER.sendChat(msg))&&playerEgg)_showChatBubble(playerEgg,msg);
             }
             field.value='';_closeChatInput();
         }
@@ -2647,6 +2647,7 @@ function animate(now){
 function _gameUpdate(){
     const dt=1/60;
     if(window.DANBO_PLUGIN_HOST&&typeof window.DANBO_PLUGIN_HOST.update==='function')window.DANBO_PLUGIN_HOST.update(dt);
+    if(window.DANBO_MULTIPLAYER&&typeof window.DANBO_MULTIPLAYER.update==='function')window.DANBO_MULTIPLAYER.update(dt);
     var _activePlugin=(window.DANBO_PLUGIN_HOST&&window.DANBO_PLUGIN_HOST.getActive)?window.DANBO_PLUGIN_HOST.getActive():null;
     // Integrated legacy games share this scene and this update loop. Only an
     // isolated plugin owns the whole frame and pauses the city/race simulation.
@@ -2685,7 +2686,7 @@ function _gameUpdate(){
     if(gameState==='city'){
         // ---- Inside a house: run isolated interior loop, skip all city updates ----
         if(window._interiorActive){
-            if(!window._worldMapOpen&&typeof handlePlayerInput==='function')handlePlayerInput();
+            if(!window._worldMapOpen&&!window._multiplayerPanelOpen&&typeof handlePlayerInput==='function')handlePlayerInput();
             if(typeof _interiorPhysics==='function')_interiorPhysics(playerEgg);
             if(typeof _interiorCheckExit==='function')_interiorCheckExit();
             if(playerEgg){_updateStunStars(playerEgg);_updatePainFace(playerEgg);}
@@ -2695,7 +2696,7 @@ function _gameUpdate(){
         if(_pipeTraveling){
             updatePipeTravel();
         } else {
-            if(!window._worldMapOpen&&!window._shopOpen)handlePlayerInput(); // pause movement while a UI panel is open
+            if(!window._worldMapOpen&&!window._shopOpen&&!window._multiplayerPanelOpen)handlePlayerInput(); // pause movement while a UI panel is open
         }
         if(playerEgg&&!_pipeTraveling) updateEggPhysics(playerEgg, true);
         if(playerEgg){_updateStunStars(playerEgg);_updatePainFace(playerEgg);}

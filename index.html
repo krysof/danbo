@@ -13,7 +13,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260823.1">
+<link rel="stylesheet" href="style.css?v=20260902.1">
 </head>
 <body>
 <div id="game-container">
@@ -132,12 +132,51 @@
     <div class="hud-top">
       <span class="hud-pill" id="city-name-hud">🏙️ Egg City</span>
       <span class="hud-pill" id="coin-hud">⭐ 0</span>
+      <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">👥 单机</button>
       <span class="hud-pill hud-desktop-only">F：抓取/投掷 · R：拳击 · T：踢击 · 长按可蓄力</span>
       <span class="hud-pill hud-desktop-only" id="zoom-hud">Scroll Zoom</span>
       <button class="hud-pill hud-btn" id="view-mode-btn">📷 Normal</button>
       <button class="hud-pill hud-btn" id="spectator-btn" style="display:none;">👁 Spectator</button>
       <button class="hud-pill hud-btn" id="pf-back-btn" style="display:none;">🏙️ Back</button>
     </div>
+  </div>
+
+  <!-- Optional online city room. Kept independent from single-player state. -->
+  <div id="multiplayer-overlay" class="multiplayer-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="multiplayer-title">
+    <section class="multiplayer-panel">
+      <button id="multiplayer-close" class="multiplayer-close" type="button" aria-label="关闭">×</button>
+      <div class="multiplayer-eyebrow">EGGY ONLINE · 8 PLAYER ROOM</div>
+      <div class="multiplayer-title-row">
+        <div>
+          <h2 id="multiplayer-title">一起逛蛋宝世界</h2>
+          <p>房间内跨城同行；只显示与你在同一城市的伙伴。</p>
+        </div>
+        <span id="multiplayer-status" class="multiplayer-status offline">单机模式</span>
+      </div>
+      <div id="multiplayer-summary" class="multiplayer-summary">未加入房间，原单机内容保持可用。</div>
+      <div class="multiplayer-fields">
+        <label><span>你的名字</span><input id="multiplayer-name" maxlength="16" autocomplete="nickname" placeholder="输入昵称"></label>
+        <label><span>房间码</span><input id="multiplayer-code" maxlength="8" autocapitalize="characters" autocomplete="off" value="PUBLIC" placeholder="例如 EGGY88"></label>
+      </div>
+      <div class="multiplayer-actions">
+        <button id="multiplayer-quick" class="multiplayer-primary" type="button">快速加入公共房</button>
+        <button id="multiplayer-create" type="button">创建私人房</button>
+        <button id="multiplayer-join" type="button">按房间码加入</button>
+      </div>
+      <div class="multiplayer-room-tools">
+        <button id="multiplayer-share" type="button" disabled>分享邀请</button>
+        <button id="multiplayer-leave" type="button" disabled>退出房间</button>
+      </div>
+      <div class="multiplayer-roster">
+        <div class="multiplayer-roster-title"><span>房间成员</span><small>最多 8 人</small></div>
+        <ul id="multiplayer-player-list"><li>尚未加入房间</li></ul>
+      </div>
+      <details class="multiplayer-advanced">
+        <summary>高级设置 · 联机服务器</summary>
+        <label><span>服务器地址</span><input id="multiplayer-endpoint" inputmode="url" autocomplete="url" placeholder="wss://你的服务器"></label>
+        <p>GitHub Pages 只承载游戏画面，实时房间服务需单独部署。</p>
+      </details>
+    </section>
   </div>
 
   <!-- Race countdown — Mario Maker style -->
@@ -196,7 +235,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260823.1';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260902.1';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   var warmStart=false;
@@ -250,6 +289,7 @@
     'js/hud.js',
     'js/input.js',
     'js/entity.js',
+    'js/multiplayer.js',
     'js/select-3d.js',
     'js/city.js',
     'js/world.js',
