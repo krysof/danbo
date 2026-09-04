@@ -18,8 +18,8 @@ export const NetworkPlayer = schema({
 });
 export type NetworkPlayer = SchemaType<typeof NetworkPlayer>;
 
-export const EggyState = schema({
+export const DanBoState = schema({
   code: t.string().default("PUBLIC"),
   players: t.map(NetworkPlayer),
 });
-export type EggyState = SchemaType<typeof EggyState>;
+export type DanBoState = SchemaType<typeof DanBoState>;

@@ -39,7 +39,7 @@ describe('Desktop server validation and secure storage', () => {
   });
 
   it('encrypts tokens separately from public settings and persists switches', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'eggy-store-'));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'danbo-store-'));
     const store = new SecureStore(directory, fakeSafeStorage());
     assert.equal(store.loadSettings().hostname, '');
     assert.equal(store.loadSettings().allowedOrigins.includes('ff18.com'), false);
@@ -53,7 +53,7 @@ describe('Desktop server validation and secure storage', () => {
   });
 
   it('refuses plaintext secret persistence when OS encryption is unavailable', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'eggy-store-'));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'danbo-store-'));
     const store = new SecureStore(directory, { isEncryptionAvailable: () => false });
     assert.throws(() => store.saveSecrets({ apiToken: 'secret' }), /拒绝/);
   });
@@ -99,7 +99,7 @@ describe('Cloudflare safe configuration merge', () => {
         const name = new URL(url).searchParams.get('name');
         return jsonResponse(name === 'example.com' ? [{ id: 'zone', name: 'example.com', account: { id: 'account' } }] : []);
       }
-      if (pathname.endsWith('/cfd_tunnel/tunnel-id') && method === 'GET') return jsonResponse({ id: 'tunnel-id', name: 'eggy-multiplayer', config_src: 'cloudflare' });
+      if (pathname.endsWith('/cfd_tunnel/tunnel-id') && method === 'GET') return jsonResponse({ id: 'tunnel-id', name: 'danbo-multiplayer', config_src: 'cloudflare' });
       if (pathname.endsWith('/configurations') && method === 'GET') return jsonResponse({ config: originalConfig });
       if (pathname.endsWith('/dns_records') && method === 'GET') return jsonResponse([]);
       if (pathname.endsWith('/configurations') && method === 'PUT') return jsonResponse({ config: calls.at(-1).body.config });
@@ -108,7 +108,7 @@ describe('Cloudflare safe configuration merge', () => {
       throw new Error(`unexpected ${method} ${pathname}`);
     };
     const manager = new CloudflareManager({ fetch });
-    const result = await manager.configure({ hostname: 'server.example.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', tunnelName: 'eggy-multiplayer' });
+    const result = await manager.configure({ hostname: 'server.example.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', tunnelName: 'danbo-multiplayer' });
     assert.equal(result.websocketUrl, 'wss://server.example.com');
     const getIndex = calls.findIndex((call) => call.pathname.endsWith('/configurations') && call.method === 'GET');
     const putIndex = calls.findIndex((call) => call.pathname.endsWith('/configurations') && call.method === 'PUT');
@@ -144,7 +144,7 @@ describe('Cloudflare safe configuration merge', () => {
       calls.push({ pathname, method, body: options.body && JSON.parse(options.body) });
       if (pathname.endsWith('/user/tokens/verify')) return jsonResponse({ status: 'active' });
       if (pathname === '/client/v4/zones') return jsonResponse([{ id: 'zone', name: parsed.searchParams.get('name'), account: { id: 'account' } }]);
-      if (pathname.endsWith('/cfd_tunnel/tunnel-id') && method === 'GET') return jsonResponse({ id: 'tunnel-id', name: 'eggy-multiplayer', config_src: 'cloudflare' });
+      if (pathname.endsWith('/cfd_tunnel/tunnel-id') && method === 'GET') return jsonResponse({ id: 'tunnel-id', name: 'danbo-multiplayer', config_src: 'cloudflare' });
       if (pathname.endsWith('/configurations') && method === 'GET') return jsonResponse({ config: original });
       if (pathname.endsWith('/configurations') && method === 'PUT') return jsonResponse({ config: calls.at(-1).body.config });
       if (pathname.endsWith('/dns_records') && method === 'GET') return jsonResponse([{ id: 'dns-id', name: 'server.example.com', type: 'CNAME', content: 'old.cfargotunnel.com', proxied: false }]);
@@ -168,7 +168,7 @@ describe('Cloudflare safe configuration merge', () => {
 
 describe('Owned process and local web administration', () => {
   it('stops only the child process instance it created', async () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'eggy-process-'));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'danbo-process-'));
     const children = [];
     const spawnImpl = () => {
       const child = new EventEmitter();
@@ -184,7 +184,7 @@ describe('Owned process and local web administration', () => {
   });
 
   it('keeps the admin API loopback-authenticated and never exposes secrets in status', async () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'eggy-admin-'));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'danbo-admin-'));
     const store = new SecureStore(directory, fakeSafeStorage());
     store.saveSecrets({ apiToken: 'a'.repeat(40), tunnelToken: tunnelToken() });
     const processes = {
@@ -192,7 +192,7 @@ describe('Owned process and local web administration', () => {
       logs: () => ({ server: [], tunnel: [] }), startServer() {}, stopServer: async () => {}, startTunnel() {}, stopTunnel: async () => {}, installCloudflared: async () => '',
     };
     let configureCalls = 0;
-    const cloudflare = { configure: async (settings) => { configureCalls += 1; return { hostname: settings.hostname, publicUrl: `https://${settings.hostname}`, accountId: 'a', zoneId: 'z', tunnelId: 't', tunnelName: 'eggy-multiplayer', tunnelToken: tunnelToken() }; } };
+    const cloudflare = { configure: async (settings) => { configureCalls += 1; return { hostname: settings.hostname, publicUrl: `https://${settings.hostname}`, accountId: 'a', zoneId: 'z', tunnelId: 't', tunnelName: 'danbo-multiplayer', tunnelToken: tunnelToken() }; } };
     const admin = createAdminServer({ store, processes, cloudflare, staticDir: path.join(__dirname, '..', 'desktop', 'admin'), fetch: async (url) => {
       if (String(url).startsWith('https://play.example.com/health')) return { ok: true, status: 200, json: async () => ({ ok: true }) };
       throw new Error('offline');
@@ -204,7 +204,7 @@ describe('Owned process and local web administration', () => {
       const direct = await fetch(`http://127.0.0.1:${port}/`, { redirect: 'manual' });
       assert.equal(direct.status, 302);
       assert.equal(direct.headers.get('location'), '/admin');
-      assert.match(direct.headers.get('set-cookie'), /^eggy_admin=/);
+      assert.match(direct.headers.get('set-cookie'), /^danbo_admin=/);
       const login = await fetch(`http://127.0.0.1:${port}${admin.loginPath}`, { redirect: 'manual' });
       const cookie = login.headers.get('set-cookie').split(';')[0];
       const status = await fetch(`http://127.0.0.1:${port}/api/status`, { headers: { cookie } });
@@ -212,19 +212,19 @@ describe('Owned process and local web administration', () => {
       assert.equal(JSON.stringify(payload).includes('aaaaaaaaaaaaaaaaaaaa'), false);
       const noCsrf = await fetch(`http://127.0.0.1:${port}/api/secrets/reveal`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: '{}' });
       assert.equal(noCsrf.status, 403);
-      const emptyDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: '', tunnelName: 'eggy-multiplayer', serverPort: 2567, allowedOrigins: 'https://game.example.com' }) });
+      const emptyDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-danbo-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: '', tunnelName: 'danbo-multiplayer', serverPort: 2567, allowedOrigins: 'https://game.example.com' }) });
       assert.equal(emptyDomain.status, 200);
       assert.equal(configureCalls, 0, 'empty hostname must not configure Cloudflare');
-      const changedDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: 'play.example.com', tunnelName: 'eggy-multiplayer', serverPort: 2567, allowedOrigins: 'https://game.example.com' }) });
+      const changedDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-danbo-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: 'play.example.com', tunnelName: 'danbo-multiplayer', serverPort: 2567, allowedOrigins: 'https://game.example.com' }) });
       assert.equal(changedDomain.status, 200);
       assert.equal(configureCalls, 0, 'saving a hostname must not call Cloudflare');
-      const configureDomain = await fetch(`http://127.0.0.1:${port}/api/cloudflare/configure`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: '{}' });
+      const configureDomain = await fetch(`http://127.0.0.1:${port}/api/cloudflare/configure`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-danbo-csrf': payload.csrfToken }, body: '{}' });
       assert.equal(configureDomain.status, 200);
       assert.equal(configureCalls, 1, 'Cloudflare changes must require an explicit action');
-      const publicCheck = await fetch(`http://127.0.0.1:${port}/api/public/check`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: '{}' });
+      const publicCheck = await fetch(`http://127.0.0.1:${port}/api/public/check`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-danbo-csrf': payload.csrfToken }, body: '{}' });
       assert.equal(publicCheck.status, 200, 'external availability check must be exposed to the trusted admin session');
       assert.ok(store.loadSettings().lastPublicCheck);
-      const logout = await fetch(`http://127.0.0.1:${port}/api/logout`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: '{}' });
+      const logout = await fetch(`http://127.0.0.1:${port}/api/logout`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-danbo-csrf': payload.csrfToken }, body: '{}' });
       assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
     } finally { await admin.close(); }
   });

@@ -51,7 +51,7 @@ function createAdminServer(options) {
     next();
   });
   function issueSession(res, location = '/admin') {
-    res.setHeader('Set-Cookie', `eggy_admin=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`);
+    res.setHeader('Set-Cookie', `danbo_admin=${sessionToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`);
     res.redirect(302, location);
   }
   // The control server is bound to loopback and rejects non-local Host headers.
@@ -62,14 +62,14 @@ function createAdminServer(options) {
     issueSession(res);
   });
   app.use((req, res, next) => {
-    if (parseCookies(req.headers.cookie).eggy_admin !== sessionToken) return res.status(401).send('请从 EGGY Server 托盘菜单打开管理页面');
+    if (parseCookies(req.headers.cookie).danbo_admin !== sessionToken) return res.status(401).send('请从 DANBO Server 托盘菜单打开管理页面');
     next();
   });
   app.use(express.json({ limit: '32kb' }));
   app.use('/assets', express.static(staticDir, { fallthrough: false, etag: false, maxAge: 0 }));
 
   function requireCsrf(req, res, next) {
-    if (req.get('x-eggy-csrf') !== csrfToken) return res.status(403).json({ ok: false, error: '安全校验失败，请重新打开管理页面' });
+    if (req.get('x-danbo-csrf') !== csrfToken) return res.status(403).json({ ok: false, error: '安全校验失败，请重新打开管理页面' });
     next();
   }
   app.use('/api', (req, res, next) => req.method === 'GET' ? next() : requireCsrf(req, res, next));
@@ -241,7 +241,7 @@ function createAdminServer(options) {
     setTimeout(onQuit, 100);
   });
   app.post('/api/logout', (_req, res) => {
-    res.setHeader('Set-Cookie', 'eggy_admin=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+    res.setHeader('Set-Cookie', 'danbo_admin=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
     res.json({ ok: true });
   });
 

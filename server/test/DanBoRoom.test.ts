@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { boot, ColyseusTestServer } from "@colyseus/testing";
 import appConfig from "../src/app.config.js";
-import type { EggyState } from "../src/rooms/schema/EggyState.js";
+import type { DanBoState } from "../src/rooms/schema/DanBoState.js";
 
-describe("EggyRoom", () => {
+describe("DanBoRoom", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
 
   before(async () => { colyseus = await boot(appConfig); });
@@ -11,7 +11,7 @@ describe("EggyRoom", () => {
   beforeEach(async () => { await colyseus.cleanup(); });
 
   it("syncs two players and clamps impossible movement", async () => {
-    const serverRoom = await colyseus.createRoom<EggyState>("eggy_city", { code: "TEST42" });
+    const serverRoom = await colyseus.createRoom<DanBoState>("danbo_city", { code: "TEST42" });
     const first = await colyseus.connectTo(serverRoom, { name: "Alpha", character: 2, city: 0 });
     const second = await colyseus.connectTo(serverRoom, { name: "Beta", character: 4, city: 0 });
 
@@ -25,7 +25,7 @@ describe("EggyRoom", () => {
   });
 
   it("allows a validated city transfer and relays chat", async () => {
-    const serverRoom = await colyseus.createRoom<EggyState>("eggy_city", { code: "CITY88" });
+    const serverRoom = await colyseus.createRoom<DanBoState>("danbo_city", { code: "CITY88" });
     const first = await colyseus.connectTo(serverRoom, { name: "Alpha", city: 0 });
     const second = await colyseus.connectTo(serverRoom, { name: "Beta", city: 0 });
     first.onMessage("chat", () => {});

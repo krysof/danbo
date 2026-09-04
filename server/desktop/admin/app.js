@@ -13,7 +13,7 @@ function notice(message, error = false) {
 async function api(path, options = {}) {
   const response = await fetch(path, {
     method: options.method || 'GET',
-    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'x-eggy-csrf': csrfToken } : {}) },
+    headers: { 'Content-Type': 'application/json', ...(csrfToken ? { 'x-danbo-csrf': csrfToken } : {}) },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     cache: 'no-store',
   });
@@ -134,7 +134,7 @@ $('quit-app').addEventListener('click', async () => {
 $('logout').addEventListener('click', async () => {
   try {
     await api('/api/logout', { method: 'POST', body: {} });
-    document.body.innerHTML = '<main class="shell"><section class="panel"><h2>已退出登录</h2><p class="hint">请从 EGGY Server 托盘菜单重新打开管理中心。</p></section></main>';
+    document.body.innerHTML = '<main class="shell"><section class="panel"><h2>已退出登录</h2><p class="hint">请从 DANBO Server 托盘菜单重新打开管理中心。</p></section></main>';
   } catch (error) { notice(error.message, true); }
 });
 $('refresh-logs').addEventListener('click', async () => {

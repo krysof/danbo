@@ -1,11 +1,11 @@
-# Published into krysof/eggy as .github/workflows/pages.yml.
-name: Deploy EGGY client to GitHub Pages
+# Published into krysof/danbo as .github/workflows/pages.yml.
+name: Deploy DANBO client to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - 'eggy/**'
+      - 'danbo/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -29,10 +29,10 @@ jobs:
         uses: actions/checkout@v4
       - name: Configure Pages
         uses: actions/configure-pages@v5
-      - name: Upload EGGY client
+      - name: Upload DANBO client
         uses: actions/upload-pages-artifact@v3
         with:
-          path: eggy
+          path: danbo
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v5

@@ -1,6 +1,6 @@
 import cors from "cors";
 import { createEndpoint, createRouter, defineRoom, defineServer } from "colyseus";
-import { EggyRoom } from "./rooms/EggyRoom.js";
+import { DanBoRoom } from "./rooms/DanBoRoom.js";
 import { runtimeMetrics } from "./metrics.js";
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:8126,http://127.0.0.1:8126")
@@ -10,12 +10,12 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:8126,ht
 
 const server = defineServer({
   rooms: {
-    eggy_city: defineRoom(EggyRoom).filterBy(["code"]),
+    danbo_city: defineRoom(DanBoRoom).filterBy(["code"]),
   },
   routes: createRouter({
     health: createEndpoint("/health", { method: "GET" }, async () => ({
       ok: true,
-      service: "eggy-multiplayer",
+      service: "danbo-multiplayer",
       capacityPerRoom: 8,
       ...runtimeMetrics(),
     })),
@@ -28,7 +28,7 @@ const server = defineServer({
       },
       credentials: true,
     }));
-    app.get("/", (_req, res) => res.json({ service: "EGGY Multiplayer", status: "online" }));
+    app.get("/", (_req, res) => res.json({ service: "DANBO Multiplayer", status: "online" }));
   },
 });
 

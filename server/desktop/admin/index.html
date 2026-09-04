@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>EGGY Server 管理中心</title>
+  <title>DANBO Server 管理中心</title>
   <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body>
   <main class="shell">
     <header class="hero">
-      <div><span class="eyebrow">EGGY ONLINE CONTROL</span><h1>联机服务器管理中心</h1><p>本页面只监听 127.0.0.1，Cloudflare 密钥不会发送给游戏客户端。</p></div>
+      <div><span class="eyebrow">DANBO ONLINE CONTROL</span><h1>联机服务器管理中心</h1><p>本页面只监听 127.0.0.1，Cloudflare 密钥不会发送给游戏客户端。</p></div>
       <div class="hero-tools"><div class="hero-state"><i id="overall-dot"></i><strong id="overall-text">正在读取状态</strong></div><button id="logout">退出登录</button><button id="quit-app">退出托盘程序</button></div>
     </header>
 
@@ -46,7 +46,7 @@
       <p class="hint">域名不设默认值。若 Tunnel 已在 Cloudflare 控制台配置，只需保存域名和 Tunnel Token，不要点击“重新配置域名”。该按钮仅用于拥有对应 Zone 权限的 API Token。</p>
       <div class="form-grid thirds">
         <label><span>完整访问域名</span><input id="hostname" placeholder="server.example.com"></label>
-        <label><span>本项目 Tunnel 名称</span><input id="tunnel-name" placeholder="eggy-multiplayer"></label>
+        <label><span>本项目 Tunnel 名称</span><input id="tunnel-name" placeholder="danbo-multiplayer"></label>
         <label><span>本地服务</span><input id="local-service" value="http://localhost:2567" disabled></label>
       </div>
       <div class="public-link"><a id="public-url" href="#" rel="noreferrer">尚未配置域名</a><button id="copy-url">复制</button><button id="check-public">检测外网访问</button></div>

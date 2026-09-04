@@ -5,7 +5,7 @@
 (function(){
     'use strict';
 
-    var ROOM_NAME='eggy_city';
+    var ROOM_NAME='danbo_city';
     var SEND_INTERVAL=1000/15;
     var remotes=new Map();
     var client=null,room=null,joining=false,manualLeave=false;
@@ -366,7 +366,7 @@
         var url=new URL(location.href);url.searchParams.set('room',normalizeCode(room.state&&room.state.code||ui.code.value));
         if(endpoint&&!window.DANBO_MULTIPLAYER_URL)url.searchParams.set('net',endpoint);
         var text=url.toString();
-        if(navigator.share){navigator.share({title:'EGGY 联机房',text:'来我的 EGGY 房间一起玩',url:text}).catch(function(){});}
+        if(navigator.share){navigator.share({title:'DANBO 联机房',text:'来我的 DANBO 房间一起玩',url:text}).catch(function(){});}
         else if(navigator.clipboard){navigator.clipboard.writeText(text).then(function(){showSummary('邀请链接已复制。',false);});}
         else{showSummary(text,false);}
     }

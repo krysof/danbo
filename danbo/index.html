@@ -13,7 +13,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260904.1">
+<link rel="stylesheet" href="style.css?v=20260904.2">
 </head>
 <body>
 <div id="game-container">
@@ -145,7 +145,7 @@
   <div id="multiplayer-overlay" class="multiplayer-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="multiplayer-title">
     <section class="multiplayer-panel">
       <button id="multiplayer-close" class="multiplayer-close" type="button" aria-label="关闭">×</button>
-      <div class="multiplayer-eyebrow">EGGY ONLINE · 8 PLAYER ROOM</div>
+      <div class="multiplayer-eyebrow">DANBO ONLINE · 8 PLAYER ROOM</div>
       <div class="multiplayer-title-row">
         <div>
           <h2 id="multiplayer-title">一起逛蛋宝世界</h2>
@@ -156,7 +156,7 @@
       <div id="multiplayer-summary" class="multiplayer-summary">未加入房间，原单机内容保持可用。</div>
       <div class="multiplayer-fields">
         <label><span>你的名字</span><input id="multiplayer-name" maxlength="16" autocomplete="nickname" placeholder="输入昵称"></label>
-        <label><span>房间码</span><input id="multiplayer-code" maxlength="8" autocapitalize="characters" autocomplete="off" value="PUBLIC" placeholder="例如 EGGY88"></label>
+        <label><span>房间码</span><input id="multiplayer-code" maxlength="8" autocapitalize="characters" autocomplete="off" value="PUBLIC" placeholder="例如 DANBO88"></label>
       </div>
       <div class="multiplayer-actions">
         <button id="multiplayer-quick" class="multiplayer-primary" type="button">快速加入公共房</button>
@@ -235,7 +235,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260904.1';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260904.2';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   var warmStart=false;

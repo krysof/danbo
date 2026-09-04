@@ -24,7 +24,7 @@
 | 音频 | Web Audio API 程序化 BGM 与音效，无外部音频文件 |
 | 多语言 | 简体中文、繁体中文、日语、英语；根据 localStorage 或浏览器语言决定 |
 | 移动端 | 虚拟摇杆与按钮；默认在菜单/选人时隐藏，进入游戏才显示 |
-| 部署 | GitHub Pages，自定义域名 `eggy.ff18.com` |
+| 部署 | GitHub Pages，项目站点 `/danbo/` |
 | 版本规则 | `vYYYYMMDD.N`，静态资源用查询参数强制刷新缓存 |
 
 ## 3. 文件结构

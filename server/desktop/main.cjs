@@ -8,8 +8,8 @@ const { CloudflareManager } = require('./lib/cloudflare-manager.cjs');
 const { ProcessManager } = require('./lib/process-manager.cjs');
 const { createAdminServer } = require('./lib/admin-server.cjs');
 
-if (process.env.EGGY_TEST_USER_DATA) {
-  app.setPath('userData', path.resolve(process.env.EGGY_TEST_USER_DATA));
+if (process.env.DANBO_TEST_USER_DATA) {
+  app.setPath('userData', path.resolve(process.env.DANBO_TEST_USER_DATA));
 }
 
 const lock = app.requestSingleInstanceLock();
@@ -73,7 +73,7 @@ function updateTray() {
   const state = processes.status(settings);
   const serverRunning = state.server.state === 'running';
   const tunnelRunning = state.tunnel.state === 'running';
-  tray.setToolTip(`EGGY Server · ${serverRunning ? '服务器运行中' : '服务器已停止'} · ${tunnelRunning ? '外网已连接' : 'Tunnel 已停止'}`);
+  tray.setToolTip(`DANBO Server · ${serverRunning ? '服务器运行中' : '服务器已停止'} · ${tunnelRunning ? '外网已连接' : 'Tunnel 已停止'}`);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开 Web 管理中心', click: openAdmin },
     { type: 'separator' },
@@ -107,12 +107,12 @@ function updateTray() {
       },
     },
     { type: 'separator' },
-    { label: '退出 EGGY Server', click: () => app.quit() },
+    { label: '退出 DANBO Server', click: () => app.quit() },
   ]));
 }
 
 async function bootstrap() {
-  app.setAppUserModelId('com.ff18.eggy.server');
+  app.setAppUserModelId('com.ff18.danbo.server');
   const appPath = app.getAppPath();
   // The game server is a real child process rather than code hosted inside the
   // tray process. Packaged builds therefore execute the unpacked application
@@ -146,8 +146,8 @@ async function bootstrap() {
   await admin.listen(settings.adminPort);
   // Explicit opt-in hook used only by the packaged smoke test. Production
   // launches never write the one-time tray login URL to disk.
-  if (process.env.EGGY_TEST_ACCESS_FILE) {
-    fs.writeFileSync(process.env.EGGY_TEST_ACCESS_FILE, admin.loginPath, { mode: 0o600 });
+  if (process.env.DANBO_TEST_ACCESS_FILE) {
+    fs.writeFileSync(process.env.DANBO_TEST_ACCESS_FILE, admin.loginPath, { mode: 0o600 });
   }
 
   const trayIconPath = app.isPackaged

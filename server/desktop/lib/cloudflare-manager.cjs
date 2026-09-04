@@ -136,7 +136,7 @@ class CloudflareManager {
       apiToken,
       accountId,
       tunnelId: options.tunnelId,
-      tunnelName: options.tunnelName || 'eggy-multiplayer',
+      tunnelName: options.tunnelName || 'danbo-multiplayer',
     });
     const tunnelId = tunnel.id;
     if (!tunnelId) throw new CloudflareError('TUNNEL_INVALID', 'Cloudflare 未返回 Tunnel ID');
@@ -169,7 +169,7 @@ class CloudflareManager {
     try {
       const record = {
         type: 'CNAME', name: hostname, content: target, ttl: 1, proxied: true,
-        comment: currentDns && currentDns.comment ? currentDns.comment : 'Managed by EGGY Server',
+        comment: currentDns && currentDns.comment ? currentDns.comment : 'Managed by DANBO Server',
       };
       if (currentDns) {
         await this.request(`/zones/${zone.id}/dns_records/${currentDns.id}`, apiToken, { method: 'PUT', body: record });

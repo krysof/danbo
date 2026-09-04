@@ -1,5 +1,5 @@
 import { Client, CloseCode, Room } from "colyseus";
-import { EggyState, NetworkPlayer } from "./schema/EggyState.js";
+import { DanBoState, NetworkPlayer } from "./schema/DanBoState.js";
 import { playerConnected, playerDisconnected, roomCreated, roomDisposed } from "../metrics.js";
 
 const MAX_CLIENTS = 8;
@@ -40,9 +40,9 @@ const cleanName = (value: unknown) => {
 const cleanText = (value: unknown) =>
   String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 40);
 
-export class EggyRoom extends Room<{ state: EggyState }> {
+export class DanBoRoom extends Room<{ state: DanBoState }> {
   maxClients = MAX_CLIENTS;
-  state = new EggyState();
+  state = new DanBoState();
   private lastAcceptedAt = new Map<string, number>();
   private lastChatAt = new Map<string, number>();
 

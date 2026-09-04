@@ -1,11 +1,11 @@
 {
-  "name": "eggy-multiplayer-server",
+  "name": "danbo-multiplayer-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "desktop/main.cjs",
   "author": "IrisNovaForge",
-  "description": "Authoritative eight-player city rooms for EGGY FPS",
+  "description": "Authoritative eight-player city rooms for DANBO FPS",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -39,8 +39,8 @@
     "typescript": "^5.9.2"
   },
   "build": {
-    "appId": "com.ff18.eggy.server",
-    "productName": "EGGY Server",
+    "appId": "com.ff18.danbo.server",
+    "productName": "DANBO Server",
     "asar": true,
     "asarUnpack": [
       "build/**/*",
@@ -72,7 +72,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "EGGY Server"
+      "shortcutName": "DANBO Server"
     }
   }
 }

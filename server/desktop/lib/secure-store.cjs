@@ -9,7 +9,7 @@ const DEFAULTS = Object.freeze({
   launchAtLogin: false,
   hostname: '',
   managedHostname: '',
-  tunnelName: 'eggy-multiplayer',
+  tunnelName: 'danbo-multiplayer',
   tunnelId: '',
   accountId: '',
   zoneId: '',
