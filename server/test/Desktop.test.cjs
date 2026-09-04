@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {
-  validateHostname, validateApiToken, validateTunnelToken, assertTokensDistinct,
+  validateHostname, validateDomainPrefix, validateApiToken, validateTunnelToken, assertTokensDistinct,
 } = require('../desktop/lib/validation.cjs');
 const { SecureStore } = require('../desktop/lib/secure-store.cjs');
 const { CloudflareManager, mergeIngressConfig } = require('../desktop/lib/cloudflare-manager.cjs');
@@ -31,6 +31,8 @@ function jsonResponse(result, status = 200, success = true) {
 describe('Desktop server validation and secure storage', () => {
   it('validates separate token types and full hostnames', () => {
     assert.equal(validateHostname('SERVER.EXAMPLE.COM'), 'server.example.com');
+    assert.equal(validateDomainPrefix('DANBO'), 'danbo');
+    assert.throws(() => validateDomainPrefix('bad.prefix'));
     assert.throws(() => validateHostname('https://bad/path'));
     assert.equal(validateApiToken('a'.repeat(40)), 'a'.repeat(40));
     assert.equal(validateTunnelToken(tunnelToken()), tunnelToken());

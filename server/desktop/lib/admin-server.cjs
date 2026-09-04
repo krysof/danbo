@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const express = require('express');
 const {
-  validateHostname, validatePort, validateApiToken, validateTunnelToken, assertTokensDistinct,
+  validateHostname, validateDomainPrefix, validatePort, validateApiToken, validateTunnelToken, assertTokensDistinct,
 } = require('./validation.cjs');
 
 function loopback(address) {
@@ -166,9 +166,20 @@ function createAdminServer(options) {
   }));
   app.post('/api/settings', asyncRoute(async (req, res) => {
     const previous = store.loadSettings();
+    const structuredDomain = Object.prototype.hasOwnProperty.call(req.body, 'domainPrefix') || Object.prototype.hasOwnProperty.call(req.body, 'zoneDomain');
+    const domainPrefix = validateDomainPrefix(req.body.domainPrefix === undefined ? previous.domainPrefix : req.body.domainPrefix, true);
+    const zoneDomain = validateHostname(req.body.zoneDomain === undefined ? previous.zoneDomain : req.body.zoneDomain, true);
+    if (structuredDomain && ((domainPrefix && !zoneDomain) || (!domainPrefix && zoneDomain))) {
+      throw new Error('域名前缀和根域名必须同时填写');
+    }
+    const hostname = structuredDomain
+      ? (domainPrefix && zoneDomain ? `${domainPrefix}.${zoneDomain}` : '')
+      : validateHostname(req.body.hostname === undefined ? previous.hostname : req.body.hostname, true);
     const candidate = {
       ...previous,
-      hostname: validateHostname(req.body.hostname, true),
+      domainPrefix,
+      zoneDomain,
+      hostname: validateHostname(hostname, true),
       tunnelName: cleanTunnelName(req.body.tunnelName || previous.tunnelName),
       serverPort: validatePort(req.body.serverPort === undefined ? previous.serverPort : req.body.serverPort, '服务器端口'),
       allowedOrigins: String(req.body.allowedOrigins || previous.allowedOrigins).trim(),

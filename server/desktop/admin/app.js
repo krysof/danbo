@@ -33,7 +33,8 @@ function fillSettings(settings) {
   if (settingsDirty) return;
   if (document.activeElement !== $('server-port')) $('server-port').value = settings.serverPort;
   if (document.activeElement !== $('allowed-origins')) $('allowed-origins').value = settings.allowedOrigins;
-  if (document.activeElement !== $('hostname')) $('hostname').value = settings.hostname;
+  if (document.activeElement !== $('domain-prefix')) $('domain-prefix').value = settings.domainPrefix || '';
+  if (document.activeElement !== $('zone-domain')) $('zone-domain').value = settings.zoneDomain || '';
   if (document.activeElement !== $('tunnel-name')) $('tunnel-name').value = settings.tunnelName;
   $('local-service').value = `http://localhost:${settings.serverPort}`;
   $('launch-at-login').checked = !!settings.launchAtLogin;
@@ -104,13 +105,15 @@ $('load-secrets').addEventListener('click', async () => {
 $('clear-secrets').addEventListener('click', () => action('/api/secrets', { apiToken: '', tunnelToken: '' }, 'Token 已清除'));
 $('server-port').addEventListener('input', () => { settingsDirty = true; });
 $('allowed-origins').addEventListener('input', () => { settingsDirty = true; });
-$('hostname').addEventListener('input', () => { settingsDirty = true; });
+$('domain-prefix').addEventListener('input', () => { settingsDirty = true; });
+$('zone-domain').addEventListener('input', () => { settingsDirty = true; });
 $('tunnel-name').addEventListener('input', () => { settingsDirty = true; });
 $('launch-at-login').addEventListener('change', () => { settingsDirty = true; });
 $('save-settings').addEventListener('click', () => action('/api/settings', {
   serverPort: Number(value('server-port')),
   allowedOrigins: value('allowed-origins'),
-  hostname: value('hostname'),
+  domainPrefix: value('domain-prefix'),
+  zoneDomain: value('zone-domain'),
   tunnelName: value('tunnel-name'),
   launchAtLogin: $('launch-at-login').checked,
 }, '设置已保存', () => { settingsDirty = false; }));

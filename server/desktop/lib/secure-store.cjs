@@ -7,6 +7,8 @@ const DEFAULTS = Object.freeze({
   serverEnabled: true,
   tunnelEnabled: false,
   launchAtLogin: false,
+  domainPrefix: '',
+  zoneDomain: '',
   hostname: '',
   managedHostname: '',
   tunnelName: 'danbo-multiplayer',

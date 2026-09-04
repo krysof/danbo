@@ -17,6 +17,15 @@ function validateHostname(value, allowEmpty = true) {
   return hostname;
 }
 
+function validateDomainPrefix(value, allowEmpty = true) {
+  const prefix = String(value || '').trim().toLowerCase();
+  if (!prefix && allowEmpty) return '';
+  if (!prefix || !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(prefix)) {
+    throw new Error('域名前缀格式不正确，例如 danbo');
+  }
+  return prefix;
+}
+
 function validatePort(value, name = '端口') {
   const port = Number(value);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`${name}必须是 1-65535 的整数`);
@@ -59,6 +68,7 @@ function assertTokensDistinct(apiToken, tunnelToken) {
 module.exports = {
   normalizeHostname,
   validateHostname,
+  validateDomainPrefix,
   validatePort,
   validateApiToken,
   validateTunnelToken,

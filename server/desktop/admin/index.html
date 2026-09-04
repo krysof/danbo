@@ -43,9 +43,10 @@
 
     <section class="panel">
       <div class="panel-head"><div><span class="step">03</span><h2>域名与 Tunnel</h2></div><div class="actions"><button id="save-settings">保存设置</button><button id="configure-domain" class="primary">重新配置域名</button></div></div>
-      <p class="hint">域名不设默认值。若 Tunnel 已在 Cloudflare 控制台配置，只需保存域名和 Tunnel Token，不要点击“重新配置域名”。该按钮仅用于拥有对应 Zone 权限的 API Token。</p>
+      <p class="hint">访问地址由“域名前缀 + 根域名”组成，例如 danbo + kryso.net = danbo.kryso.net。若 Tunnel 已在 Cloudflare 控制台配置，只需保存域名和 Tunnel Token，不要点击“重新配置域名”。</p>
       <div class="form-grid thirds">
-        <label><span>完整访问域名</span><input id="hostname" placeholder="server.example.com"></label>
+        <label><span>域名前缀</span><input id="domain-prefix" placeholder="danbo"></label>
+        <label><span>根域名（Cloudflare Zone）</span><input id="zone-domain" placeholder="example.com"></label>
         <label><span>本项目 Tunnel 名称</span><input id="tunnel-name" placeholder="danbo-multiplayer"></label>
         <label><span>本地服务</span><input id="local-service" value="http://localhost:2567" disabled></label>
       </div>
