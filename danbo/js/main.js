@@ -18,6 +18,13 @@ if(typeof _updateSF2Select==='function')_updateSF2Select(0);
 // Start button
 var _startBtn=document.getElementById('start-btn');
 var _startTriggered=false;
+function _openCharacterSelect(){
+    showScreen('select-screen');
+    if(_touchVisible)_showMenuTouch();
+    _menuJoyConfirmCD=30;
+    playMenuConfirm();
+}
+window.DANBO_OPEN_CHARACTER_SELECT=_openCharacterSelect;
 function _handleStart(){
     if(_startTriggered)return;
     _startTriggered=true;
@@ -37,10 +44,15 @@ function _handleStart(){
         if(_ss){_ss.style.display='';_ss.style.background='';}
         // Reset start triggered for next time
         _startTriggered=false;
-        showScreen('select-screen');
-        if(_touchVisible)_showMenuTouch();
-        _menuJoyConfirmCD=30; // extra cooldown after screen appears
-        startSelectBGM();playMenuConfirm();
+        if(window.DANBO_SERVER_BROWSER&&typeof window.DANBO_SERVER_BROWSER.open==='function'){
+            window.DANBO_SERVER_BROWSER.open();
+            if(_touchVisible)_showMenuTouch();
+            _menuJoyConfirmCD=30;
+            playMenuConfirm();
+        }else{
+            _openCharacterSelect();
+        }
+        startSelectBGM();
     },700);
 }
 _startBtn.addEventListener('click',_handleStart);
@@ -139,6 +151,19 @@ function _updateMenuJoy(){
         requestAnimationFrame(_updateMenuJoy);
         return;
     }
+    // Server browser: any action button enters the selected online server.
+    var serverScreen=document.getElementById('server-select-screen');
+    if(serverScreen&&serverScreen.classList.contains('active')){
+        if(_menuJoyConfirmCD>0)_menuJoyConfirmCD--;
+        if((keys['Space']||keys['KeyF']||keys['KeyR']||keys['KeyT'])&&_menuJoyConfirmCD<=0){
+            _menuJoyConfirmCD=30;
+            keys['Space']=false;keys['KeyF']=false;keys['KeyR']=false;keys['KeyT']=false;
+            var serverEnter=document.getElementById('server-list-enter');
+            if(serverEnter&&!serverEnter.disabled)serverEnter.click();
+        }
+        requestAnimationFrame(_updateMenuJoy);
+        return;
+    }
     // Select screen: joystick navigates, jump/grab = confirm
     var sel=document.getElementById('select-screen');
     if(!sel||!sel.classList.contains('active')){requestAnimationFrame(_updateMenuJoy);return;}
@@ -187,9 +212,15 @@ addEventListener('keydown',function(e){
                 // Don't skip to select if intro is still playing
                 if(!(typeof _introRunning!=='undefined'&&_introRunning&&!_introSkipped)){_handleStart();}
             } else {
-                var sel=document.getElementById('select-screen');
-                if(sel&&sel.classList.contains('active')){
+                var serverScreen=document.getElementById('server-select-screen');
+                var serverEnter=document.getElementById('server-list-enter');
+                if(serverScreen&&serverScreen.classList.contains('active')&&serverEnter&&!serverEnter.disabled){
+                    serverEnter.click();
+                }else{
+                    var sel=document.getElementById('select-screen');
+                    if(sel&&sel.classList.contains('active')){
                     document.getElementById('confirm-btn').click();
+                    }
                 }
             }
         }
