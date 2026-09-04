@@ -49,8 +49,15 @@ Build and run either directly or with Docker:
 docker build -t eggy-multiplayer ./server
 docker run --rm -p 2567:2567 \
   -e PORT=2567 \
-  -e ALLOWED_ORIGINS=https://eggy.ff18.com \
+  -e ALLOWED_ORIGINS=https://game.example.com \
   eggy-multiplayer
 ```
 
-The public endpoint must support WebSockets and HTTPS/WSS. The production client defaults to `wss://online.ff18.com`, intended to be a Cloudflare Tunnel pointing at this machine's `http://localhost:2567`. You can override it via `window.DANBO_MULTIPLAYER_URL`, the build environment variable `DANBO_MULTIPLAYER_URL`, the `?net=wss://host` query, or the in-game advanced server field.
+The public endpoint must support WebSockets and HTTPS/WSS. No production hostname is hard-coded. Configure the client with `window.DANBO_MULTIPLAYER_URL`, the build environment variable `DANBO_MULTIPLAYER_URL`, the `?net=wss://host` query, or the in-game advanced server field.
+
+The tray host supports two Cloudflare modes:
+
+- For a tunnel already configured in the Cloudflare dashboard, save its hostname and Tunnel Token, then start the tunnel. An API Token is not required.
+- To let the tray host create/update the tunnel ingress and DNS record, provide an API Token whose scope includes the selected account and DNS zone, then explicitly click **Reconfigure domain**.
+
+Saving settings never changes Cloudflare DNS or ingress automatically.

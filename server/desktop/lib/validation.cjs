@@ -8,7 +8,7 @@ function validateHostname(value, allowEmpty = true) {
   const hostname = normalizeHostname(value);
   if (!hostname && allowEmpty) return '';
   if (!hostname || hostname.length > 253 || hostname.includes('/') || hostname.includes(':')) {
-    throw new Error('请输入完整域名，例如 online.ff18.com');
+    throw new Error('请输入完整域名，例如 server.example.com');
   }
   const labels = hostname.split('.');
   if (labels.length < 2 || labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) {

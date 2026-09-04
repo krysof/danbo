@@ -7,7 +7,7 @@ const DEFAULTS = Object.freeze({
   serverEnabled: true,
   tunnelEnabled: false,
   launchAtLogin: false,
-  hostname: 'online.ff18.com',
+  hostname: '',
   managedHostname: '',
   tunnelName: 'eggy-multiplayer',
   tunnelId: '',
@@ -17,7 +17,7 @@ const DEFAULTS = Object.freeze({
   lastPublicCheck: '',
   serverPort: 2567,
   adminPort: 2568,
-  allowedOrigins: 'https://eggy.ff18.com',
+  allowedOrigins: 'http://localhost:8126,http://127.0.0.1:8126',
   cloudflaredPath: '',
 });
 

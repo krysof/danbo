@@ -3,7 +3,7 @@ import { createEndpoint, createRouter, defineRoom, defineServer } from "colyseus
 import { EggyRoom } from "./rooms/EggyRoom.js";
 import { runtimeMetrics } from "./metrics.js";
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://eggy.ff18.com,http://localhost:8126,http://127.0.0.1:8126")
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:8126,http://127.0.0.1:8126")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);

@@ -176,12 +176,17 @@ function createAdminServer(options) {
     };
     if (!candidate.allowedOrigins) throw new Error('必须填写允许访问的游戏网页 Origin');
     const domainChanged = candidate.hostname !== previous.hostname || candidate.tunnelName !== previous.tunnelName || candidate.serverPort !== previous.serverPort;
-    let saved;
-    if (domainChanged && candidate.hostname) saved = (await configureDomain(candidate)).settings;
-    else saved = store.saveSettings({ ...candidate, domainConfigured: candidate.hostname ? previous.domainConfigured : false });
+    // Saving settings must not call the Cloudflare API. This keeps dashboard-
+    // managed tunnels usable with only a Tunnel Token and avoids touching a
+    // DNS zone that is outside the API Token's permission scope. Cloudflare
+    // changes are explicit through /api/cloudflare/configure.
+    const saved = store.saveSettings({
+      ...candidate,
+      domainConfigured: domainChanged ? false : previous.domainConfigured,
+    });
     onLaunchAtLogin(saved.launchAtLogin);
     onStateChange();
-    res.json({ ok: true, settings: saved, domainReconfigured: domainChanged && !!candidate.hostname });
+    res.json({ ok: true, settings: saved, domainReconfigured: false });
   }));
   app.post('/api/cloudflare/configure', asyncRoute(async (_req, res) => res.json({ ok: true, ...(await configureDomain()) })));
   app.post('/api/server/start', asyncRoute(async (_req, res) => {

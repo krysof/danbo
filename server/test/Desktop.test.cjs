@@ -30,7 +30,7 @@ function jsonResponse(result, status = 200, success = true) {
 
 describe('Desktop server validation and secure storage', () => {
   it('validates separate token types and full hostnames', () => {
-    assert.equal(validateHostname('ONLINE.FF18.COM'), 'online.ff18.com');
+    assert.equal(validateHostname('SERVER.EXAMPLE.COM'), 'server.example.com');
     assert.throws(() => validateHostname('https://bad/path'));
     assert.equal(validateApiToken('a'.repeat(40)), 'a'.repeat(40));
     assert.equal(validateTunnelToken(tunnelToken()), tunnelToken());
@@ -41,6 +41,8 @@ describe('Desktop server validation and secure storage', () => {
   it('encrypts tokens separately from public settings and persists switches', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'eggy-store-'));
     const store = new SecureStore(directory, fakeSafeStorage());
+    assert.equal(store.loadSettings().hostname, '');
+    assert.equal(store.loadSettings().allowedOrigins.includes('ff18.com'), false);
     store.saveSecrets({ apiToken: 'api-secret', tunnelToken: tunnelToken() });
     const settings = store.saveSettings({ serverEnabled: false, tunnelEnabled: true });
     assert.equal(settings.serverEnabled, false);
@@ -62,14 +64,14 @@ describe('Cloudflare safe configuration merge', () => {
     const original = {
       ingress: [
         { hostname: 'other.example.com', path: '/api/*', service: 'http://localhost:9000', originRequest: { connectTimeout: 12 }, custom: { keep: true } },
-        { hostname: 'online.ff18.com', service: 'http://localhost:1111', originRequest: { httpHostHeader: 'old' } },
+        { hostname: 'server.example.com', service: 'http://localhost:1111', originRequest: { httpHostHeader: 'old' } },
         { service: 'http_status:404', extra: 'keep' },
       ],
       originRequest: { tcpKeepAlive: 30 },
       'warp-routing': { enabled: true },
       unknown: { nested: 1 },
     };
-    const merged = mergeIngressConfig(original, 'online.ff18.com', 'http://localhost:2567', 'online.ff18.com');
+    const merged = mergeIngressConfig(original, 'server.example.com', 'http://localhost:2567', 'server.example.com');
     assert.equal(merged.ingress[0].custom.keep, true);
     assert.equal(merged.ingress[0].path, '/api/*');
     assert.equal(merged.ingress[1].originRequest.httpHostHeader, 'old');
@@ -82,20 +84,20 @@ describe('Cloudflare safe configuration merge', () => {
 
   it('aborts instead of replacing another project hostname', () => {
     assert.throws(() => mergeIngressConfig({ ingress: [
-      { hostname: 'online.ff18.com', service: 'http://localhost:9999' }, { service: 'http_status:404' },
-    ] }, 'online.ff18.com', 'http://localhost:2567', ''), /其它/);
+      { hostname: 'server.example.com', service: 'http://localhost:9999' }, { service: 'http_status:404' },
+    ] }, 'server.example.com', 'http://localhost:2567', ''), /其它/);
   });
 
   it('performs GET planning before PUT and creates the proxied CNAME', async () => {
     const calls = [];
-    const originalConfig = { ingress: [{ hostname: 'keep.ff18.com', path: '/x', service: 'http://localhost:8', originRequest: { noTLSVerify: true } }, { service: 'http_status:404' }], extra: { keep: 1 } };
+    const originalConfig = { ingress: [{ hostname: 'keep.example.com', path: '/x', service: 'http://localhost:8', originRequest: { noTLSVerify: true } }, { service: 'http_status:404' }], extra: { keep: 1 } };
     const fetch = async (url, options = {}) => {
       const pathname = new URL(url).pathname;
       const method = options.method || 'GET'; calls.push({ pathname, method, body: options.body && JSON.parse(options.body) });
       if (pathname.endsWith('/user/tokens/verify')) return jsonResponse({ status: 'active' });
       if (pathname === '/client/v4/zones') {
         const name = new URL(url).searchParams.get('name');
-        return jsonResponse(name === 'ff18.com' ? [{ id: 'zone', name: 'ff18.com', account: { id: 'account' } }] : []);
+        return jsonResponse(name === 'example.com' ? [{ id: 'zone', name: 'example.com', account: { id: 'account' } }] : []);
       }
       if (pathname.endsWith('/cfd_tunnel/tunnel-id') && method === 'GET') return jsonResponse({ id: 'tunnel-id', name: 'eggy-multiplayer', config_src: 'cloudflare' });
       if (pathname.endsWith('/configurations') && method === 'GET') return jsonResponse({ config: originalConfig });
@@ -106,8 +108,8 @@ describe('Cloudflare safe configuration merge', () => {
       throw new Error(`unexpected ${method} ${pathname}`);
     };
     const manager = new CloudflareManager({ fetch });
-    const result = await manager.configure({ hostname: 'online.ff18.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', tunnelName: 'eggy-multiplayer' });
-    assert.equal(result.websocketUrl, 'wss://online.ff18.com');
+    const result = await manager.configure({ hostname: 'server.example.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', tunnelName: 'eggy-multiplayer' });
+    assert.equal(result.websocketUrl, 'wss://server.example.com');
     const getIndex = calls.findIndex((call) => call.pathname.endsWith('/configurations') && call.method === 'GET');
     const putIndex = calls.findIndex((call) => call.pathname.endsWith('/configurations') && call.method === 'PUT');
     assert.ok(getIndex >= 0 && putIndex > getIndex);
@@ -129,7 +131,7 @@ describe('Cloudflare safe configuration merge', () => {
       if (pathname.endsWith('/configurations')) return jsonResponse(null, 500, false);
       throw new Error('unexpected request');
     };
-    await assert.rejects(() => new CloudflareManager({ fetch }).configure({ hostname: 'online.ff18.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id' }), (error) => error.code === 'CONFIG_READ_FAILED');
+    await assert.rejects(() => new CloudflareManager({ fetch }).configure({ hostname: 'server.example.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id' }), (error) => error.code === 'CONFIG_READ_FAILED');
     assert.equal(calls.some((call) => call.method === 'PUT'), false);
   });
 
@@ -145,19 +147,19 @@ describe('Cloudflare safe configuration merge', () => {
       if (pathname.endsWith('/cfd_tunnel/tunnel-id') && method === 'GET') return jsonResponse({ id: 'tunnel-id', name: 'eggy-multiplayer', config_src: 'cloudflare' });
       if (pathname.endsWith('/configurations') && method === 'GET') return jsonResponse({ config: original });
       if (pathname.endsWith('/configurations') && method === 'PUT') return jsonResponse({ config: calls.at(-1).body.config });
-      if (pathname.endsWith('/dns_records') && method === 'GET') return jsonResponse([{ id: 'dns-id', name: 'online.ff18.com', type: 'CNAME', content: 'old.cfargotunnel.com', proxied: false }]);
+      if (pathname.endsWith('/dns_records') && method === 'GET') return jsonResponse([{ id: 'dns-id', name: 'server.example.com', type: 'CNAME', content: 'old.cfargotunnel.com', proxied: false }]);
       if (pathname.endsWith('/dns_records/dns-id') && method === 'PUT') return failDns ? jsonResponse(null, 500, false) : jsonResponse({ id: 'dns-id' });
       if (pathname.endsWith('/token')) return jsonResponse(tunnelToken());
       throw new Error(`unexpected ${method} ${pathname}`);
     };
     const manager = new CloudflareManager({ fetch });
-    await manager.configure({ hostname: 'online.ff18.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', managedHostname: 'online.ff18.com' });
+    await manager.configure({ hostname: 'server.example.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', managedHostname: 'server.example.com' });
     const dnsUpdate = calls.find((call) => call.pathname.endsWith('/dns_records/dns-id') && call.method === 'PUT');
     assert.equal(dnsUpdate.body.content, 'tunnel-id.cfargotunnel.com');
     assert.equal(dnsUpdate.body.proxied, true);
 
     calls.length = 0; failDns = true;
-    await assert.rejects(() => manager.configure({ hostname: 'online.ff18.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', managedHostname: 'online.ff18.com' }), (error) => error.code === 'DNS_UPDATE_FAILED');
+    await assert.rejects(() => manager.configure({ hostname: 'server.example.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id', managedHostname: 'server.example.com' }), (error) => error.code === 'DNS_UPDATE_FAILED');
     const configPuts = calls.filter((call) => call.pathname.endsWith('/configurations') && call.method === 'PUT');
     assert.equal(configPuts.length, 2, 'DNS failure must trigger one rollback PUT');
     assert.deepEqual(configPuts[1].body.config, original);
@@ -192,7 +194,7 @@ describe('Owned process and local web administration', () => {
     let configureCalls = 0;
     const cloudflare = { configure: async (settings) => { configureCalls += 1; return { hostname: settings.hostname, publicUrl: `https://${settings.hostname}`, accountId: 'a', zoneId: 'z', tunnelId: 't', tunnelName: 'eggy-multiplayer', tunnelToken: tunnelToken() }; } };
     const admin = createAdminServer({ store, processes, cloudflare, staticDir: path.join(__dirname, '..', 'desktop', 'admin'), fetch: async (url) => {
-      if (String(url).startsWith('https://play.ff18.com/health')) return { ok: true, status: 200, json: async () => ({ ok: true }) };
+      if (String(url).startsWith('https://play.example.com/health')) return { ok: true, status: 200, json: async () => ({ ok: true }) };
       throw new Error('offline');
     } });
     const server = await admin.listen(0); const port = server.address().port;
@@ -210,12 +212,15 @@ describe('Owned process and local web administration', () => {
       assert.equal(JSON.stringify(payload).includes('aaaaaaaaaaaaaaaaaaaa'), false);
       const noCsrf = await fetch(`http://127.0.0.1:${port}/api/secrets/reveal`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: '{}' });
       assert.equal(noCsrf.status, 403);
-      const emptyDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: '', tunnelName: 'eggy-multiplayer', serverPort: 2567, allowedOrigins: 'https://eggy.ff18.com' }) });
+      const emptyDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: '', tunnelName: 'eggy-multiplayer', serverPort: 2567, allowedOrigins: 'https://game.example.com' }) });
       assert.equal(emptyDomain.status, 200);
       assert.equal(configureCalls, 0, 'empty hostname must not configure Cloudflare');
-      const changedDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: 'play.ff18.com', tunnelName: 'eggy-multiplayer', serverPort: 2567, allowedOrigins: 'https://eggy.ff18.com' }) });
+      const changedDomain = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: JSON.stringify({ hostname: 'play.example.com', tunnelName: 'eggy-multiplayer', serverPort: 2567, allowedOrigins: 'https://game.example.com' }) });
       assert.equal(changedDomain.status, 200);
-      assert.equal(configureCalls, 1, 'hostname change must reconfigure Cloudflare');
+      assert.equal(configureCalls, 0, 'saving a hostname must not call Cloudflare');
+      const configureDomain = await fetch(`http://127.0.0.1:${port}/api/cloudflare/configure`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: '{}' });
+      assert.equal(configureDomain.status, 200);
+      assert.equal(configureCalls, 1, 'Cloudflare changes must require an explicit action');
       const publicCheck = await fetch(`http://127.0.0.1:${port}/api/public/check`, { method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-eggy-csrf': payload.csrfToken }, body: '{}' });
       assert.equal(publicCheck.status, 200, 'external availability check must be exposed to the trusted admin session');
       assert.ok(store.loadSettings().lastPublicCheck);

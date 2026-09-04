@@ -52,7 +52,6 @@
         var declared=window.DANBO_MULTIPLAYER_URL||'';
         if(!query&&!saved&&!declared){
             if(location.hostname==='localhost'||location.hostname==='127.0.0.1')declared='ws://'+location.hostname+':2567';
-            else declared='wss://online.ff18.com';
         }
         return normalizeEndpoint(query||saved||declared);
     }
