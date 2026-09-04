@@ -48,7 +48,7 @@
         var query='';
         try{query=new URLSearchParams(location.search).get('net')||'';}catch(e){}
         var saved='';
-        try{saved=localStorage.getItem('danbo_multiplayer_server')||'';}catch(e){}
+        try{saved=localStorage.getItem('danbo_multiplayer_server_v2')||'';}catch(e){}
         var declared=window.DANBO_MULTIPLAYER_URL||'';
         if(!query&&!saved&&!declared){
             if(location.hostname==='localhost'||location.hostname==='127.0.0.1')declared='ws://'+location.hostname+':2567';
@@ -129,7 +129,7 @@
     }
     function saveSettings(endpoint,name){
         try{
-            localStorage.setItem('danbo_multiplayer_server',endpoint);
+            localStorage.setItem('danbo_multiplayer_server_v2',endpoint);
             localStorage.setItem('danbo_player_name',name);
         }catch(e){}
     }
