@@ -2,6 +2,7 @@
 
 let csrfToken = '';
 let lastStatus = null;
+let settingsDirty = false;
 const $ = (id) => document.getElementById(id);
 
 function notice(message, error = false) {
@@ -27,6 +28,9 @@ function stateText(element, text, online = false, error = false) {
   element.className = online ? 'state-online' : error ? 'state-error' : '';
 }
 function fillSettings(settings) {
+  // Status refreshes run every 2.5 seconds. Never replace any part of an
+  // unfinished form after the user moves focus from one field to another.
+  if (settingsDirty) return;
   if (document.activeElement !== $('server-port')) $('server-port').value = settings.serverPort;
   if (document.activeElement !== $('allowed-origins')) $('allowed-origins').value = settings.allowedOrigins;
   if (document.activeElement !== $('hostname')) $('hostname').value = settings.hostname;
@@ -70,10 +74,11 @@ function render(data) {
 async function refresh() {
   try { render(await api('/api/status')); } catch (error) { notice(error.message, true); }
 }
-async function action(path, body, success) {
+async function action(path, body, success, onSuccess) {
   try {
     notice('正在处理，请稍候…');
-    await api(path, { method: 'POST', body });
+    const result = await api(path, { method: 'POST', body });
+    if (onSuccess) onSuccess(result);
     notice(success || '操作完成');
     await refresh();
   } catch (error) { notice(error.message, true); }
@@ -97,13 +102,18 @@ $('load-secrets').addEventListener('click', async () => {
   } catch (error) { notice(error.message, true); }
 });
 $('clear-secrets').addEventListener('click', () => action('/api/secrets', { apiToken: '', tunnelToken: '' }, 'Token 已清除'));
+$('server-port').addEventListener('input', () => { settingsDirty = true; });
+$('allowed-origins').addEventListener('input', () => { settingsDirty = true; });
+$('hostname').addEventListener('input', () => { settingsDirty = true; });
+$('tunnel-name').addEventListener('input', () => { settingsDirty = true; });
+$('launch-at-login').addEventListener('change', () => { settingsDirty = true; });
 $('save-settings').addEventListener('click', () => action('/api/settings', {
   serverPort: Number(value('server-port')),
   allowedOrigins: value('allowed-origins'),
   hostname: value('hostname'),
   tunnelName: value('tunnel-name'),
   launchAtLogin: $('launch-at-login').checked,
-}, '设置已保存'));
+}, '设置已保存', () => { settingsDirty = false; }));
 $('configure-domain').addEventListener('click', () => action('/api/cloudflare/configure', {}, '域名和 Tunnel 已安全配置'));
 $('server-start').addEventListener('click', () => action('/api/server/start', {}, '服务器已启动'));
 $('server-stop').addEventListener('click', () => action('/api/server/stop', {}, '服务器已停止'));
