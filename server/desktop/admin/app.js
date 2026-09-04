@@ -3,6 +3,7 @@
 let csrfToken = '';
 let lastStatus = null;
 let settingsDirty = false;
+let publicCheckInitialized = false;
 const $ = (id) => document.getElementById(id);
 
 function notice(message, error = false) {
@@ -57,6 +58,13 @@ function render(data) {
   const url = data.publicUrl || '';
   $('public-url').textContent = url || '尚未配置域名';
   $('public-url').href = url || '#';
+  if (!publicCheckInitialized) {
+    const checkedAt = data.settings.lastPublicCheck;
+    const checkStatus = $('public-check-status');
+    checkStatus.textContent = checkedAt ? `上次通过 ${new Date(checkedAt).toLocaleTimeString()}` : '尚未检测';
+    checkStatus.className = `public-check-status${checkedAt ? ' state-online' : ''}`;
+    publicCheckInitialized = true;
+  }
   $('api-saved').textContent = data.secrets.apiTokenSaved ? '已安全保存' : '未保存';
   $('api-saved').className = data.secrets.apiTokenSaved ? 'saved' : '';
   $('tunnel-saved').textContent = data.secrets.tunnelTokenSaved ? '已安全保存' : '未保存';
@@ -125,7 +133,27 @@ $('server-stop').addEventListener('click', () => action('/api/server/stop', {}, 
 $('download-cloudflared').addEventListener('click', () => action('/api/tunnel/download', {}, 'cloudflared 已安装'));
 $('tunnel-start').addEventListener('click', () => action('/api/tunnel/start', {}, 'Tunnel 已启动'));
 $('tunnel-stop').addEventListener('click', () => action('/api/tunnel/stop', {}, 'Tunnel 已停止'));
-$('check-public').addEventListener('click', () => action('/api/public/check', {}, '外网访问正常'));
+$('check-public').addEventListener('click', async () => {
+  const button = $('check-public');
+  const resultText = $('public-check-status');
+  button.disabled = true;
+  button.textContent = '检测中…';
+  resultText.textContent = '正在从服务器访问公网地址…';
+  resultText.className = 'public-check-status';
+  try {
+    await api('/api/public/check', { method: 'POST', body: {} });
+    resultText.textContent = `✓ 外网正常 ${new Date().toLocaleTimeString()}`;
+    resultText.className = 'public-check-status state-online';
+    notice('外网访问正常');
+  } catch (error) {
+    resultText.textContent = `✕ ${error.message}`;
+    resultText.className = 'public-check-status state-error';
+    notice(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = '重新检测';
+  }
+});
 $('copy-url').addEventListener('click', async () => {
   if (!lastStatus || !lastStatus.publicUrl) return notice('尚未配置外网域名', true);
   try { await navigator.clipboard.writeText(lastStatus.publicUrl); notice('外网地址已复制'); } catch (_) { notice('浏览器拒绝复制，请手动复制', true); }
