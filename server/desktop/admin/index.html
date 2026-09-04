@@ -33,12 +33,12 @@
 
     <section class="panel">
       <div class="panel-head"><div><span class="step">02</span><h2>Cloudflare 凭证</h2></div><button id="save-secrets" class="primary">安全保存</button></div>
-      <p class="hint">两类 Token 分开管理。保存后使用操作系统安全存储加密，公网接口无法读取。</p>
+      <p class="hint">两类 Token 分开管理。保存后输入框会故意保持空白，避免密钥显示在页面上；看到“已安全保存”即表示密钥仍在，留空保存不会删除。</p>
       <div class="form-grid">
         <label><span>Cloudflare API Token <em id="api-saved">未保存</em></span><div class="password"><input id="api-token" type="password" autocomplete="off" placeholder="Zone Read / DNS Edit / Tunnel Edit"><button class="reveal" data-target="api-token" type="button">显示</button></div></label>
         <label><span>Tunnel Token <em id="tunnel-saved">未保存</em></span><div class="password"><input id="tunnel-token" type="password" autocomplete="off" placeholder="eyJ…"><button class="reveal" data-target="tunnel-token" type="button">显示</button></div></label>
       </div>
-      <div class="sub-actions"><button id="load-secrets">读取已保存 Token</button><button id="clear-secrets" class="danger">清除 Token</button></div>
+      <div class="sub-actions"><button id="load-secrets">显示已保存 Token</button><button id="clear-secrets" class="danger">清除 Token</button></div>
     </section>
 
     <section class="panel">

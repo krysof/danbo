@@ -61,6 +61,8 @@ function render(data) {
   $('api-saved').className = data.secrets.apiTokenSaved ? 'saved' : '';
   $('tunnel-saved').textContent = data.secrets.tunnelTokenSaved ? '已安全保存' : '未保存';
   $('tunnel-saved').className = data.secrets.tunnelTokenSaved ? 'saved' : '';
+  $('api-token').placeholder = data.secrets.apiTokenSaved ? '已安全保存（留空保持不变）' : 'Zone Read / DNS Edit / Tunnel Edit';
+  $('tunnel-token').placeholder = data.secrets.tunnelTokenSaved ? '已安全保存（留空保持不变）' : 'eyJ…';
   $('cloudflared-path').textContent = data.processes.cloudflared.path || '尚未安装';
   const progress = data.processes.cloudflared.download;
   $('download-progress').value = progress.percent || 0;
@@ -93,7 +95,7 @@ document.querySelectorAll('.reveal').forEach((button) => button.addEventListener
 $('save-secrets').addEventListener('click', () => action('/api/secrets', {
   apiToken: value('api-token') || undefined,
   tunnelToken: value('tunnel-token') || undefined,
-}, 'Token 已安全保存'));
+}, 'Token 已安全保存；输入框留空是安全显示，不代表已删除'));
 $('load-secrets').addEventListener('click', async () => {
   try {
     const data = await api('/api/secrets/reveal', { method: 'POST', body: {} });
