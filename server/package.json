@@ -1,0 +1,78 @@
+{
+  "name": "eggy-multiplayer-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "desktop/main.cjs",
+  "author": "IrisNovaForge",
+  "description": "Authoritative eight-player city rooms for EGGY FPS",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node build/index.js",
+    "desktop": "npm run build && electron .",
+    "desktop:hidden": "npm run build && electron . --hidden",
+    "package:win": "npm run build && electron-builder --win nsis portable",
+    "build": "rimraf build && tsc -p tsconfig.build.json",
+    "test": "mocha -r tsx \"test/**/*.test.ts\" \"test/**/*.test.cjs\" --exit --timeout 15000"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^5.0.27",
+    "@colyseus/tools": "^0.18.2",
+    "colyseus": "^0.18.5",
+    "cors": "^2.8.5",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "^0.18.2",
+    "@colyseus/testing": "^0.18.5",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/mocha": "^10.0.10",
+    "electron": "^44.1.1",
+    "electron-builder": "^26.15.3",
+    "mocha": "^11.7.5",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.21.3",
+    "typescript": "^5.9.2"
+  },
+  "build": {
+    "appId": "com.ff18.eggy.server",
+    "productName": "EGGY Server",
+    "asar": true,
+    "asarUnpack": [
+      "build/**/*",
+      "node_modules/**/*"
+    ],
+    "files": [
+      "build/**/*",
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "desktop/assets/tray-icon.png",
+        "to": "tray-icon.png"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "icon": "desktop/assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EGGY Server"
+    }
+  }
+}

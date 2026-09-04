@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EGGY Server 管理中心</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div><span class="eyebrow">EGGY ONLINE CONTROL</span><h1>联机服务器管理中心</h1><p>本页面只监听 127.0.0.1，Cloudflare 密钥不会发送给游戏客户端。</p></div>
+      <div class="hero-tools"><div class="hero-state"><i id="overall-dot"></i><strong id="overall-text">正在读取状态</strong></div><button id="logout">退出登录</button><button id="quit-app">退出托盘程序</button></div>
+    </header>
+
+    <section id="notice" class="notice hidden"></section>
+
+    <section class="status-grid">
+      <article class="status-card"><span>联机服务器</span><strong id="server-state">检查中</strong><small id="server-detail">127.0.0.1:2567</small></article>
+      <article class="status-card"><span>Cloudflare Tunnel</span><strong id="tunnel-state">检查中</strong><small id="tunnel-detail">尚未连接</small></article>
+      <article class="status-card"><span>在线玩家</span><strong id="player-count">0</strong><small id="room-count">0 个房间</small></article>
+      <article class="status-card"><span>外网域名</span><strong id="domain-state">未配置</strong><small id="domain-detail">—</small></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><span class="step">01</span><h2>服务器</h2></div><div class="actions"><button id="server-start" class="primary">启动</button><button id="server-stop">停止</button></div></div>
+      <div class="form-grid thirds">
+        <label><span>服务器端口</span><input id="server-port" type="number" min="1" max="65535"></label>
+        <label class="wide"><span>允许访问的游戏网页 Origin</span><input id="allowed-origins" placeholder="https://eggy.ff18.com"></label>
+        <label class="check"><input id="launch-at-login" type="checkbox"><span>登录 Windows 后自动运行托盘程序</span></label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><span class="step">02</span><h2>Cloudflare 凭证</h2></div><button id="save-secrets" class="primary">安全保存</button></div>
+      <p class="hint">两类 Token 分开管理。保存后使用操作系统安全存储加密，公网接口无法读取。</p>
+      <div class="form-grid">
+        <label><span>Cloudflare API Token <em id="api-saved">未保存</em></span><div class="password"><input id="api-token" type="password" autocomplete="off" placeholder="Zone Read / DNS Edit / Tunnel Edit"><button class="reveal" data-target="api-token" type="button">显示</button></div></label>
+        <label><span>Tunnel Token <em id="tunnel-saved">未保存</em></span><div class="password"><input id="tunnel-token" type="password" autocomplete="off" placeholder="eyJ…"><button class="reveal" data-target="tunnel-token" type="button">显示</button></div></label>
+      </div>
+      <div class="sub-actions"><button id="load-secrets">读取已保存 Token</button><button id="clear-secrets" class="danger">清除 Token</button></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><span class="step">03</span><h2>域名与 Tunnel</h2></div><div class="actions"><button id="save-settings">保存设置</button><button id="configure-domain" class="primary">重新配置域名</button></div></div>
+      <p class="hint">配置始终先 GET 完整 ingress，再只合并本项目域名；读取失败时不会执行 PUT。</p>
+      <div class="form-grid thirds">
+        <label><span>完整访问域名</span><input id="hostname" placeholder="online.ff18.com"></label>
+        <label><span>本项目 Tunnel 名称</span><input id="tunnel-name" placeholder="eggy-multiplayer"></label>
+        <label><span>本地服务</span><input id="local-service" value="http://localhost:2567" disabled></label>
+      </div>
+      <div class="public-link"><a id="public-url" href="#" rel="noreferrer">尚未配置域名</a><button id="copy-url">复制</button><button id="check-public">检测外网访问</button></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><span class="step">04</span><h2>cloudflared 进程</h2></div><div class="actions"><button id="download-cloudflared">检测/下载</button><button id="tunnel-start" class="primary">启动 Tunnel</button><button id="tunnel-stop">停止</button></div></div>
+      <div class="binary"><span>程序路径</span><code id="cloudflared-path">尚未安装</code><progress id="download-progress" max="100" value="0"></progress></div>
+    </section>
+
+    <section class="panel logs-panel">
+      <div class="panel-head"><div><span class="step">05</span><h2>运行日志</h2></div><button id="refresh-logs">刷新</button></div>
+      <div class="logs-grid"><div><span>SERVER</span><pre id="server-log">暂无日志</pre></div><div><span>TUNNEL</span><pre id="tunnel-log">暂无日志</pre></div></div>
+    </section>
+  </main>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
