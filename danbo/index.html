@@ -81,13 +81,13 @@
               </div>
               <div id="select-map-viewport" class="select-map-viewport" aria-hidden="true"></div>
               <canvas id="sf2-map-canvas" class="select-classic-map" width="400" height="220" aria-hidden="true"></canvas>
-              <div class="select-map-live"><i></i> LIVE 3D</div>
+              <div class="select-map-live" id="select-server-status" aria-live="polite"><i></i><span>正在查找服务器…</span></div>
             </aside>
           </div>
           <div class="char-grid" id="char-grid"></div>
           <div class="select-confirm-row">
             <div class="select-control-tip"><span aria-hidden="true">👆</span><span id="select-switch-hint">点选角色或滑动浏览</span></div>
-            <button id="confirm-btn" class="btn btn-primary"><span>进入蛋宝世界</span><b>→</b></button>
+            <button id="confirm-btn" class="btn btn-primary"><span>进入服务器</span><b>→</b></button>
           </div>
         </section>
       </main>
@@ -132,7 +132,7 @@
     <div class="hud-top">
       <span class="hud-pill" id="city-name-hud">🏙️ Egg City</span>
       <span class="hud-pill" id="coin-hud">⭐ 0</span>
-      <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">👥 联机</button>
+      <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">🌐 服务器</button>
       <span class="hud-pill hud-desktop-only">F：抓取/投掷 · R：拳击 · T：踢击 · 长按可蓄力</span>
       <span class="hud-pill hud-desktop-only" id="zoom-hud">Scroll Zoom</span>
       <button class="hud-pill hud-btn" id="view-mode-btn">📷 Normal</button>
@@ -235,7 +235,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260904.4';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260904.6';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";

@@ -18,6 +18,7 @@
         overlay:document.getElementById('multiplayer-overlay'),
         close:document.getElementById('multiplayer-close'),
         badge:document.getElementById('multiplayer-status'),
+        serverStatus:document.getElementById('select-server-status'),
         summary:document.getElementById('multiplayer-summary'),
         name:document.getElementById('multiplayer-name'),
         code:document.getElementById('multiplayer-code'),
@@ -50,10 +51,30 @@
         var saved='';
         try{saved=localStorage.getItem('danbo_multiplayer_server_v2')||'';}catch(e){}
         var declared=window.DANBO_MULTIPLAYER_URL||'';
+        if(!query&&location.hostname==='danbo.kryso.net')return 'wss://'+location.host;
         if(!query&&!saved&&!declared){
             if(location.hostname==='localhost'||location.hostname==='127.0.0.1')declared='ws://'+location.hostname+':2567';
         }
         return normalizeEndpoint(query||saved||declared);
+    }
+    async function refreshServerStatus(){
+        if(!ui.serverStatus)return;
+        var endpoint=configuredEndpoint();
+        var label=ui.serverStatus.querySelector('span');
+        if(!endpoint){ui.serverStatus.classList.add('server-offline');if(label)label.textContent='未配置服务器';return;}
+        var controller=typeof AbortController!=='undefined'?new AbortController():null;
+        var timeout=setTimeout(function(){if(controller)controller.abort();},4000);
+        try{
+            var url=endpoint.replace(/^ws:/i,'http:').replace(/^wss:/i,'https:')+'/health';
+            var response=await fetch(url,{cache:'no-store',signal:controller?controller.signal:undefined});
+            var data=response.ok?await response.json():{};
+            if(!response.ok||data.ok!==true)throw new Error('offline');
+            ui.serverStatus.classList.remove('server-offline');
+            if(label)label.textContent='服务器在线 · '+(Number(data.players)||0)+' 人';
+        }catch(_error){
+            ui.serverStatus.classList.add('server-offline');
+            if(label)label.textContent='服务器暂时离线';
+        }finally{clearTimeout(timeout);}
     }
     function currentName(){
         var name=ui.name?ui.name.value.trim():'';
@@ -96,7 +117,7 @@
         }else if(status==='joining'||status==='reconnecting'){
             ui.button.textContent='👥 连接中';ui.button.classList.remove('online');
         }else{
-            ui.button.textContent='👥 联机';ui.button.classList.remove('online');
+            ui.button.textContent='🌐 服务器';ui.button.classList.remove('online');
         }
     }
     function messageForError(error){
@@ -389,9 +410,10 @@
     addEventListener('keydown',function(e){if(e.code==='Escape'&&window._multiplayerPanelOpen){e.preventDefault();closePanel();}});
     addEventListener('beforeunload',function(){if(room)try{room.leave(true);}catch(e){}});
 
-    try{pendingAutoCode=normalizeCode(new URLSearchParams(location.search).get('room')||'');if(!new URLSearchParams(location.search).get('room'))pendingAutoCode='';}catch(e){}
+    try{pendingAutoCode=normalizeCode(new URLSearchParams(location.search).get('room')||'PUBLIC');}catch(e){pendingAutoCode='PUBLIC';}
     if(ui.endpoint)ui.endpoint.value=configuredEndpoint();
     if(ui.name)ui.name.value=currentName();
+    refreshServerStatus();
     cleanupRoom();
 
     window.DANBO_MULTIPLAYER={
