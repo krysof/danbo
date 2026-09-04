@@ -1,4 +1,4 @@
-# Published into krysof/danbo as .github/workflows/pages.yml.
+# Published into the public Pages repository as .github/workflows/pages.yml.
 name: Deploy DANBO client to GitHub Pages
 
 on:
