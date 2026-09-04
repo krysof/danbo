@@ -13,7 +13,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260904.7">
+<link rel="stylesheet" href="style.css?v=20260905.1">
 </head>
 <body>
 <div id="game-container">
@@ -37,7 +37,6 @@
   <div id="server-select-screen" class="screen server-select-screen">
     <div class="server-browser-shell">
       <header class="server-browser-header">
-        <div class="server-browser-mark" aria-hidden="true">🖥️</div>
         <div>
           <small>DANBO ONLINE</small>
           <h2>选择服务器</h2>
@@ -164,7 +163,7 @@
     <div class="hud-top">
       <span class="hud-pill" id="city-name-hud">🏙️ Egg City</span>
       <span class="hud-pill" id="coin-hud">⭐ 0</span>
-      <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">🖥️ 服务器</button>
+      <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">服务器</button>
       <span class="hud-pill hud-desktop-only">F：抓取/投掷 · R：拳击 · T：踢击 · 长按可蓄力</span>
       <span class="hud-pill hud-desktop-only" id="zoom-hud">Scroll Zoom</span>
       <button class="hud-pill hud-btn" id="view-mode-btn">📷 Normal</button>
@@ -267,7 +266,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260904.7';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260905.1';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";

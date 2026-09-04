@@ -159,13 +159,13 @@
         if(!ui.button)return;
         if(room&&status==='online'){
             var count=room.state&&room.state.players?room.state.players.size:1;
-            ui.button.textContent='👥 '+count+'/8';
+            ui.button.textContent='在线 '+count+'/8';
             ui.button.classList.add('online');
             ui.button.title='联机房 '+normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value);
         }else if(status==='joining'||status==='reconnecting'){
-            ui.button.textContent='👥 连接中';ui.button.classList.remove('online');
+            ui.button.textContent='连接中';ui.button.classList.remove('online');
         }else{
-            ui.button.textContent='🖥️ 服务器';ui.button.classList.remove('online');
+            ui.button.textContent='服务器';ui.button.classList.remove('online');
         }
     }
     function messageForError(error){
