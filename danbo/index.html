@@ -132,7 +132,7 @@
     <div class="hud-top">
       <span class="hud-pill" id="city-name-hud">🏙️ Egg City</span>
       <span class="hud-pill" id="coin-hud">⭐ 0</span>
-      <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">👥 单机</button>
+      <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">👥 联机</button>
       <span class="hud-pill hud-desktop-only">F：抓取/投掷 · R：拳击 · T：踢击 · 长按可蓄力</span>
       <span class="hud-pill hud-desktop-only" id="zoom-hud">Scroll Zoom</span>
       <button class="hud-pill hud-btn" id="view-mode-btn">📷 Normal</button>
@@ -151,9 +151,9 @@
           <h2 id="multiplayer-title">一起逛蛋宝世界</h2>
           <p>房间内跨城同行；只显示与你在同一城市的伙伴。</p>
         </div>
-        <span id="multiplayer-status" class="multiplayer-status offline">单机模式</span>
+        <span id="multiplayer-status" class="multiplayer-status offline">未连接</span>
       </div>
-      <div id="multiplayer-summary" class="multiplayer-summary">未加入房间，原单机内容保持可用。</div>
+      <div id="multiplayer-summary" class="multiplayer-summary">尚未连接联机房间。</div>
       <div class="multiplayer-fields">
         <label><span>你的名字</span><input id="multiplayer-name" maxlength="16" autocomplete="nickname" placeholder="输入昵称"></label>
         <label><span>房间码</span><input id="multiplayer-code" maxlength="8" autocapitalize="characters" autocomplete="off" value="PUBLIC" placeholder="例如 DANBO88"></label>
@@ -235,7 +235,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260904.3';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260904.4';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";

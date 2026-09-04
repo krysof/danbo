@@ -11,7 +11,7 @@
     var client=null,room=null,joining=false,manualLeave=false;
     var lastSendAt=0,lastSentCity=-1,sequence=0,pendingAutoCode='';
     var playerListSignature='',sdkPromise=null;
-    var status='offline',statusText='单机模式';
+    var status='offline',statusText='未连接';
 
     var ui={
         button:document.getElementById('multiplayer-btn'),
@@ -96,7 +96,7 @@
         }else if(status==='joining'||status==='reconnecting'){
             ui.button.textContent='👥 连接中';ui.button.classList.remove('online');
         }else{
-            ui.button.textContent='👥 单机';ui.button.classList.remove('online');
+            ui.button.textContent='👥 联机';ui.button.classList.remove('online');
         }
     }
     function messageForError(error){
@@ -285,7 +285,7 @@
     }
     function cleanupRoom(){
         room=null;lastSentCity=-1;lastSendAt=0;sequence=0;playerListSignature='';removeAllRemotes();
-        setStatus('offline','单机模式');showSummary('未加入房间，原单机内容保持可用。',false);refreshPlayerList([]);
+        setStatus('offline','未连接');showSummary('尚未连接联机房间。',false);refreshPlayerList([]);
         if(ui.leave)ui.leave.disabled=true;if(ui.share)ui.share.disabled=true;
     }
     async function leaveRoom(){
