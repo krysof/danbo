@@ -147,12 +147,19 @@ class CloudflareManager {
     } catch (error) {
       throw new CloudflareError('CONFIG_READ_FAILED', 'Tunnel 配置读取失败；为避免覆盖其它服务，已中止操作', error.message);
     }
-    if (!configurationResult || !configurationResult.config || typeof configurationResult.config !== 'object' ||
-        (configurationResult.config.ingress !== undefined && !Array.isArray(configurationResult.config.ingress))) {
+    if (!configurationResult || typeof configurationResult !== 'object' ||
+        (configurationResult.config !== null && configurationResult.config !== undefined &&
+         (typeof configurationResult.config !== 'object' ||
+          (configurationResult.config.ingress !== undefined && !Array.isArray(configurationResult.config.ingress))))) {
       throw new CloudflareError('CONFIG_READ_FAILED', 'Tunnel 返回的完整配置无效；为避免覆盖其它服务，已中止操作');
     }
 
-    const originalConfig = clone(configurationResult.config);
+    // Cloudflare returns config:null for a new remotely-managed Tunnel that
+    // has never had a public hostname. Initialize it with a closed catch-all;
+    // malformed non-null configurations are still rejected above.
+    const originalConfig = configurationResult.config == null
+      ? { ingress: [{ service: 'http_status:404' }] }
+      : clone(configurationResult.config);
     const mergedConfig = mergeIngressConfig(originalConfig, hostname, service, options.managedHostname || '');
     const existingDns = await this.inspectDns(zone.id, hostname, apiToken);
     if (existingDns.length > 1) throw new CloudflareError('DNS_CONFLICT', '该域名存在多条 DNS 记录，已中止操作');

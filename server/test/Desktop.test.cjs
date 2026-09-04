@@ -137,6 +137,30 @@ describe('Cloudflare safe configuration merge', () => {
     assert.equal(calls.some((call) => call.method === 'PUT'), false);
   });
 
+  it('initializes a remotely-managed Tunnel whose configuration is null', async () => {
+    const calls = [];
+    const fetch = async (url, options = {}) => {
+      const parsed = new URL(url); const pathname = parsed.pathname; const method = options.method || 'GET';
+      calls.push({ pathname, method, body: options.body && JSON.parse(options.body) });
+      if (pathname.endsWith('/user/tokens/verify')) return jsonResponse({ status: 'active' });
+      if (pathname === '/client/v4/zones') return jsonResponse([{ id: 'zone', name: parsed.searchParams.get('name'), account: { id: 'account' } }]);
+      if (pathname.endsWith('/cfd_tunnel/tunnel-id') && method === 'GET') return jsonResponse({ id: 'tunnel-id', name: 'danbo-multiplayer', config_src: 'cloudflare' });
+      if (pathname.endsWith('/configurations') && method === 'GET') return jsonResponse({ tunnel_id: 'tunnel-id', config: null });
+      if (pathname.endsWith('/configurations') && method === 'PUT') return jsonResponse({ config: calls.at(-1).body.config });
+      if (pathname.endsWith('/dns_records') && method === 'GET') return jsonResponse([]);
+      if (pathname.endsWith('/dns_records') && method === 'POST') return jsonResponse({ id: 'dns' });
+      if (pathname.endsWith('/token')) return jsonResponse(tunnelToken());
+      throw new Error(`unexpected ${method} ${pathname}`);
+    };
+    const result = await new CloudflareManager({ fetch }).configure({ hostname: 'server.example.com', apiToken: 'a'.repeat(40), service: 'http://localhost:2567', tunnelId: 'tunnel-id' });
+    assert.equal(result.publicUrl, 'https://server.example.com');
+    const configPut = calls.find((call) => call.pathname.endsWith('/configurations') && call.method === 'PUT');
+    assert.deepEqual(configPut.body.config.ingress, [
+      { hostname: 'server.example.com', service: 'http://localhost:2567' },
+      { service: 'http_status:404' },
+    ]);
+  });
+
   it('updates an existing project CNAME and rolls ingress back if DNS update fails', async () => {
     const calls = [];
     let failDns = false;
