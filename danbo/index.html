@@ -13,7 +13,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260906.3">
+<link rel="stylesheet" href="style.css?v=20260907.1">
 </head>
 <body>
 <div id="game-container">
@@ -45,20 +45,11 @@
         <button id="server-list-refresh" class="server-refresh-btn" type="button">↻ 刷新列表</button>
       </header>
       <div class="server-list" id="server-list" role="listbox" aria-label="服务器列表">
-        <button class="server-list-item selected" id="official-server-item" type="button" role="option" aria-selected="true">
-          <span class="server-state-dot" aria-hidden="true"></span>
-          <span class="server-main-copy">
-            <strong>DANBO 官方服务器</strong>
-            <small id="official-server-address">danbo.kryso.net</small>
-          </span>
-          <span class="server-region">自动线路</span>
-          <span class="server-metric"><b id="official-server-players">--</b><small>在线</small></span>
-          <span class="server-metric"><b id="official-server-ping">--</b><small>延迟</small></span>
-          <span class="server-state-text" id="official-server-state">等待刷新</span>
-        </button>
+
       </div>
       <footer class="server-browser-footer">
         <span id="server-browser-summary">正在获取服务器状态…</span>
+        <button id="server-list-back" class="server-refresh-btn" type="button" hidden>返回游戏</button>
         <button id="server-list-enter" class="btn btn-primary" type="button" disabled>进入所选服务器 →</button>
       </footer>
     </div>
@@ -176,7 +167,7 @@
   <div id="multiplayer-overlay" class="multiplayer-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="multiplayer-title">
     <section class="multiplayer-panel">
       <button id="multiplayer-close" class="multiplayer-close" type="button" aria-label="关闭">×</button>
-      <div class="multiplayer-eyebrow">DANBO ONLINE · 8 PLAYER ROOM</div>
+      <div class="multiplayer-eyebrow">DANBO ONLINE · PUBLIC SERVERS</div>
       <div class="multiplayer-title-row">
         <div>
           <h2 id="multiplayer-title">一起逛蛋宝世界</h2>
@@ -190,6 +181,7 @@
         <label><span>房间码</span><input id="multiplayer-code" maxlength="8" autocapitalize="characters" autocomplete="off" value="PUBLIC" placeholder="例如 DANBO88"></label>
       </div>
       <div class="multiplayer-actions">
+        <button id="multiplayer-browse" type="button">选择服务器 / 换服</button>
         <button id="multiplayer-quick" class="multiplayer-primary" type="button">快速加入公共房</button>
         <button id="multiplayer-create" type="button">创建私人房</button>
         <button id="multiplayer-join" type="button">按房间码加入</button>
@@ -199,7 +191,7 @@
         <button id="multiplayer-leave" type="button" disabled>退出房间</button>
       </div>
       <div class="multiplayer-roster">
-        <div class="multiplayer-roster-title"><span>房间成员</span><small>最多 8 人</small></div>
+        <div class="multiplayer-roster-title"><span>房间成员</span><small id="multiplayer-capacity">容量由服务器提供</small></div>
         <ul id="multiplayer-player-list"><li>尚未加入房间</li></ul>
       </div>
       <details class="multiplayer-advanced">
@@ -266,7 +258,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260906.3';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.1';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";

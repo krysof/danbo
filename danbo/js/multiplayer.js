@@ -1,4 +1,4 @@
-// multiplayer.js — optional eight-player Colyseus city rooms.
+// multiplayer.js — four persistent public Colyseus shards plus private rooms.
 // The SDK is loaded only when a player joins, so single-player startup and FPS
 // are unchanged. Remote avatars live outside allEggs and never enter local NPC,
 // collision, reward or combat authority.
@@ -13,6 +13,8 @@
     var playerListSignature='',buttonSignature='',sdkPromise=null;
     var status='offline',statusText='未连接';
     var selectedServerEndpoint='',selectedServerReady=false;
+    var serverEntries=[],selectedServerCode=requestedRoomCode(),serverRefreshSerial=0;
+    var selectedCapacity=0;
 
     var ui={
         button:document.getElementById('multiplayer-btn'),
@@ -20,19 +22,18 @@
         close:document.getElementById('multiplayer-close'),
         badge:document.getElementById('multiplayer-status'),
         serverScreen:document.getElementById('server-select-screen'),
-        serverItem:document.getElementById('official-server-item'),
+        serverList:document.getElementById('server-list'),
+        capacity:document.getElementById('multiplayer-capacity'),
         serverRefresh:document.getElementById('server-list-refresh'),
+        serverBack:document.getElementById('server-list-back'),
         serverEnter:document.getElementById('server-list-enter'),
         serverSummary:document.getElementById('server-browser-summary'),
-        serverAddress:document.getElementById('official-server-address'),
-        serverPlayers:document.getElementById('official-server-players'),
-        serverPing:document.getElementById('official-server-ping'),
-        serverState:document.getElementById('official-server-state'),
         summary:document.getElementById('multiplayer-summary'),
         name:document.getElementById('multiplayer-name'),
         code:document.getElementById('multiplayer-code'),
         endpoint:document.getElementById('multiplayer-endpoint'),
         quick:document.getElementById('multiplayer-quick'),
+        browse:document.getElementById('multiplayer-browse'),
         create:document.getElementById('multiplayer-create'),
         join:document.getElementById('multiplayer-join'),
         leave:document.getElementById('multiplayer-leave'),
@@ -66,48 +67,88 @@
         }
         return normalizeEndpoint(query||saved||declared);
     }
+    function isPublicCode(code){return /^PUBLIC(?:[234])?$/.test(code);}
+    function serverLabel(code){
+        var entry=serverEntries.find(function(item){return item.code===code;});
+        return entry?entry.name:isPublicCode(code)?'DANBO '+(code==='PUBLIC'?'1':code.slice(-1))+' 服':code;
+    }
+    async function fetchServerEntries(endpoint){
+        var controller=typeof AbortController!=='undefined'?new AbortController():null;
+        var timeout=setTimeout(function(){if(controller)controller.abort();},5000);
+        try{
+            var url=endpoint.replace(/^ws:/i,'http:').replace(/^wss:/i,'https:')+'/servers';
+            var response=await fetch(url,{cache:'no-store',signal:controller?controller.signal:undefined});
+            if(response.status===404)throw new Error('服务器版本较旧，请先升级服务器');
+            var data=response.ok?await response.json():{};
+            if(!response.ok||data.ok!==true||!Array.isArray(data.servers))throw new Error('无法获取服务器列表');
+            return data.servers.filter(function(item){
+                return item&&isPublicCode(item.code)&&typeof item.name==='string'&&
+                    typeof item.roomId==='string'&&Number.isInteger(item.capacity)&&item.capacity>0;
+            });
+        }finally{clearTimeout(timeout);}
+    }
+    function selectServer(code){
+        selectedServerCode=code;
+        var entry=serverEntries.find(function(item){return item.code===code;});
+        selectedServerReady=!!entry&&entry.status==='online'&&entry.available>0;
+        selectedCapacity=entry?entry.capacity:0;
+        if(ui.serverEnter)ui.serverEnter.disabled=!selectedServerReady;
+        if(ui.serverList)Array.from(ui.serverList.children).forEach(function(button){
+            var selected=button.dataset.code===code;
+            button.classList.toggle('selected',selected);
+            button.setAttribute('aria-selected',String(selected));
+        });
+    }
+    function renderServerList(ping){
+        if(!ui.serverList)return;
+        ui.serverList.textContent='';
+        var address='';
+        try{address=new URL(selectedServerEndpoint).host;}catch(_error){}
+        serverEntries.forEach(function(entry){
+            var button=document.createElement('button');
+            button.type='button';button.className='server-list-item '+entry.status;
+            button.dataset.code=entry.code;button.setAttribute('role','option');
+            // Only this fixed template uses innerHTML; all server-supplied text
+            // is assigned with textContent (names and endpoints are untrusted).
+            button.innerHTML='<span class="server-state-dot" aria-hidden="true"></span><span class="server-main-copy"><strong></strong><small></small></span><span class="server-region">公共分区</span><span class="server-metric"><b></b><small>在线 / 容量</small></span><span class="server-metric server-ping"><b></b><small>延迟</small></span><span class="server-state-text"></span>';
+            button.querySelector('strong').textContent=entry.name;
+            button.querySelector('.server-main-copy small').textContent=address;
+            var metrics=button.querySelectorAll('.server-metric b');
+            metrics[0].textContent=entry.players+' / '+entry.capacity;
+            metrics[1].textContent=ping+'ms';
+            button.querySelector('.server-state-text').textContent=entry.status==='full'?'已满（含预留席位）':entry.status==='online'?'可进入':'离线';
+            button.addEventListener('click',function(){selectServer(entry.code);});
+            ui.serverList.appendChild(button);
+        });
+        if(!serverEntries.some(function(entry){return entry.code===selectedServerCode;}))selectedServerCode='PUBLIC';
+        selectServer(selectedServerCode);
+    }
     async function refreshServerList(){
-        if(!ui.serverItem)return false;
-        var endpoint=configuredEndpoint();
-        selectedServerReady=false;
-        selectedServerEndpoint=endpoint;
-        ui.serverItem.classList.remove('online','offline');
+        if(!ui.serverList)return false;
+        var serial=++serverRefreshSerial,endpoint=configuredEndpoint();
+        selectedServerReady=false;selectedServerEndpoint=endpoint;
         if(ui.serverRefresh)ui.serverRefresh.disabled=true;
         if(ui.serverEnter)ui.serverEnter.disabled=true;
-        if(ui.serverPlayers)ui.serverPlayers.textContent='--';
-        if(ui.serverPing)ui.serverPing.textContent='--';
-        if(ui.serverState)ui.serverState.textContent='刷新中';
+        ui.serverList.setAttribute('aria-busy','true');
         if(ui.serverSummary)ui.serverSummary.textContent='正在获取服务器状态…';
-        try{if(ui.serverAddress)ui.serverAddress.textContent=new URL(endpoint).host||endpoint;}catch(_error){if(ui.serverAddress)ui.serverAddress.textContent=endpoint||'未配置';}
-        if(!endpoint){
-            ui.serverItem.classList.add('offline');
-            if(ui.serverState)ui.serverState.textContent='未配置';
-            if(ui.serverSummary)ui.serverSummary.textContent='没有可用的服务器地址。';
-            if(ui.serverRefresh)ui.serverRefresh.disabled=false;
-            return false;
-        }
-        var controller=typeof AbortController!=='undefined'?new AbortController():null;
-        var timeout=setTimeout(function(){if(controller)controller.abort();},4000);
         var started=performance.now();
         try{
-            var url=endpoint.replace(/^ws:/i,'http:').replace(/^wss:/i,'https:')+'/health';
-            var response=await fetch(url,{cache:'no-store',signal:controller?controller.signal:undefined});
-            var data=response.ok?await response.json():{};
-            if(!response.ok||data.ok!==true)throw new Error('offline');
-            selectedServerReady=true;
-            ui.serverItem.classList.add('online');
-            if(ui.serverPlayers)ui.serverPlayers.textContent=String(Number(data.players)||0);
-            if(ui.serverPing)ui.serverPing.textContent=Math.max(1,Math.round(performance.now()-started))+'ms';
-            if(ui.serverState)ui.serverState.textContent='在线';
-            if(ui.serverSummary)ui.serverSummary.textContent='发现 1 台可用服务器 · '+(Number(data.rooms)||0)+' 个房间';
-            if(ui.serverEnter)ui.serverEnter.disabled=false;
+            if(!endpoint)throw new Error('没有可用的服务器地址');
+            var entries=await fetchServerEntries(endpoint);
+            if(serial!==serverRefreshSerial)return false;
+            serverEntries=entries;
+            renderServerList(Math.max(1,Math.round(performance.now()-started)));
+            var available=entries.filter(function(entry){return entry.status==='online';}).length;
+            if(ui.serverSummary)ui.serverSummary.textContent=entries.length+' 个公共分区 · '+available+' 个可进入 · 不同分区互不相通';
             return true;
-        }catch(_error){
-            ui.serverItem.classList.add('offline');
-            if(ui.serverState)ui.serverState.textContent='离线';
-            if(ui.serverSummary)ui.serverSummary.textContent='服务器暂时不可用，请刷新重试。';
+        }catch(error){
+            if(serial!==serverRefreshSerial)return false;
+            serverEntries=[];selectedServerReady=false;ui.serverList.textContent='';
+            if(ui.serverSummary)ui.serverSummary.textContent=error.name==='AbortError'?'服务器响应超时，请刷新重试':String(error.message||'服务器暂时不可用，请刷新重试');
             return false;
-        }finally{clearTimeout(timeout);if(ui.serverRefresh)ui.serverRefresh.disabled=false;}
+        }finally{
+            if(serial===serverRefreshSerial){ui.serverList.setAttribute('aria-busy','false');if(ui.serverRefresh)ui.serverRefresh.disabled=false;}
+        }
     }
     function requestedRoomCode(){
         try{return normalizeCode(new URLSearchParams(location.search).get('room')||'PUBLIC');}catch(_error){return 'PUBLIC';}
@@ -116,11 +157,26 @@
         if(!selectedServerReady||!selectedServerEndpoint)return false;
         try{localStorage.setItem('danbo_multiplayer_server_v2',selectedServerEndpoint);}catch(_error){}
         if(ui.endpoint)ui.endpoint.value=selectedServerEndpoint;
-        pendingAutoCode=requestedRoomCode();
+        if(gameState==='city'&&playerEgg){
+            if(joining)return false;
+            if(ui.serverEnter)ui.serverEnter.disabled=true;
+            connectRoom(selectedServerCode).then(function(ok){
+                if(ok){if(typeof showScreen==='function')showScreen(null);closePanel();}
+                else refreshServerList();
+            });
+            return true;
+        }
+        pendingAutoCode=selectedServerCode;
+        // Preserve private invitations, but public invitations select their exact shard.
+        var invited=requestedRoomCode();
+        if(!isPublicCode(invited))pendingAutoCode=invited;
         if(typeof window.DANBO_OPEN_CHARACTER_SELECT==='function')window.DANBO_OPEN_CHARACTER_SELECT();
         return true;
     }
     function openServerBrowser(){
+        closePanel();
+        if(ui.serverBack)ui.serverBack.hidden=gameState!=='city';
+        if(gameState==='city')window._multiplayerPanelOpen=true;
         if(typeof showScreen==='function')showScreen('server-select-screen');
         refreshServerList();
     }
@@ -160,8 +216,11 @@
         var text='服务器',online=false,title='';
         if(room&&status==='online'){
             var count=room.state&&room.state.players?room.state.players.size:1;
-            text='在线 '+count+'/8';online=true;
-            title='联机房 '+normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value);
+            var capacity=Number(room.state&&room.state.capacity)||selectedCapacity;
+            var code=normalizeCode(room.state&&room.state.code);
+            text=(isPublicCode(code)?(code==='PUBLIC'?'1':code.slice(-1))+' 服 ':'在线 ')+count+'/'+(capacity||'--');online=true;
+            if(ui.capacity)ui.capacity.textContent=capacity?'最多 '+capacity+' 人':'读取容量中…';
+            title=serverLabel(normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value));
         }else if(status==='joining'||status==='reconnecting'){
             text='连接中';
         }
@@ -174,7 +233,7 @@
     }
     function messageForError(error){
         var text=String(error&&error.message||error||'连接失败');
-        if(/full|seat|4212|4213/i.test(text))return '房间已满（最多 8 人）';
+        if(/full|seat|locked|4212|4213/i.test(text))return '所选服务器已满或席位被预留，请选择其他服务器';
         if(/fetch|network|websocket|connect|failed/i.test(text))return '无法连接联机服务器';
         return text.slice(0,80);
     }
@@ -319,13 +378,13 @@
             list.push({id:sessionId,name:statePlayer.name,city:statePlayer.city,connected:statePlayer.connected});
             if(sessionId===room.sessionId)return;
             present.add(sessionId);
+            var visible=gameState==='city'&&!window._interiorActive&&!window._danboPluginTransition&&
+                Number(statePlayer.city)===Number(currentCityStyle)&&statePlayer.connected!==false;
+            if(!visible){removeRemote(sessionId);return;}
             var remote=remotes.get(sessionId)||createRemote(sessionId,statePlayer);
             if(remote.character!==Number(statePlayer.character)||remote.style!==statePlayer.style)rebuildRemoteAvatar(remote,statePlayer);
             if(remote.name!==statePlayer.name)rebuildRemoteName(remote,statePlayer.name);
-            var visible=gameState==='city'&&!window._interiorActive&&!window._danboPluginTransition&&
-                Number(statePlayer.city)===Number(currentCityStyle)&&statePlayer.connected!==false;
-            remote.root.visible=visible;
-            if(!visible)return;
+            remote.root.visible=true;
             var alpha=1-Math.exp(-dt/0.085);
             remote.root.position.x+=(Number(statePlayer.x)-remote.root.position.x)*alpha;
             remote.root.position.y+=(Number(statePlayer.y)-remote.root.position.y)*alpha;
@@ -382,7 +441,18 @@
             client=new SDK.ColyseusSDK(endpoint);
             manualLeave=false;
             var options=localStateOptions();options.code=code;
-            room=await client.joinOrCreate(ROOM_NAME,options);
+            if(isPublicCode(code)){
+                // Resolve again at join time: the list may be stale or the server
+                // may have restarted during character selection. Never silently
+                // use joinOrCreate for a full public shard.
+                var entries=await fetchServerEntries(endpoint);
+                var target=entries.find(function(entry){return entry.code===code;});
+                if(!target||!target.roomId)throw new Error('所选服务器不可用，请刷新列表');
+                if(target.status!=='online'||target.available<=0)throw new Error('Server full');
+                selectedCapacity=target.capacity;
+                room=await client.joinById(target.roomId,options);
+                selectedServerCode=code;
+            }else room=await client.joinOrCreate(ROOM_NAME,options);
             room.reconnection.enabled=true;room.reconnection.maxRetries=8;room.reconnection.minDelay=350;room.reconnection.maxDelay=3500;
             room.onMessage('chat',receiveChat);
             room.onDrop(function(){setStatus('reconnecting','重连中…');showSummary('网络中断，正在保留席位并自动重连。',false);});
@@ -397,7 +467,7 @@
             lastSentCity=-1;sendLocalState(true);refreshPlayerList();
             return true;
         }catch(error){
-            cleanupRoom();setStatus('error','连接失败');showSummary(messageForError(error),true);console.warn('[multiplayer]',error);return false;
+            cleanupRoom();setStatus('error','连接失败');showSummary(messageForError(error),true);openPanel();console.warn('[multiplayer]',error);return false;
         }finally{
             joining=false;if(ui.quick)ui.quick.disabled=false;if(ui.create)ui.create.disabled=false;if(ui.join)ui.join.disabled=false;
         }
@@ -456,17 +526,18 @@
     if(ui.button)ui.button.addEventListener('click',openPanel);
     if(ui.close)ui.close.addEventListener('click',closePanel);
     if(ui.overlay)ui.overlay.addEventListener('click',function(e){if(e.target===ui.overlay)closePanel();});
-    if(ui.quick)ui.quick.addEventListener('click',function(){connectRoom('PUBLIC');});
+    if(ui.quick)ui.quick.addEventListener('click',function(){connectRoom(isPublicCode(selectedServerCode)?selectedServerCode:'PUBLIC');});
+    if(ui.browse)ui.browse.addEventListener('click',openServerBrowser);
     if(ui.create)ui.create.addEventListener('click',function(){var code=randomCode();if(ui.code)ui.code.value=code;connectRoom(code);});
     if(ui.join)ui.join.addEventListener('click',function(){connectRoom(ui.code&&ui.code.value);});
     if(ui.leave)ui.leave.addEventListener('click',leaveRoom);
     if(ui.share)ui.share.addEventListener('click',shareRoom);
-    if(ui.serverItem)ui.serverItem.addEventListener('click',function(){ui.serverItem.classList.add('selected');ui.serverItem.setAttribute('aria-selected','true');});
     if(ui.serverRefresh)ui.serverRefresh.addEventListener('click',refreshServerList);
+    if(ui.serverBack)ui.serverBack.addEventListener('click',function(){if(typeof showScreen==='function')showScreen(null);closePanel();});
     if(ui.serverEnter)ui.serverEnter.addEventListener('click',enterSelectedServer);
     if(ui.code)ui.code.addEventListener('input',function(){this.value=normalizeCode(this.value);});
     [ui.name,ui.code,ui.endpoint].forEach(function(input){if(input)input.addEventListener('keydown',function(e){e.stopPropagation();});});
-    addEventListener('keydown',function(e){if(e.code==='Escape'&&window._multiplayerPanelOpen){e.preventDefault();closePanel();}});
+    addEventListener('keydown',function(e){if(e.code==='Escape'&&window._multiplayerPanelOpen){e.preventDefault();if(ui.serverScreen&&ui.serverScreen.classList.contains('active')&&gameState==='city'&&typeof showScreen==='function')showScreen(null);closePanel();}});
     addEventListener('beforeunload',function(){if(room)try{room.leave(true);}catch(e){}});
 
     pendingAutoCode='';
@@ -474,7 +545,10 @@
     if(ui.name)ui.name.value=currentName();
     cleanupRoom();
 
-    window.DANBO_SERVER_BROWSER={open:openServerBrowser,refresh:refreshServerList,enter:enterSelectedServer,isReady:function(){return selectedServerReady;}};
+    setInterval(function(){
+        if(ui.serverScreen&&ui.serverScreen.classList.contains('active')&&!document.hidden)refreshServerList();
+    },15000);
+    window.DANBO_SERVER_BROWSER={open:openServerBrowser,refresh:refreshServerList,enter:enterSelectedServer,select:selectServer,isReady:function(){return selectedServerReady;}};
 
     window.DANBO_MULTIPLAYER={
         open:openPanel,close:closePanel,connect:connectRoom,leave:leaveRoom,update:update,sendChat:sendChat,
