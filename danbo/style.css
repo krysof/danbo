@@ -7,6 +7,11 @@ body{overflow:hidden;background:#000;font-family:'Segoe UI','PingFang SC','Micro
 .danbo-ios-embedded #game-container{height:calc(100dvh - 72px)}
 .danbo-ios-embedded .multiplayer-overlay,.danbo-ios-embedded #worldmap-overlay,.danbo-ios-embedded #map-overlay,.danbo-ios-embedded #shop-overlay{bottom:72px!important}
 #three-root{position:absolute;inset:0;z-index:0;pointer-events:none}
+/* Compositor-only feedback while scene construction yields to the browser. */
+#city-transfer-status{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:900;display:flex;align-items:center;gap:12px;padding:15px 24px;border:1px solid #b8e8ed;border-radius:18px;background:#123743ee;color:#fff;font-size:16px;font-weight:700;pointer-events:none;box-shadow:0 8px 28px #071c2840}
+#city-transfer-status[hidden]{display:none}
+#city-transfer-status::before{content:"";width:20px;height:20px;border:3px solid #ffffff40;border-top-color:#90f2cf;border-radius:50%;animation:danboTransferSpin .8s linear infinite;will-change:transform}
+@keyframes danboTransferSpin{to{transform:rotate(360deg)}}
 #three-root canvas{display:block;width:100%;height:100%;pointer-events:auto}
 #game-container::before{content:"";position:absolute;inset:-18%;z-index:1;pointer-events:none;background:radial-gradient(circle at 48% 28%,color-mix(in srgb,var(--city-accent) 24%,transparent),transparent 21%),radial-gradient(circle at 72% 22%,color-mix(in srgb,var(--city-glow) 18%,transparent),transparent 27%),linear-gradient(120deg,transparent 18%,color-mix(in srgb,var(--city-glow) 7%,transparent) 44%,transparent 66%);mix-blend-mode:screen;opacity:.36;animation:cinematicBreathe 8s ease-in-out infinite}
 #game-container::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 50% 34%,rgba(255,255,255,.10),rgba(255,255,255,0) 34%),linear-gradient(180deg,color-mix(in srgb,var(--city-sky) 10%,transparent),rgba(255,225,180,.05) 60%,rgba(0,0,0,.08)),radial-gradient(circle at center,rgba(0,0,0,0) 62%,rgba(0,0,0,.12) 100%);mix-blend-mode:soft-light;opacity:.72}

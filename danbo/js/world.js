@@ -968,7 +968,7 @@ function _disposeCityGroupResources(){
     collectObject(cityGroup,cityGeometry,cityMaterial,cityTexture,cityBatches);
     cityBatches.forEach(function(batch){if(batch&&batch.dispose)batch.dispose();});
     cityGeometry.forEach(function(geometry){if(!keepGeometry.has(geometry)&&geometry.dispose)geometry.dispose();});
-    cityMaterial.forEach(function(material){if(!keepMaterial.has(material)&&material.dispose)material.dispose();});
+    cityMaterial.forEach(function(material){if(!keepMaterial.has(material)&&material.dispose)_retireRenderMaterial(material);});
     cityTexture.forEach(function(texture){if(!keepTexture.has(texture)&&texture.dispose)texture.dispose();});
     window.DANBO_CITY_DISPOSE_STATS={geometries:cityGeometry.size-Array.from(cityGeometry).filter(function(v){return keepGeometry.has(v);}).length,
         materials:cityMaterial.size-Array.from(cityMaterial).filter(function(v){return keepMaterial.has(v);}).length,
@@ -976,16 +976,27 @@ function _disposeCityGroupResources(){
         batches:cityBatches.size};
 }
 
+var _cityShaderPrewarmTarget=null;
 function _prewarmCityShaders(){
     // On browsers exposing KHR_parallel_shader_compile, Three's async prewarm
     // moves program compilation into the remaining pipe-flight time instead of
     // making the first visible city frame pay the entire shader cost.
     if(typeof R==='undefined'||!R.compileAsync||typeof scene==='undefined'||typeof camera==='undefined')return;
+    var previousTarget=R.getRenderTarget();
     try{
+        // Compile the variant actually used by RenderPass: linear offscreen
+        // output, not ACES/sRGB direct-to-screen. Warming the latter left the
+        // real shaders cold and moved a huge compile stall to the arrival frame.
+        if(typeof _postFXEnabled!=='undefined'&&_postFXEnabled){
+            if(!_cityShaderPrewarmTarget)_cityShaderPrewarmTarget=new THREE.WebGLRenderTarget(1,1,{type:THREE.HalfFloatType});
+            R.setRenderTarget(typeof _postFXComposer!=='undefined'&&_postFXComposer?_postFXComposer.readBuffer:_cityShaderPrewarmTarget);
+        }
         var pending=R.compileAsync(scene,camera);
         window.DANBO_CITY_SHADER_PREWARM=pending;
         if(pending&&pending.catch)pending.catch(function(error){console.warn('City shader prewarm skipped:',error);});
+        return pending;
     }catch(error){console.warn('City shader prewarm skipped:',error);}
+    finally{R.setRenderTarget(previousTarget);}
 }
 
 function clearCity(){
@@ -1123,13 +1134,98 @@ function applyCityTheme(){
 }
 
 // ---- Pipe travel animation state ----
-var _pipeTraveling=false, _pipeTimer=0, _pipeDuration=PIPE_CONFIG.travelDuration, _pipeArrivalCooldown=0; // 3 seconds at 60fps
+var _pipeTraveling=false, _pipeTimer=0, _pipeDuration=PIPE_CONFIG.travelDuration, _pipeArrivalCooldown=0;
+var _pipeLastUpdateAt=0,_pipeCityBuilding=false,_pipeCityRebuilt=false,_pipeOriginStyle=0;
+var _pipeTravelSerial=0,_pipeLoadTimeout=null;
 var _pipeStartX=0, _pipeStartZ=0, _pipeEndX=0, _pipeEndZ=0;
 var _pipeTubeGroup=null, _pipeTargetStyle=0;
+var _pipeTravelScene=null,_pipeTravelMarker=null;
 var _pipeMidX=0, _pipeMidZ=0;
 var _pipeStartY=3; // starting Y height for pipe travel
 var _pipeCityLoadPending=false;
 var _pipeCityLoadFailed=false;
+
+// Rebuild in separate tasks; never render or simulate partially rebuilt globals.
+function _cityTransferYield(){
+    if(window.scheduler&&typeof window.scheduler.yield==='function')return window.scheduler.yield();
+    return new Promise(function(resolve){setTimeout(resolve,0);});
+}
+function _setCityTransferStatus(stage){
+    var element=document.getElementById('city-transfer-status');
+    if(!stage){if(element)element.hidden=true;return;}
+    if(!element){
+        element=document.createElement('div');element.id='city-transfer-status';
+        element.setAttribute('role','status');element.setAttribute('aria-live','polite');
+        document.getElementById('game-container').appendChild(element);
+    }
+    var messages={zhs:'正在传送',zht:'正在傳送',ja:'エリア移動中',en:'Travelling'};
+    element.textContent=(messages[_langCode]||messages.en)+' · '+stage;element.hidden=false;
+}
+async function _runCityTransferStep(name,work){
+    _setCityTransferStatus(name);
+    if(window.DANBO_TRANSFER_PERF)DANBO_TRANSFER_PERF.stage=name;
+    await _cityTransferYield();
+    var start=performance.now(),slices=0,maxSlice=0,result=work();
+    if(result&&typeof result.next==='function'){
+        var done=false;
+        while(!done){
+            var sliceStart=performance.now();
+            do{done=result.next().done;}while(!done&&performance.now()-sliceStart<6);
+            maxSlice=Math.max(maxSlice,performance.now()-sliceStart);slices++;
+            if(!done)await _cityTransferYield();
+        }
+    }else{
+        maxSlice=performance.now()-start;slices=1;
+        if(result&&typeof result.then==='function')await result;
+    }
+    if(window.DANBO_TRANSFER_PERF)DANBO_TRANSFER_PERF.steps.push({name:name,ms:performance.now()-start,maxSliceMs:maxSlice,slices:slices});
+}
+async function _buildTransferCity(style){
+    _cityRetiredMaterials=new Set();
+    try{
+        await _runCityTransferStep('1 / 8',function(){clearCity();currentCityStyle=style;});
+        await _runCityTransferStep('2 / 8',function(){return _buildCitySteps();});
+        await _runCityTransferStep('3 / 8',function(){buildPortals();buildCityCoins();buildCityChests();buildWarpPipes();});
+        await _runCityTransferStep('4 / 8',function(){if(typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();});
+        await _runCityTransferStep('5 / 8',function(){_optimizeCityInstances();});
+        await _runCityTransferStep('6 / 8',function(){addClouds();return _spawnCityNPCSteps();});
+        await _runCityTransferStep('7 / 8',function(){applyCityTheme();});
+        await _runCityTransferStep('8 / 8',async function(){
+            // Retained old materials keep matching GPU programs alive. Bound
+            // the optional async wait; a failed prewarm must not block travel.
+            var pending=_prewarmCityShaders(),timeout;
+            try{await Promise.race([Promise.resolve(pending),new Promise(function(resolve){timeout=setTimeout(resolve,4000);})]);}
+            finally{clearTimeout(timeout);}
+        });
+    }finally{
+        // New materials now hold their own references, including on timeout.
+        _flushRetiredCityMaterials();
+    }
+}
+function _cancelPipeTravel(error){
+    ++_pipeTravelSerial;clearTimeout(_pipeLoadTimeout);
+    _pipeTraveling=false;_pipeCityBuilding=false;_pipeCityLoadPending=false;_pipeArrivalCooldown=60;
+    _disposePipeTravelScene();
+    if(playerEgg){playerEgg.mesh.position.set(_pipeStartX,_pipeStartY,_pipeStartZ);playerEgg.vx=playerEgg.vy=playerEgg.vz=0;}
+    _setCityTransferStatus(null);
+    if(window.DANBO_TRANSFER_PERF){DANBO_TRANSFER_PERF.stage='failed';DANBO_TRANSFER_PERF.error=String(error&&error.message||error);}
+    console.warn('City transfer cancelled:',error);
+    if(typeof _floatToast==='function')_floatToast(_langCode==='en'?'Transfer failed. Please try again.':'传送失败，请重试','#FFD28A','32%','26%',3500);
+}
+function _beginPipeCityBuild(){
+    _pipeCityBuilding=true;_prevCityStyle=_pipeOriginStyle;
+    var serial=_pipeTravelSerial;
+    window.DANBO_CITY_TRANSFER=_buildTransferCity(_pipeTargetStyle).then(function(){
+        if(serial!==_pipeTravelSerial)return;
+        _pipeCityRebuilt=true;_pipeCityBuilding=false;_pipeLastUpdateAt=performance.now();
+        _setCityTransferStatus(null);stopBGM();stopRaceBGM();startBGM();
+    }).catch(async function(error){
+        // Restore the origin before releasing input/simulation after a failure.
+        try{await _buildTransferCity(_pipeOriginStyle);}
+        catch(rollbackError){console.error('City transfer rollback failed:',rollbackError);gameState='menu';showScreen('start-screen');}
+        _cancelPipeTravel(error);
+    });
+}
 
 function _ensureCityDataLoaded(style,done){
     if(!window.DANBO_CITY_DATA||!DANBO_CITY_DATA.ensureCityLoaded){done(true);return;}
@@ -1141,13 +1237,23 @@ function _ensureCityDataLoaded(style,done){
 }
 
 function startPipeTravel(fromX,fromZ,targetStyle,fromY){
+    if(_pipeTraveling||!playerEgg||!CITY_STYLES[targetStyle]||targetStyle===currentCityStyle)return false;
+    var serial=++_pipeTravelSerial;
+    _pipeOriginStyle=currentCityStyle;_pipeCityRebuilt=false;_pipeCityBuilding=false;
+    _pipeLastUpdateAt=performance.now();
+    window.DANBO_TRANSFER_PERF={from:currentCityStyle,to:targetStyle,startedAt:_pipeLastUpdateAt,stage:'flight',steps:[]};
     _pipeCityLoadFailed=false;
     if(window.DANBO_CITY_DATA&&DANBO_CITY_DATA.ensureCityLoaded&&DANBO_CITY_DATA.isLoaded&&!DANBO_CITY_DATA.isLoaded(targetStyle)&&!_pipeCityLoadPending){
         // Start loading the target city during the pipe flight. If it is still
         // not ready at the rebuild point, updatePipeTravel pauses briefly high
         // above the scene instead of making the entrance feel unresponsive.
         _pipeCityLoadPending=true;
-        _ensureCityDataLoaded(targetStyle,function(ok){_pipeCityLoadPending=false;if(!ok)_pipeCityLoadFailed=true;});
+        _pipeLoadTimeout=setTimeout(function(){if(serial===_pipeTravelSerial){_pipeCityLoadPending=false;_pipeCityLoadFailed=true;}},12000);
+        _ensureCityDataLoaded(targetStyle,function(ok){
+            if(serial!==_pipeTravelSerial)return;
+            clearTimeout(_pipeLoadTimeout);_pipeCityLoadPending=false;
+            if(!ok)_pipeCityLoadFailed=true;
+        });
     }
     if(typeof _resetViewMode==='function')_resetViewMode();
     if(playerEgg&&playerEgg.mesh)playerEgg.mesh.visible=true;
@@ -1173,7 +1279,11 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
     var pColor=pipeColors[targetStyle]||tubeColor;
     var isMoonTravel=(targetStyle===5);
     if(isMoonTravel)pColor=0x6644CC;
-    var tubeMat=new THREE.MeshPhongMaterial({color:pColor,transparent:true,opacity:isMoonTravel?0.15:0.25,side:THREE.DoubleSide});
+    var tubeMat=new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:isMoonTravel?0.15:0.25,side:THREE.DoubleSide,depthWrite:false,fog:false});
+    tubeMat.forceSinglePass=true;
+    var tubeGeo=new THREE.CylinderGeometry(3,3,3,10,1,true);
+    var ringGeo=new THREE.TorusGeometry(3,0.2,8,16);
+    var ringMat=new THREE.MeshBasicMaterial({color:isMoonTravel?0x8866DD:pColor,transparent:true,opacity:isMoonTravel?0.5:0.4,fog:false});
     for(var i=0;i<steps;i++){
         var t=i/steps;
         // Quadratic bezier: start → mid (far away) → end (center)
@@ -1181,7 +1291,7 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
         var px=u*u*fromX+2*u*t*midX+t*t*_pipeEndX;
         var pz=u*u*fromZ+2*u*t*midZ+t*t*_pipeEndZ;
         var py=_pipeStartY+Math.sin(t*Math.PI)*60; // high arc — 60 units up
-        var seg=new THREE.Mesh(new THREE.CylinderGeometry(3,3,3,10,1,true),tubeMat);
+        var seg=new THREE.Mesh(tubeGeo,tubeMat);
         seg.position.set(px,py,pz);
         if(i<steps-1){
             var t2=(i+1)/steps;var u2=1-t2;
@@ -1193,7 +1303,7 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
         _pipeTubeGroup.add(seg);
         if(i%5===0){
             var ringColor=isMoonTravel?0x8866DD:pColor;
-            var ring=new THREE.Mesh(new THREE.TorusGeometry(3,0.2,8,16),new THREE.MeshBasicMaterial({color:ringColor,transparent:true,opacity:isMoonTravel?0.5:0.4}));
+            var ring=new THREE.Mesh(ringGeo,ringMat);
             ring.position.set(px,py,pz);
             if(i<steps-1){
                 var t3=(i+1)/steps;var u3=1-t3;
@@ -1221,9 +1331,28 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
             }
         }
     }
-    scene.add(_pipeTubeGroup);
-    // Disable fog during travel so tube is visible
-    scene.fog=null;
+    // The travel corridor is its own unlit scene. Flying the main camera high
+    // above the city exposed thousands of previously unseen objects/shadows and
+    // paid their first-use GPU cost just to display a three-second transition.
+    _pipeTravelScene=new THREE.Scene();
+    _pipeTravelScene.background=new THREE.Color(pColor).multiplyScalar(0.055);
+    _pipeTravelScene.add(_pipeTubeGroup);
+    // Preserve the selected character's silhouette and colours in the corridor,
+    // but use cheap unlit copies rather than compiling another PBR light setup.
+    _pipeTravelMarker=playerEgg.mesh.clone(true);
+    _pipeTravelMarker.traverse(function(object){
+        if(object.isSprite){object.visible=false;return;}
+        if(!object.isMesh||!object.material)return;
+        function unlit(material){return new THREE.MeshBasicMaterial({
+            color:material.color||0xffffff,map:material.map||null,vertexColors:!!material.vertexColors,
+            transparent:material.transparent,opacity:material.opacity,side:material.side,fog:false
+        });}
+        object.material=Array.isArray(object.material)?object.material.map(unlit):unlit(object.material);
+        object.castShadow=false;object.receiveShadow=false;
+    });
+    _pipeTravelScene.add(_pipeTravelMarker);
+    // Never remove scene.fog here: toggling USE_FOG recompiles the entire city
+    // on entry, then again on arrival. Only the small tube material ignores fog.
     // Pipe travel sound — suction entry + rushing wind + sparkle ticks
     if(sfxEnabled){
         var ctx=ensureAudio();var ct=ctx.currentTime;
@@ -1273,9 +1402,42 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
     }
 }
 
+function _disposePipeTravelScene(){
+    if(_pipeTravelMarker){
+        // Proxy geometry/textures are shared with the real character. Release
+        // only its private unlit materials; never invalidate the player's mesh.
+        _pipeTravelMarker.traverse(function(object){
+            if(!object.isMesh)return;
+            var materials=Array.isArray(object.material)?object.material:[object.material];
+            materials.forEach(function(material){if(material)material.dispose();});
+        });
+        _pipeTravelScene.remove(_pipeTravelMarker);
+    }
+    if(_pipeTravelScene)disposeTransientObject3D(_pipeTravelScene);
+    else if(_pipeTubeGroup)disposeTransientObject3D(_pipeTubeGroup);
+    if(_pipeTubeGroup&&_pipeTubeGroup.parent)_pipeTubeGroup.parent.remove(_pipeTubeGroup);
+    _pipeTravelScene=null;_pipeTravelMarker=null;_pipeTubeGroup=null;
+}
+function _renderPipeTravelFrame(){
+    if(!_pipeTravelScene||!playerEgg)return;
+    _pipeTravelMarker.position.copy(playerEgg.mesh.position);
+    _pipeTravelMarker.quaternion.copy(playerEgg.mesh.quaternion);
+    R.setRenderTarget(null);
+    R.render(_pipeTravelScene,camera);
+}
 function updatePipeTravel(){
     if(!_pipeTraveling||!playerEgg)return;
-    _pipeTimer++;
+    if(_pipeCityBuilding)return;
+    var now=performance.now(),elapsed=Math.max(0,now-_pipeLastUpdateAt);
+    _pipeLastUpdateAt=now;
+    // Wall-clock time, not simulated ticks: low FPS must not stretch the flight.
+    _pipeTimer=Math.min(_pipeDuration,_pipeTimer+elapsed*0.06);
+    if(!_pipeCityRebuilt&&_pipeTimer>=_pipeDuration*0.4){
+        _pipeTimer=_pipeDuration*0.4;
+        if(_pipeCityLoadFailed){_cancelPipeTravel(new Error('City data load failed or timed out'));return;}
+        if(_pipeCityLoadPending){_setCityTransferStatus('…');return;}
+        _beginPipeCityBuild();return;
+    }
     var t=_pipeTimer/_pipeDuration;
     if(t>1)t=1;
     // Smooth ease in-out
@@ -1299,37 +1461,13 @@ function updatePipeTravel(){
     var cl=DANBO_WASM.len2D(cdx,cdz)||1;
     camera.position.set(px+cdx/cl*camDist,py+6,pz+cdz/cl*camDist);
     camera.lookAt(px,py,pz);
-    // At 40% — rebuild city (while player is high up and can't see ground)
-    if(_pipeTimer===Math.floor(_pipeDuration*0.4)){
-        if(window.DANBO_CITY_DATA&&DANBO_CITY_DATA.isLoaded&&!DANBO_CITY_DATA.isLoaded(_pipeTargetStyle)){
-            if(!_pipeCityLoadFailed){
-                _pipeTimer--;
-                return;
-            }
-            console.warn('Continue pipe travel with unloaded city '+_pipeTargetStyle);
-        }
-        _prevCityStyle=currentCityStyle;
-        currentCityStyle=_pipeTargetStyle;
-        clearCity();
-        buildCity();
-        buildPortals();
-        buildCityCoins();
-        buildCityChests();
-        buildWarpPipes();
-        if(typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();
-        _optimizeCityInstances();
-        addClouds();
-        spawnCityNPCs();
-        applyCityTheme();
-        _prewarmCityShaders();
-        stopBGM();stopRaceBGM();
-        startBGM();
-    }
     // Done
     if(_pipeTimer>=_pipeDuration){
         _pipeTraveling=false;
+        clearTimeout(_pipeLoadTimeout);_setCityTransferStatus(null);
+        if(window.DANBO_TRANSFER_PERF){DANBO_TRANSFER_PERF.stage='complete';DANBO_TRANSFER_PERF.totalMs=performance.now()-DANBO_TRANSFER_PERF.startedAt;}
         _pipeArrivalCooldown=60; // 1 second grace period before portal checks
-        if(_pipeTubeGroup){scene.remove(_pipeTubeGroup);disposeTransientObject3D(_pipeTubeGroup);_pipeTubeGroup=null;}
+        _disposePipeTravelScene();
         if(currentCityStyle===5){
             // Moon flat: spawn inside Von Braun city
             playerEgg.mesh.position.set(-200,3,0);
@@ -1357,7 +1495,10 @@ function updatePipeTravel(){
 }
 
 function switchCity(targetStyle){
-    if(targetStyle===currentCityStyle)return;
+    if(targetStyle===currentCityStyle||_pipeTraveling)return;
+    if(typeof gameState!=='undefined'&&gameState==='city'&&playerEgg){
+        return startPipeTravel(playerEgg.mesh.position.x,playerEgg.mesh.position.z,targetStyle,playerEgg.mesh.position.y);
+    }
     if(window.DANBO_CITY_DATA&&DANBO_CITY_DATA.ensureCityLoaded&&DANBO_CITY_DATA.isLoaded&&!DANBO_CITY_DATA.isLoaded(targetStyle)){
         _ensureCityDataLoaded(targetStyle,function(ok){if(ok)switchCity(targetStyle);});
         return;
@@ -1414,7 +1555,10 @@ function switchCity(targetStyle){
 }
 
 // ---- NPC eggs wandering city ----
-function spawnCityNPCs() {
+function spawnCityNPCs(){
+    var steps=_spawnCityNPCSteps();while(!steps.next().done){}
+}
+function* _spawnCityNPCSteps() {
     var _npcCityLayout=(typeof _getCityLayout==='function')?_getCityLayout(currentCityStyle):null;
     var _npcCityData=(typeof _getCityNpc==='function')?_getCityNpc(currentCityStyle):null;
     var npcCount=(_npcCityData&&_npcCityData.count!==undefined)?_npcCityData.count:((_npcCityLayout&&_npcCityLayout.npcCount!==undefined)?_npcCityLayout.npcCount:(currentCityStyle===5?24:(currentCityStyle===6?48:36)));
@@ -1459,6 +1603,7 @@ function spawnCityNPCs() {
         npc.aiTargetX=nx2; npc.aiTargetZ=nz2;
         npc.aiWanderTimer=60+Math.random()*120;
         cityNPCs.push(npc);
+        yield;
     }
 }
 

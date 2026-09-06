@@ -2650,6 +2650,9 @@ function animate(now){
     var _elapsed=now-_lastFrameTime;
     if(_elapsed<8)return; // skip if too fast (>120fps)
     _lastFrameTime=now;
+    // A staged city rebuild owns the scene. Keep its last complete frame and
+    // let the compositor animate the transfer indicator; never render half a city.
+    if(typeof _pipeCityBuilding!=='undefined'&&_pipeCityBuilding){_accumulator=0;return;}
     // Title/server/character screens have their own animation loops. Rendering
     // the full city behind them doubled GPU work (especially during 3D select).
     if(gameState==='menu'){
@@ -2667,6 +2670,10 @@ function animate(now){
         _gameUpdate();
         _accumulator-=_fixedStep;
         _ticks++;
+    }
+    if(_pipeTraveling){
+        if(!_pipeCityBuilding)_renderPipeTravelFrame();
+        return;
     }
     if(typeof _updateRenderQuality==='function')_updateRenderQuality(_elapsed);
     if(typeof _updateSunShadowFocus==='function')_updateSunShadowFocus();
@@ -2697,6 +2704,9 @@ function _gameUpdate(){
         var _shopBusy=document.getElementById('shop-prompt');if(_shopBusy)_shopBusy.style.display='none';
         return;
     }
+    // Travel owns camera/player transforms. Do not run combat, NPCs, map updates
+    // or the normal camera behind it (the old loop overwrote the flight camera).
+    if(gameState==='city'&&_pipeTraveling){updatePipeTravel();return;}
     // Shell status above EVERY character, every mode (player + race rivals + city NPCs).
     if(typeof _updateAllShellStatus==='function')_updateAllShellStatus();
     // Cosmetic shop / equipped looks / footprints (single-player, local).

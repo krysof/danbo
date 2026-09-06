@@ -56,7 +56,7 @@ var _visualSurfaceTextures={};
 var _visualSurfaceTextureSets={};
 var _visualSurfaceMaterials={};
 var _visualGeometryCache={roundedRect:{},roundedBox:{},gable:{}};
-window.DANBO_VISUAL_UPGRADE={revision:'20260906.2',nativeScene:true,mergedPresentation:true,
+window.DANBO_VISUAL_UPGRADE={revision:'20260906.3',nativeScene:true,mergedPresentation:true,
     sculptedFoliage:true,shellMicroSurface:true,waterSceneRecapture:false,contactAtlas:false};
 var _visualWaterTime={value:0};
 var _visualShellSurface=null;
@@ -466,7 +466,7 @@ function _visualDisposeMat(mat){
     if(!mat)return;
     if(Array.isArray(mat)){for(var i=0;i<mat.length;i++)_visualDisposeMat(mat[i]);return;}
     if(mat.map&&mat.map!==_visualSoftTex&&mat.map!==_visualFlareTex)mat.map.dispose();
-    mat.dispose();
+    _retireRenderMaterial(mat);
 }
 function _visualDisposeObject(obj){
     if(!obj)return;

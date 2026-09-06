@@ -858,7 +858,11 @@ function _buildHopeCinematicPlaza(){
     poles.castShadow=true;cityGroup.add(poles);cityGroup.add(bulbs);
 }
 
-function buildCity() {
+function buildCity(){
+    var steps=_buildCitySteps();while(!steps.next().done){}
+}
+// The same builder serves synchronous startup and time-sliced city transfers.
+function* _buildCitySteps() {
     var st=CITY_STYLES[currentCityStyle];
     var cityLayout=_getCityLayout(currentCityStyle);
     var cityGroundMode=cityLayout.ground||(currentCityStyle===5?'moon':(currentCityStyle===7?'snowIsland':'plain'));
@@ -874,6 +878,7 @@ function buildCity() {
         // Subtle surface detail — darker patches on flat ground
         var _moonPatchMat=_citySurfaceMaterial('ground',0x666677,{roughness:0.98,bumpScale:0.20,envMapIntensity:0.10});
         for(var pi=0;pi<15;pi++){
+        yield;
             var ppx=(Math.random()-0.5)*MOON_CITY_SIZE*1.6;
             var ppz=(Math.random()-0.5)*MOON_CITY_SIZE*1.6;
             var pr=8+Math.random()*16;
@@ -893,6 +898,7 @@ function buildCity() {
     snowGround.position.y=_islandY/2-0.5;snowGround.castShadow=true;cityGroup.add(snowGround);
     // Extra bumps for irregular coastline
     for(var _ib=0;_ib<8;_ib++){
+        yield;
         var _ibA=_ib/8*Math.PI*2+Math.random()*0.5;
         var _ibR=_snowGR*0.7+Math.random()*_snowGR*0.35;
         var _ibS=15+Math.random()*25;
@@ -906,6 +912,7 @@ function buildCity() {
     snowSurface.position.y=_islandY+0.05;cityGroup.add(snowSurface);
     // Snow bumps on top for each coastline bump
     for(var _ib2=0;_ib2<8;_ib2++){
+        yield;
         var _ibA2=_ib2/8*Math.PI*2+Math.random()*0.5;
         var _ibR2=_snowGR*0.7+Math.random()*_snowGR*0.35;
         var _ibS2=14+Math.random()*24;
@@ -915,6 +922,7 @@ function buildCity() {
     }
     // Earthy ground patches (Shirakawa-go style — brown soil showing through snow)
     for(var _dp=0;_dp<25;_dp++){
+        yield;
         var _dpA=Math.random()*Math.PI*2;
         var _dpR=Math.random()*(_snowGR-15);
         var _dpSize=4+Math.random()*8;
@@ -937,8 +945,10 @@ function buildCity() {
     ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
     cityGroup.add(ground);
     }
+    yield;
 
     if(currentCityStyle===0)_buildHopeCinematicPlaza();
+    yield;
 
     // Paths — data is now editable in js/cities/common-layout.js or each city file.
     var cityPathList=_getCityPaths(currentCityStyle);
@@ -954,6 +964,7 @@ function buildCity() {
         path.receiveShadow=true; cityGroup.add(path);
     });
     }
+    yield;
     // Sakura City: 銀山温泉 — high terrain + deep gorge + ryokan facing river
     if(currentCityStyle===6){
     var _sPathM=_citySurfaceMaterial('path',0xAA9977,{roughness:0.86,bumpScale:0.10});
@@ -985,14 +996,17 @@ function buildCity() {
         hill.position.set(hp[0],hp[4]/2,hp[2]);cityGroup.add(hill);
     });
     }
+    yield;
 
     // ---- Buildings (not on moon) — organized blocks along streets ----
     if(currentCityStyle!==5){
     const bColors = st.bColors;
     const buildings = _getCityBuildings(currentCityStyle) || [];
-    buildings.forEach((b,i)=>{
+    for(let i=0;i<buildings.length;i++){
+        yield;
+        const b=buildings[i];
         // Sakura/Snow: skip ALL default buildings — custom layout built below
-        if(currentCityStyle===6||currentCityStyle===7)return;
+        if(currentCityStyle===6||currentCityStyle===7)continue;
         const col = bColors[i%bColors.length];
         var _hopeFacadeColor=currentCityStyle===0?_cityMixHex(col,0xF7E7D2,0.10):col;
         const bodyMat=_citySurfaceMaterial('facade',_hopeFacadeColor,{roughness:currentCityStyle===4?0.56:0.84,bumpScale:currentCityStyle===3?0.065:0.026,envMapIntensity:currentCityStyle===4?0.34:0.20,vertexColors:true});
@@ -1126,12 +1140,13 @@ function buildCity() {
             if(bMeshes[_ebi]&&bMeshes[_ebi].userData)bMeshes[_ebi].userData.editorBuildingIndex=i;
         }
         cityBuildingMeshes.push({meshes:bMeshes, x:b.x, z:b.z, hw:b.w/2, hd:b.d/2, h:b.h});
-    });
+    }
 
     // ---- Trees ----
     var cityFlora=_getCityFlora(currentCityStyle);
     var _treeCount=(cityFlora&&cityFlora.treeCount!==undefined)?cityFlora.treeCount:((cityLayout&&cityLayout.treeCount!==undefined)?cityLayout.treeCount:(currentCityStyle===6?40:80)); // sakura: fewer random trees (river trees are separate)
     for(let i=0;i<_treeCount;i++){
+        yield;
         var tx,tz;
         if(currentCityStyle===6){
             // Sakura: background trees on outer plateau, away from path and buildings
@@ -1314,6 +1329,7 @@ function buildCity() {
     var innerWaterRef=null;
     // Steps around the pool (3 tiers)
     for(var si=0;si<3;si++){
+        yield;
         var stepR=8+si*1.2;var stepH=0.2;
         var step=new THREE.Mesh(new THREE.TorusGeometry(stepR,currentCityStyle===0?0.19:0.5,currentCityStyle===0?10:6,currentCityStyle===0?72:24),si===0?stoneM:stoneD);
         step.position.y=currentCityStyle===0?0.24-si*0.10:0.15-si*0.12;step.rotation.x=Math.PI/2;
@@ -1358,6 +1374,7 @@ function buildCity() {
         var _jointMesh=new THREE.InstancedMesh(_jointGeo,stoneD,_jointCount);
         var _jointDummy=new THREE.Object3D();
         for(var _ji=0;_ji<_jointCount;_ji++){
+        yield;
             var _ja=_ji/_jointCount*Math.PI*2;
             _jointDummy.position.set(Math.cos(_ja)*7.39,0.82,Math.sin(_ja)*7.39);
             _jointDummy.rotation.set(0,-_ja,0);_jointDummy.updateMatrix();
@@ -1377,6 +1394,7 @@ function buildCity() {
         _whc.fillStyle=_whg;_whc.fillRect(0,0,_whs,_whs);
         _whc.strokeStyle='rgba(225,251,255,.28)';_whc.lineWidth=_hopeFountainLow?1:1.35;
         for(var _wsi=0;_wsi<(_hopeFountainLow?9:18);_wsi++){
+        yield;
             var _wsr=_whs*(0.10+_wsi*0.018),_wsa=(_wsi*1.71)%6.28;
             _whc.beginPath();_whc.arc(_whs*.5,_whs*.5,_wsr,_wsa,_wsa+0.65+(_wsi%4)*0.18);_whc.stroke();
         }
@@ -1400,6 +1418,7 @@ function buildCity() {
         var _column=new THREE.Mesh(new THREE.LatheGeometry(_columnProfile,window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high?48:24),marbleM);
         _column.name='hope-fountain-sculpted-column';_column.position.y=1.28;_column.castShadow=true;_column.receiveShadow=true;cityGroup.add(_column);
         for(var fi=0;fi<12;fi++){
+        yield;
             var fa=fi/12*Math.PI*2;
             var groove=new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.045,3.56,8),stoneD);
             groove.position.set(Math.cos(fa)*0.585,3.84,Math.sin(fa)*0.585);groove.castShadow=true;cityGroup.add(groove);
@@ -1410,6 +1429,7 @@ function buildCity() {
         });
         var _reliefCount=_hopeFountainLow?4:8;
         for(var _rli=0;_rli<_reliefCount;_rli++){
+        yield;
             var _rla=_rli/_reliefCount*Math.PI*2;
             var _relief=new THREE.Mesh(new THREE.SphereGeometry(0.15,_hopeFountainLow?8:14,_hopeFountainLow?5:8),stoneM);
             _relief.scale.set(1.0,0.76,0.36);_relief.position.set(Math.cos(_rla)*1.16,1.80,Math.sin(_rla)*1.16);
@@ -1439,6 +1459,7 @@ function buildCity() {
         var colShaft=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.55,4,12),marbleM);
         colShaft.position.y=3.9;cityGroup.add(colShaft);
         for(var fi=0;fi<8;fi++){
+        yield;
             var fa=fi/8*Math.PI*2;
             var groove=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,3.6,4),stoneD);
             groove.position.set(Math.cos(fa)*0.52,3.9,Math.sin(fa)*0.52);cityGroup.add(groove);
@@ -1460,6 +1481,7 @@ function buildCity() {
         var _rippleMat=new THREE.MeshBasicMaterial({color:0xDDFBFF,transparent:true,opacity:0.18,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
         var _rippleCount=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?6:12;
         for(var _rpi=0;_rpi<_rippleCount;_rpi++){
+        yield;
             var _rpa=_rpi/_rippleCount*Math.PI*2,_rr=_rpi%3===0?4.75:2.72;
             var _ripple=new THREE.Mesh(new THREE.TorusGeometry(0.23+(_rpi%2)*0.08,0.018,6,24),_rippleMat.clone());
             _ripple.name='hope-fountain-water-ripple';_ripple.rotation.x=Math.PI/2;
@@ -1476,6 +1498,7 @@ function buildCity() {
         var _mainJetRadius=4.78*_jetSpread;
         var _mainArcCurves=[];
         for(var _wai=0;_wai<_arcCount;_wai++){
+        yield;
             var _waa=_wai/_arcCount*Math.PI*2;
             var _curve=new THREE.QuadraticBezierCurve3(
                 new THREE.Vector3(Math.cos(_waa)*0.24,8.54,Math.sin(_waa)*0.24),
@@ -1493,6 +1516,7 @@ function buildCity() {
         var _dropletMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(_hopeFountainLow?0.042:0.036,_hopeFountainLow?5:8,_hopeFountainLow?4:6),_flowHighlightMat,_dropletCount);
         var _dropletDummy=new THREE.Object3D(),_dropletIndex=0;
         for(var _dai=0;_dai<_mainArcCurves.length;_dai++){
+        yield;
             for(var _di=0;_di<_dropletsPerArc;_di++){
                 var _dt=0.17+(_di+0.35+(_dai%3)*0.13)/_dropletsPerArc*0.75;
                 _dropletDummy.position.copy(_mainArcCurves[_dai].getPoint(Math.min(0.94,_dt)));
@@ -1511,6 +1535,7 @@ function buildCity() {
         // motion. A single transparent cylinder looked like a glass sleeve.
         var _spillStreamCount=_hopeFountainLow?4:(_hopeFountainHigh?12:8);
         for(var _ssi=0;_ssi<_spillStreamCount;_ssi++){
+        yield;
             var _ssa=_ssi/_spillStreamCount*Math.PI*2;
             var _spillCurve=new THREE.QuadraticBezierCurve3(
                 new THREE.Vector3(Math.cos(_ssa)*1.30,6.10,Math.sin(_ssa)*1.30),
@@ -1526,6 +1551,7 @@ function buildCity() {
         // Soft impact crowns where the main arcs meet the outer pool.
         var _impactCount=_arcCount;
         for(var _ici=0;_ici<_impactCount;_ici++){
+        yield;
             var _ica=_ici/_impactCount*Math.PI*2;
             var _impactFoam=new THREE.Mesh(new THREE.RingGeometry(0.16,0.34,_hopeFountainLow?12:24),_foamMat.clone());
             _impactFoam.rotation.x=-Math.PI/2;_impactFoam.position.set(Math.cos(_ica)*_mainJetRadius,0.731,Math.sin(_ica)*_mainJetRadius);
@@ -1534,6 +1560,7 @@ function buildCity() {
     }
     // 4 lion head spouts around inner basin
     for(var li=0;li<4;li++){
+        yield;
         var la=li/4*Math.PI*2;
         var lx2=Math.cos(la)*3.3,lz2=Math.sin(la)*3.3;
         // Sculpted spout replaces the old box while keeping the same position and gameplay.
@@ -1585,6 +1612,7 @@ function buildCity() {
     }
     // 8 small decorative columns around outer rim
     for(var ci2=0;ci2<8;ci2++){
+        yield;
         var ca=ci2/8*Math.PI*2;
         var cx2=Math.cos(ca)*7.5,cz2=Math.sin(ca)*7.5;
         var miniCol=new THREE.Mesh(new THREE.CylinderGeometry(currentCityStyle===0?0.13:0.15,currentCityStyle===0?0.19:0.18,currentCityStyle===0?1.48:2,currentCityStyle===0?16:6),marbleM);
@@ -1600,6 +1628,7 @@ function buildCity() {
     }
     // Scattered gold coins in the water
     for(var gi=0;gi<20;gi++){
+        yield;
         var ga=Math.random()*Math.PI*2;
         var gr=Math.random()*5.5;
         var coin=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.31):
@@ -1615,6 +1644,7 @@ function buildCity() {
     // Central jet particles (spray from top shell)
     var _fountainLow=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low;
     for(var fpi=0;fpi<(currentCityStyle===0?(_fountainLow?24:52):120);fpi++){
+        yield;
         var fp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.055:0.25,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fwMat);
         fp.visible=false;
         cityGroup.add(fp);
@@ -1624,6 +1654,7 @@ function buildCity() {
     }
     // Lion spout particles (4 lions, 20 particles each)
     for(var lli=0;lli<4;lli++){
+        yield;
         var lla=lli/4*Math.PI*2;
         var llx=Math.cos(lla)*3.3,llz=Math.sin(lla)*3.3;
         var _lionFlowSign=currentCityStyle===0?1:-1;
@@ -1643,6 +1674,7 @@ function buildCity() {
     // Splash particle pool
     var _fsMat=new THREE.MeshBasicMaterial({color:0xC8F5FF,transparent:true,opacity:currentCityStyle===0?0.28:0.7,depthWrite:false,blending:THREE.NormalBlending});
     for(var fsi=0;fsi<(currentCityStyle===0?(_fountainLow?12:24):40);fsi++){
+        yield;
         var fsp=new THREE.Mesh(new THREE.SphereGeometry(currentCityStyle===0?0.080:0.3,currentCityStyle===0?6:4,currentCityStyle===0?4:3),_fsMat);
         fsp.visible=false;
         cityGroup.add(fsp);
@@ -1680,6 +1712,7 @@ function buildCity() {
         // 4 canals radiating from central fountain to city edges
         var canalDirs=[{dx:1,dz:0},{dx:-1,dz:0},{dx:0,dz:1},{dx:0,dz:-1}];
         for(var cdi=0;cdi<4;cdi++){
+        yield;
             var cd=canalDirs[cdi];
             var cLen=CITY_SIZE*0.9;
             // Water surface
@@ -1711,6 +1744,7 @@ function buildCity() {
         // Stone bridges over canals (inner ring)
         var bridgeMat=_visualSurfaceMaterial('path',0xC7B8A1,{roughness:0.78,normalScale:new THREE.Vector2(0.48,0.48)});
         for(var bri=0;bri<8;bri++){
+        yield;
             var bra=bri/8*Math.PI*2;var brr=25;
             var brx=Math.cos(bra)*brr,brz=Math.sin(bra)*brr;
             var bridge=new THREE.Mesh(new THREE.BoxGeometry(5,0.4,6),bridgeMat);
@@ -1726,6 +1760,7 @@ function buildCity() {
         }
         // Bridges over outer ring
         for(var bri2=0;bri2<6;bri2++){
+        yield;
             var bra2=bri2/6*Math.PI*2+Math.PI/6;var brr2=55;
             var bridge2=new THREE.Mesh(new THREE.BoxGeometry(5,0.4,5),bridgeMat);
             bridge2.position.set(Math.cos(bra2)*brr2,0.5,Math.sin(bra2)*brr2);
@@ -1734,6 +1769,7 @@ function buildCity() {
         // Water wheels (Gagharv style)
         window._waterWheels=[];
         for(var wwi=0;wwi<4;wwi++){
+        yield;
             var wwa=wwi/4*Math.PI*2+Math.PI/4;var wwr=25;
             var wwG=new THREE.Group();
             // Wheel
@@ -1770,18 +1806,23 @@ function buildCity() {
         // Spawn fish across fountain pool, inner canal, outer canal
         var _fishSpawns=[];
         // Fountain pool (8 fish)
-        for(var _fsi=0;_fsi<8;_fsi++){var _fsa=_fsi/8*Math.PI*2;_fishSpawns.push({x:Math.cos(_fsa)*(1+Math.random()*4),z:Math.sin(_fsa)*(1+Math.random()*4),r:1+Math.random()*4});}
+        for(var _fsi=0;_fsi<8;_fsi++){
+        yield;var _fsa=_fsi/8*Math.PI*2;_fishSpawns.push({x:Math.cos(_fsa)*(1+Math.random()*4),z:Math.sin(_fsa)*(1+Math.random()*4),r:1+Math.random()*4});}
         // Inner ring canal (10 fish)
-        for(var _fsi2=0;_fsi2<10;_fsi2++){var _fsa2=_fsi2/10*Math.PI*2;_fishSpawns.push({x:Math.cos(_fsa2)*25,z:Math.sin(_fsa2)*25,r:25});}
+        for(var _fsi2=0;_fsi2<10;_fsi2++){
+        yield;var _fsa2=_fsi2/10*Math.PI*2;_fishSpawns.push({x:Math.cos(_fsa2)*25,z:Math.sin(_fsa2)*25,r:25});}
         // Outer ring canal (8 fish)
-        for(var _fsi3=0;_fsi3<8;_fsi3++){var _fsa3=_fsi3/8*Math.PI*2;_fishSpawns.push({x:Math.cos(_fsa3)*55,z:Math.sin(_fsa3)*55,r:55});}
+        for(var _fsi3=0;_fsi3<8;_fsi3++){
+        yield;var _fsa3=_fsi3/8*Math.PI*2;_fishSpawns.push({x:Math.cos(_fsa3)*55,z:Math.sin(_fsa3)*55,r:55});}
         // Radial canals (4 fish each direction)
         for(var _fsi4=0;_fsi4<4;_fsi4++){
+        yield;
             var _fcd=[{dx:1,dz:0},{dx:-1,dz:0},{dx:0,dz:1},{dx:0,dz:-1}][_fsi4];
             var _fcDist=15+Math.random()*50;
             _fishSpawns.push({x:_fcd.dx*_fcDist,z:_fcd.dz*_fcDist,r:_fcDist,_canal:true,_canalDir:_fsi4});
         }
         for(var fii=0;fii<_fishSpawns.length;fii++){
+        yield;
             var _fs=_fishSpawns[fii];
             var fishG=new THREE.Group();
             var fc=fishColors[fii%fishColors.length];
@@ -1807,6 +1848,7 @@ function buildCity() {
 
     // ---- Lamp posts / Stone lanterns (sakura) ----
     for(let i=0;i<20;i++){
+        yield;
         const lx=(Math.random()-0.5)*CITY_SIZE*1.5, lz=(Math.random()-0.5)*CITY_SIZE*1.5;
         let skip2=false;
         for(const c of cityColliders) if(DANBO_WASM.aabb2D(lx,lz,c.x,c.z,c.hw,c.hd,1)) skip2=true;
@@ -1834,6 +1876,7 @@ function buildCity() {
 
     // ---- Benches ----
     for(let i=0;i<12;i++){
+        yield;
         const bx=(Math.random()-0.5)*CITY_SIZE*1.4, bz=(Math.random()-0.5)*CITY_SIZE*1.4;
         let skip3=false;
         for(const c of cityColliders) if(DANBO_WASM.aabb2D(bx,bz,c.x,c.z,c.hw,c.hd,1.5)) skip3=true;
@@ -1854,6 +1897,7 @@ function buildCity() {
     window._cityAnimals=[];
     // Pigeons (12) — fly and land
     for(var _pi=0;_pi<12;_pi++){
+        yield;
         var pg=new THREE.Group();
         var pbody=new THREE.Mesh(new THREE.SphereGeometry(0.2,6,4),toon(0xAAAAAA));
         pbody.scale.set(1,0.7,1.3);pg.add(pbody);
@@ -1887,6 +1931,7 @@ function buildCity() {
     }
     // Seagulls (8) — white body, gray wing tips, yellow beak, fly higher
     for(var _si2=0;_si2<8;_si2++){
+        yield;
         var sg=new THREE.Group();
         sg.scale.set(1.5,1.5,1.5);
         var sbody=new THREE.Mesh(new THREE.SphereGeometry(0.22,6,4),toon(0xFFFFFF));
@@ -1916,6 +1961,7 @@ function buildCity() {
     }
     // Ducks (6) — green head, brown body, near fountain/center
     for(var _dki=0;_dki<6;_dki++){
+        yield;
         var dkg=new THREE.Group();
         var dkbody=new THREE.Mesh(new THREE.SphereGeometry(0.22,6,4),toon(0x8B6914));
         dkbody.scale.set(0.8,0.7,1.3);dkbody.position.y=0.15;dkg.add(dkbody);
@@ -1950,6 +1996,7 @@ function buildCity() {
     }
     // Eagles (3) — dark brown, large wingspan, fly very high
     for(var _ei2=0;_ei2<3;_ei2++){
+        yield;
         var eg=new THREE.Group();
         eg.scale.set(2.5,2.5,2.5);
         var ebody=new THREE.Mesh(new THREE.SphereGeometry(0.25,6,4),toon(0x3B2210));
@@ -1979,6 +2026,7 @@ function buildCity() {
     }
     // Crows (5) — all black, perch on buildings
     for(var _ci2=0;_ci2<5;_ci2++){
+        yield;
         var cg=new THREE.Group();
         cg.scale.set(0.8,0.8,0.8);
         var cbody=new THREE.Mesh(new THREE.SphereGeometry(0.2,6,4),toon(0x111111));
@@ -2022,6 +2070,7 @@ function buildCity() {
     var _rabbitInnerEarGeo=THREE.CapsuleGeometry?new THREE.CapsuleGeometry(0.027,0.20,_animalLow?3:5,_animalSeg):new THREE.CylinderGeometry(0.027,0.04,0.28,_animalSeg);
     var _rabbitSmallGeo=new THREE.SphereGeometry(1,_animalSeg,_animalLow?7:12);
     for(var _ri2=0;_ri2<8;_ri2++){
+        yield;
         var rg=new THREE.Group();
         rg.scale.setScalar(1.1);
         var rbody=new THREE.Mesh(_rabbitBodyGeo,_rabbitFur);
@@ -2084,6 +2133,7 @@ function buildCity() {
     var _deerHoof=softPBR(0x3D3435,{pastelAmount:0,roughness:0.90,envMapIntensity:0.06});
     var _deerSmallGeo=new THREE.SphereGeometry(1,_animalSeg,_animalLow?7:12);
     for(var _di2=0;_di2<6;_di2++){
+        yield;
         var dg=new THREE.Group();
         dg.scale.setScalar(1.65);
         var dbody=new THREE.Mesh(new THREE.SphereGeometry(0.4,_animalSeg,_animalLow?8:14),_deerFur);
@@ -2177,6 +2227,7 @@ function buildCity() {
     // Wave foam rings at different radii
     var _waveRings=[];
     for(var _wri=0;_wri<4;_wri++){
+        yield;
         var wr=CITY_SIZE+10+_wri*40;
         var wring=new THREE.Mesh(new THREE.TorusGeometry(wr,0.8,4,48),
             toon(0xAADDFF,{transparent:true,opacity:0.3+_wri*0.05}));
@@ -2188,6 +2239,7 @@ function buildCity() {
     // ---- Boats (6) — on the ocean beyond city bounds ----
     var _boatColors=[0xCC3333,0x3366CC,0xFFCC00,0x33AA55,0xFF6600,0x9933CC];
     for(var _bi2=0;_bi2<6;_bi2++){
+        yield;
         var boatAngle=(_bi2/6)*Math.PI*2+Math.random()*0.5;
         var boatDist=180+Math.random()*170;
         var bx2=Math.cos(boatAngle)*boatDist,bz2=Math.sin(boatAngle)*boatDist;
@@ -2213,6 +2265,7 @@ function buildCity() {
     }
     // ---- Flying Fish (10) — on the ocean ----
     for(var _fi2=0;_fi2<10;_fi2++){
+        yield;
         var ffAngle=Math.random()*Math.PI*2;
         var ffDist=180+Math.random()*170;
         var ffx=Math.cos(ffAngle)*ffDist,ffz=Math.sin(ffAngle)*ffDist;
@@ -2415,6 +2468,7 @@ function buildCity() {
         // Riverside weeping sakura (垂桜) — skip at bridge entrances
         var _allBridgeZ=[-60,-30,0,30,60];
         for(var _rsti=0;_rsti<14;_rsti++){
+        yield;
             var _rstZ=-100+_rsti*15+((_rsti%2)*7);
             // Skip if too close to any bridge
             var _nearBridge=false;
@@ -2455,6 +2509,7 @@ function buildCity() {
         }
         var _allJpnB=[].concat(_leftBlds,_rightBlds);
         for(var _jbi=0;_jbi<_allJpnB.length;_jbi++){
+        yield;
             var jb=_allJpnB[_jbi];
             _buildJpnElev(jb.x,jb.z,jb.w,jb.d,jb.h,jb.c,_pH,jb.face||0);
         }
@@ -2472,6 +2527,7 @@ function buildCity() {
         // Corner lanterns (4)
         var _bhLP=[[-8,_by+24.5,8],[-8,_by+24.5,-8],[8,_by+24.5,8],[8,_by+24.5,-8]];
         for(var _bli2=0;_bli2<_bhLP.length;_bli2++){
+        yield;
             var lp=_bhLP[_bli2];
             var bLan=new THREE.Mesh(new THREE.SphereGeometry(0.6,6,4),toon(0xFF6644,{emissive:0xFF4422,emissiveIntensity:0.6}));
             bLan.position.set(_bhX+lp[0],lp[1],_bhZ+lp[2]);cityGroup.add(bLan);
@@ -2546,6 +2602,7 @@ function buildCity() {
         });
         // Water at bottom of gorge (y=2, plateau at y=8, so 6 units deep)
         for(var _rsi2=0;_rsi2<8;_rsi2++){
+        yield;
             var _rz2=-110+_rsi2*28;
             var rSeg=new THREE.Mesh(new THREE.BoxGeometry(14,0.15,30),toon(0x225566,{transparent:true,opacity:0.65}));
             rSeg.position.set(0,2,_rz2);cityGroup.add(rSeg);
@@ -2553,6 +2610,7 @@ function buildCity() {
         }
         // Rocks in gorge
         for(var _rki=0;_rki<25;_rki++){
+        yield;
             var _rkx=(Math.random()-0.5)*12,_rkz=(Math.random()-0.5)*240;
             var sRock=new THREE.Mesh(new THREE.SphereGeometry(0.4+Math.random()*0.8,5,4),toon(0x667766));
             sRock.position.set(_rkx,0.3+Math.random()*1.5,_rkz);sRock.scale.set(1,0.6,1);cityGroup.add(sRock);
@@ -2562,6 +2620,7 @@ function buildCity() {
         // Wooden bridges (wide, at y=8)
         var _woodBridgeZs=[-60,0,60];
         for(var _wbi=0;_wbi<_woodBridgeZs.length;_wbi++){
+        yield;
             var _wbZ=_woodBridgeZs[_wbi];
             var _wbMeshes=[];
             var _wDeck=new THREE.Mesh(new THREE.BoxGeometry(18,0.4,6),_jWoodM);
@@ -2597,6 +2656,7 @@ function buildCity() {
         // Red arched bridges (big, spanning gorge)
         var _redBridgeZs=[-30,30];
         for(var _rbzi=0;_rbzi<_redBridgeZs.length;_rbzi++){
+        yield;
             var _rbG=new THREE.Group();var _rbZ=_redBridgeZs[_rbzi];
             _rbG.position.set(0,0,_rbZ);
             var _rbSegs=10,_rbSpan=18,_rbBase=_pH-0.5,_rbArch=2;
@@ -2639,10 +2699,12 @@ function buildCity() {
             });
         }
         // Lanterns on plateau edges
-        for(var _gli=0;_gli<14;_gli++){var _glz=-100+_gli*15;_buildToro(-10,_glz,_pH);_buildToro(10,_glz+8,_pH);}
+        for(var _gli=0;_gli<14;_gli++){
+        yield;var _glz=-100+_gli*15;_buildToro(-10,_glz,_pH);_buildToro(10,_glz+8,_pH);}
         // Giant weeping sakura along gorge edge (しだれ桜 — cascading curtain style)
         var _petalCols=[0xFFAABB,0xFFBBCC,0xFFCCDD,0xFF99AA,0xFFDDEE];
         for(var _wli=0;_wli<10;_wli++){
+        yield;
             var _wlZ=-90+_wli*20+((_wli%2)*10);
             var _wlNearBr=false;
             for(var _wnbi=0;_wnbi<_allBridgeZ.length;_wnbi++){if(DANBO_WASM.absDeltaLess(_wlZ,_allBridgeZ[_wnbi],10))_wlNearBr=true;}
@@ -2702,6 +2764,7 @@ function buildCity() {
         // Plateaus are at y=8, bridge starts at y=8 on both ends, arches to y=11
         var _bridgeZs=[-40,0,40];
         for(var _bzi=0;_bzi<_bridgeZs.length;_bzi++){
+        yield;
             var _bridgeG=new THREE.Group();
             var _bgZ=_bridgeZs[_bzi];
             _bridgeG.position.set(0,0,_bgZ);
@@ -2760,6 +2823,7 @@ function buildCity() {
         var _pEdge1=new THREE.Mesh(new THREE.TorusGeometry(7,0.6,6,16),_jStoneM);
         _pEdge1.position.set(_onsenX,_pH+0.35,_onsenZ);_pEdge1.rotation.x=Math.PI/2;cityGroup.add(_pEdge1);
         for(var _ori=0;_ori<6;_ori++){
+        yield;
             var _oa=_ori/6*Math.PI*2;
             var rock=new THREE.Mesh(new THREE.SphereGeometry(0.4+Math.random()*0.5,5,4),toon(0x777766));
             rock.position.set(_onsenX+Math.cos(_oa)*7.5,_pH+0.2,_onsenZ+Math.sin(_oa)*7.5);
@@ -2770,11 +2834,13 @@ function buildCity() {
         var _shX=70,_shZ=40,_shY=_pH;
         // Stone path to shrine
         for(var _spi2=0;_spi2<8;_spi2++){
+        yield;
             var _spStep=new THREE.Mesh(new THREE.BoxGeometry(4,0.15,1.5),_jStoneM);
             _spStep.position.set(_shX,_shY+0.08,_shZ-20+_spi2*3);cityGroup.add(_spStep);
         }
         // 4 red torii gates — facing screen (+z direction)
         for(var _tgi2=0;_tgi2<4;_tgi2++){
+        yield;
             var _tgz2=_shZ-18+_tgi2*4;
             var _toriiG=new THREE.Group();_toriiG.position.set(_shX,_shY,_tgz2);
             [-1,1].forEach(function(s){
@@ -2815,6 +2881,7 @@ function buildCity() {
 
         // === 7. Decorative high clouds (薄雲) ===
         for(var _dci=0;_dci<12;_dci++){
+        yield;
             var _dcg=new THREE.Group();
             var _dcx=(Math.random()-0.5)*300;
             var _dcy=40+Math.random()*30;
@@ -2839,6 +2906,7 @@ function buildCity() {
         // visuals.js. The 60 floating water petals below remain authored meshes.
         // Some petals floating on water surface (static decoration)
         for(var _wpi=0;_wpi<60;_wpi++){
+        yield;
             var _wpx=(Math.random()-0.5)*14;
             var _wpz=(Math.random()-0.5)*240;
             var _wpMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.25,0.25),_petalMats[_wpi%5]);
@@ -2853,6 +2921,7 @@ function buildCity() {
         window._sakuraStreamAnimals=[];
         // Ducks (8) swimming in the stream
         for(var _dki2=0;_dki2<8;_dki2++){
+        yield;
             var _dkg=new THREE.Group();
             var _dkBody=new THREE.Mesh(new THREE.SphereGeometry(0.22,6,4),toon(0x8B6914));
             _dkBody.scale.set(0.8,0.7,1.3);_dkBody.position.y=0.15;_dkg.add(_dkBody);
@@ -2868,6 +2937,7 @@ function buildCity() {
         }
         // Koi fish (10) — visible through the water
         for(var _kfi=0;_kfi<10;_kfi++){
+        yield;
             var _kfg=new THREE.Group();
             var _kfBody=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,4),toon([0xFF6600,0xFFFFFF,0xFF3333,0xFFAA00,0xFF8844][_kfi%5]));
             _kfBody.scale.set(0.5,0.4,1.5);_kfg.add(_kfBody);
@@ -2881,6 +2951,7 @@ function buildCity() {
         }
         // Turtles (5) — on rocks or floating
         for(var _tti=0;_tti<5;_tti++){
+        yield;
             var _ttg=new THREE.Group();
             var _ttShell=new THREE.Mesh(new THREE.SphereGeometry(0.3,6,4),toon(0x556B2F));
             _ttShell.scale.set(1,0.5,1.2);_ttShell.position.y=0.15;_ttg.add(_ttShell);
@@ -2899,6 +2970,7 @@ function buildCity() {
         }
         // Herons/cranes (3) — standing at stream edge
         for(var _hri=0;_hri<3;_hri++){
+        yield;
             var _hrg=new THREE.Group();
             var _hrBody=new THREE.Mesh(new THREE.SphereGeometry(0.25,6,4),toon(0xFFFFFF));
             _hrBody.scale.set(0.6,0.8,1);_hrBody.position.y=1.0;_hrg.add(_hrBody);
@@ -2977,6 +3049,7 @@ function buildCity() {
         var _gasshoList=[];
         // Generate houses across island
         for(var _gx=-100;_gx<=100;_gx+=35){
+        yield;
             for(var _gz=-100;_gz<=100;_gz+=35){
                 if(DANBO_WASM.len2D(_gx,_gz)>_snowIslandR-20)continue;
                 var _gw=7+Math.floor(Math.random()*5);
@@ -2986,6 +3059,7 @@ function buildCity() {
             }
         }
         for(var _gi2=0;_gi2<_gasshoList.length;_gi2++){
+        yield;
             var g2=_gasshoList[_gi2];
             _buildGassho(g2.x,g2.z,g2.w,g2.d,g2.h);
         }
@@ -3001,6 +3075,7 @@ function buildCity() {
 
         // === 2a. Lake edge guardrails — wide dock gap ===
         for(var _gri=0;_gri<32;_gri++){
+        yield;
             var _grA=_gri/32*Math.PI*2;
             if(DANBO_WASM.absDeltaLess(_grA,Math.PI/2,1.2))continue; // very wide dock gap
             var _grX=Math.sin(_grA)*(_snowIslandR-3);
@@ -3032,6 +3107,7 @@ function buildCity() {
         cityColliders.push({x:_dockX,z:_dockZ+_dockL/2,hw:_dockW/2+1,hd:_dockL/2+1,h:_by7,_bridge:true});
         // Dock support pillars
         for(var _dpi=0;_dpi<6;_dpi++){
+        yield;
             var dpil=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,_by7+1,6),toon(0x666655));
             dpil.position.set([-8,8,-8,8,0,0][_dpi],_by7/2-0.5,_dockZ+8+_dpi*6);cityGroup.add(dpil);
         }
@@ -3059,6 +3135,7 @@ function buildCity() {
         cabin2.position.set(0,7.5,-2);_shipG.add(cabin2);
         // Windows
         for(var _swi2=0;_swi2<8;_swi2++){
+        yield;
             [-1,1].forEach(function(s){
                 var sw=new THREE.Mesh(new THREE.BoxGeometry(0.15,1,1.5),toon(0x88CCFF,{emissive:0x4488CC,emissiveIntensity:0.3}));
                 sw.position.set(s*4.55,5,-7+_swi2*2);_shipG.add(sw);
@@ -3075,6 +3152,7 @@ function buildCity() {
             dkR.position.set(s*5.3,4,0);_shipG.add(dkR);
         });
         for(var _lbi7=0;_lbi7<3;_lbi7++){
+        yield;
             var lb=new THREE.Mesh(new THREE.TorusGeometry(0.4,0.12,6,12),toon(0xFF4422));
             lb.position.set(5.5,4.5,-6+_lbi7*6);lb.rotation.y=Math.PI/2;_shipG.add(lb);
         }
@@ -3085,6 +3163,7 @@ function buildCity() {
         var _outerW=_snowOuterW;
         // Ring of snowy ground beyond the lake
         for(var _ori7=0;_ori7<32;_ori7++){
+        yield;
             var _orA=_ori7/32*Math.PI*2;
             var _orR=_outerR+_outerW/2;
             var _orX=Math.sin(_orA)*_orR,_orZ=Math.cos(_orA)*_orR;
@@ -3095,6 +3174,7 @@ function buildCity() {
 
         // === 4. Onsen town on outer shore (温泉街) ===
         for(var _osi=0;_osi<24;_osi++){
+        yield;
             var _oa7=_osi/24*Math.PI*2;
             var _ox7=Math.sin(_oa7)*(_outerR+_outerW/2);
             var _oz7=Math.cos(_oa7)*(_outerR+_outerW/2);
@@ -3148,6 +3228,7 @@ function buildCity() {
         // === 6. Mountains (far surrounding) ===
         var _mtM=toon(0x667788);
         for(var _mi7=0;_mi7<12;_mi7++){
+        yield;
             var _ma7=_mi7/12*Math.PI*2;
             var _mr7=_snowOuterR+_outerW+30+Math.random()*50;
             var _mh7=40+Math.random()*35;
@@ -3159,6 +3240,7 @@ function buildCity() {
 
         // === 7. Snow-covered conifers on island ===
         for(var _ti7=0;_ti7<100;_ti7++){
+        yield;
             var _ta7b=Math.random()*Math.PI*2;
             var _tr7b=Math.random()*(_snowIslandR-20);
             var tx7=Math.sin(_ta7b)*_tr7b,tz7=Math.cos(_ta7b)*_tr7b;
@@ -3187,6 +3269,7 @@ function buildCity() {
         // === 9. Warm street lanterns (暖かい街灯) — both sides of paths ===
         var _lanternGlow=new THREE.MeshBasicMaterial({color:0xFFCC44,transparent:true,opacity:0.9});
         for(var _sli7=0;_sli7<16;_sli7++){
+        yield;
             var _slz7=-100+_sli7*14;
             [-4,4].forEach(function(sx7){
                 var tg8=new THREE.Group();tg8.position.set(sx7,_by7,_slz7);
@@ -3208,7 +3291,8 @@ function buildCity() {
     }catch(e){alert('Snow Village build error: '+e.message);}
     }
 
-    } // end if not moon
+    }
+    yield; // end if not moon
 
     // ---- Moon City special decorations (FLAT) ----
     if(currentCityStyle===5){
@@ -3216,6 +3300,7 @@ function buildCity() {
         var _moonCityHalf=MOON_CITY_SIZE; // 400
         // Craters on flat ground (outside city zone)
         for(var ci=0;ci<30;ci++){
+        yield;
             var crx=(Math.random()-0.5)*_moonCityHalf*1.8;
             var crz=(Math.random()-0.5)*_moonCityHalf*1.8;
             // Skip if inside Von Braun zone (x<-50) or too close to center
@@ -3234,6 +3319,7 @@ function buildCity() {
         var descent=new THREE.Mesh(new THREE.BoxGeometry(3,2,3),toon(0xCCAA44,{emissive:0x886622,emissiveIntensity:0.2}));
         descent.position.y=2;apollo.add(descent);
         for(var li=0;li<4;li++){
+        yield;
             var la=li/4*Math.PI*2+Math.PI/4;
             var leg=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,2.5,4),toon(0xAAAAAA));
             leg.position.set(Math.cos(la)*2,0.8,Math.sin(la)*2);
@@ -3268,6 +3354,7 @@ function buildCity() {
         var rBody=new THREE.Mesh(new THREE.BoxGeometry(2.5,0.3,1.2),toon(0xBBBBBB));
         rBody.position.y=0.8;rover.add(rBody);
         for(var wi=0;wi<4;wi++){
+        yield;
             var wx2=(wi%2===0?-1:1)*1.1;
             var wz2=(wi<2?-1:1)*0.7;
             var wheel=new THREE.Mesh(new THREE.TorusGeometry(0.35,0.08,6,12),toon(0x666666));
@@ -3311,6 +3398,7 @@ function buildCity() {
         var aeLogo=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.6,0.1),lcGlow);aeLogo.position.set(0,14,1.55);lunarCity.add(aeLogo);
         // Tall needle spires (Gundam-style Von Braun skyline)
         for(var nsi=0;nsi<20;nsi++){
+        yield;
             var nsa=nsi/20*Math.PI*2+Math.random()*0.3;
             var nsr=3+Math.random()*14;
             var nsh=8+Math.random()*18;
@@ -3326,6 +3414,7 @@ function buildCity() {
         // Ring of tall buildings (commercial district) — skyscrapers with lights
         var _vbBldgMeshes=[]; // collect for occlusion
         for(var lbi=0;lbi<18;lbi++){
+        yield;
             var lba=lbi/18*Math.PI*2;var lbr=7+Math.random()*4;
             var lbh=4+Math.random()*8;var lbw=0.8+Math.random()*1.2;var lbd=0.8+Math.random()*1.0;
             var lbColor=[lcWall,lcDark,toon(0x556688),toon(0x667799),toon(0x5577AA)][lbi%5];
@@ -3350,6 +3439,7 @@ function buildCity() {
         }
         // Inner ring — tall residential towers with balcony lights
         for(var lri=0;lri<10;lri++){
+        yield;
             var lra=lri/10*Math.PI*2+0.3;var lrr=3.5+Math.random()*2.5;
             var lrh=3+Math.random()*5;
             var lr=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.7,lrh,6),lcWall);
@@ -3363,6 +3453,7 @@ function buildCity() {
         }
         // Outer ring — shorter commercial blocks with neon signs
         for(var ori=0;ori<14;ori++){
+        yield;
             var ora=ori/14*Math.PI*2+0.15;var orr=13+Math.random()*3;
             var orh=2+Math.random()*3;var orw=1+Math.random()*1.5;
             var ob2=new THREE.Mesh(new THREE.BoxGeometry(orw,orh,orw*0.8),toon(0x556677));
@@ -3375,6 +3466,7 @@ function buildCity() {
         }
         // Street lights along radial roads
         for(var sli=0;sli<16;sli++){
+        yield;
             var sla=sli/4*Math.PI/2;var slr=3+sli%4*4;
             var slPole=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,2,4),toon(0x888888));
             slPole.position.set(Math.cos(sla)*slr,1,Math.sin(sla)*slr);lunarCity.add(slPole);
@@ -3383,6 +3475,7 @@ function buildCity() {
         }
         // Spaceport — 4 large landing pads on crater rim
         for(var spi2=0;spi2<4;spi2++){
+        yield;
             var spa2=spi2/4*Math.PI*2+Math.PI/8;var spr=19;
             var sPad=new THREE.Mesh(new THREE.CylinderGeometry(3,3,0.3,12),toon(0x556666));
             sPad.position.set(Math.cos(spa2)*spr,1.5,Math.sin(spa2)*spr);lunarCity.add(sPad);
@@ -3402,12 +3495,14 @@ function buildCity() {
         var mdRail3=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.8,40),toon(0x445566));mdRail3.position.set(0.8,0.4,20);mdGroup.add(mdRail3);
         // Electromagnetic coils along rail
         for(var mci=0;mci<8;mci++){
+        yield;
             var mc=new THREE.Mesh(new THREE.TorusGeometry(1.2,0.15,6,12),toon(0x4466AA));
             mc.position.set(0,0.8,mci*5+2);mc.rotation.y=Math.PI/2;mdGroup.add(mc);
         }
         mdGroup.position.set(22,0,0);mdGroup.rotation.y=Math.PI/4;lunarCity.add(mdGroup);
         // Solar panel arrays (large, on stilts)
         for(var sai=0;sai<6;sai++){
+        yield;
             var saa=sai/6*Math.PI*2+Math.PI/6;var sar=24+Math.random()*4;
             var saG=new THREE.Group();
             var saPole=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,5,4),toon(0x888888));saPole.position.y=2.5;saG.add(saPole);
@@ -3418,6 +3513,7 @@ function buildCity() {
         }
         // Fiber-optic light viaducts (glowing tubes inside dome)
         for(var fvi=0;fvi<6;fvi++){
+        yield;
             var fva=fvi/6*Math.PI*2;
             var fv=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,14,6),
                 new THREE.MeshBasicMaterial({color:0x88CCFF,transparent:true,opacity:0.25}));
@@ -3432,6 +3528,7 @@ function buildCity() {
         var _vbDoorAngles=[0,Math.PI/2,Math.PI,Math.PI*1.5];
         var _vbDoorR=18.5; // on crater rim
         for(var vdi=0;vdi<4;vdi++){
+        yield;
             var vda=_vbDoorAngles[vdi];
             var doorG=new THREE.Group();
             // Door frame
@@ -3474,11 +3571,13 @@ function buildCity() {
         grGlowFloor.rotation.x=-Math.PI/2;grGlowFloor.position.y=-2.5;granada.add(grGlowFloor);
         // Concentric ring lights (blue)
         for(var gri=0;gri<3;gri++){
+        yield;
             var grRing=new THREE.Mesh(new THREE.TorusGeometry(3+gri*2.5,0.08,6,24),new THREE.MeshBasicMaterial({color:0x4488FF,transparent:true,opacity:0.3}));
             grRing.rotation.x=Math.PI/2;grRing.position.y=-2.4;granada.add(grRing);
         }
         // Military hangars + barracks (inside crater)
         for(var ghi=0;ghi<6;ghi++){
+        yield;
             var gha=ghi/6*Math.PI*2;var ghr=5+Math.random()*2;
             var gh=new THREE.Mesh(new THREE.BoxGeometry(2,1.5,3),toon(0x445544));
             gh.position.set(Math.cos(gha)*ghr,-2,Math.sin(gha)*ghr);gh.rotation.y=gha;granada.add(gh);
@@ -3490,6 +3589,7 @@ function buildCity() {
         }
         // Inner buildings — military command structures
         for(var gbi=0;gbi<8;gbi++){
+        yield;
             var gba=gbi/8*Math.PI*2+0.4;var gbr=2.5+Math.random()*2;
             var gbh=2+Math.random()*3;
             var gb2=new THREE.Mesh(new THREE.BoxGeometry(1,gbh,1),toon(0x556666));
@@ -3506,6 +3606,7 @@ function buildCity() {
         grBeacon.position.y=9.5;granada.add(grBeacon);
         // Granada spires (military comm towers)
         for(var gsi=0;gsi<10;gsi++){
+        yield;
             var gsa=gsi/10*Math.PI*2+0.2;var gsr=3+Math.random()*6;
             var gsh=5+Math.random()*12;
             var gs=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.18,gsh,4),toon(0x667766));
@@ -3523,6 +3624,7 @@ function buildCity() {
         // Granada city doors — 4 entrances (N/S/E/W) on rim
         var _grDoorR=10.5;
         for(var gdi=0;gdi<4;gdi++){
+        yield;
             var gda=gdi/4*Math.PI*2;
             var gdoorG=new THREE.Group();
             var gdFrame=new THREE.Mesh(new THREE.BoxGeometry(2.5,3.5,0.4),toon(0x446644));
@@ -3559,12 +3661,14 @@ function buildCity() {
         cityColliders.push({x:-200,z:0,hw:12,hd:12,h:100});
         // Von Braun ring buildings
         for(var mbi=0;mbi<12;mbi++){
+        yield;
             var mba=mbi/12*Math.PI*2;var mbr=70;
             var mbx=-200+Math.cos(mba)*mbr;var mbz=Math.sin(mba)*mbr;
             cityColliders.push({x:mbx,z:mbz,hw:10,hd:10,h:50});
         }
         // Granada hangars
         for(var gci=0;gci<6;gci++){
+        yield;
             var gca=gci/6*Math.PI*2;var gcr=45;
             var gcx=-200+Math.cos(gca)*gcr;var gcz=-200+Math.sin(gca)*gcr;
             cityColliders.push({x:gcx,z:gcz,hw:10,hd:14,h:15});
@@ -3578,12 +3682,14 @@ function buildCity() {
         cityBuildingMeshes.push({meshes:_vbAllMeshes,x:-200,z:0,hw:12,hd:12,h:100});
         // Von Braun ring buildings — each ring building gets an occlusion entry
         for(var _obi=0;_obi<12;_obi++){
+        yield;
             var _oba2=_obi/12*Math.PI*2;var _obr2=70;
             cityBuildingMeshes.push({meshes:_vbAllMeshes,x:-200+Math.cos(_oba2)*_obr2,z:Math.sin(_oba2)*_obr2,hw:10,hd:10,h:50});
         }
         // Granada
         cityBuildingMeshes.push({meshes:_grAllMeshes,x:-200,z:-200,hw:8,hd:8,h:70});
         for(var _ogci=0;_ogci<6;_ogci++){
+        yield;
             var _ogca=_ogci/6*Math.PI*2;var _ogcr=45;
             cityBuildingMeshes.push({meshes:_grAllMeshes,x:-200+Math.cos(_ogca)*_ogcr,z:-200+Math.sin(_ogca)*_ogcr,hw:10,hd:14,h:15});
         }
@@ -3593,6 +3699,7 @@ function buildCity() {
         var earth=new THREE.Mesh(new THREE.SphereGeometry(1,32,24),new THREE.MeshBasicMaterial({color:0x3366CC,fog:false}));
         earthGroup.add(earth);
         for(var ei=0;ei<8;ei++){
+        yield;
             var ea=ei/8*Math.PI*2;
             var ep=(Math.random()-0.5)*Math.PI*0.7;
             var cont=new THREE.Mesh(new THREE.SphereGeometry(0.26+Math.random()*0.2,10,8),new THREE.MeshBasicMaterial({color:0x33AA44,fog:false}));
@@ -3641,6 +3748,7 @@ function buildCity() {
         ];
         window._solarPlanets=[];
         for(var _pi=0;_pi<_planets.length;_pi++){
+        yield;
             var _pl=_planets[_pi];
             var _pm=new THREE.Mesh(new THREE.SphereGeometry(_pl.r,12,8),new THREE.MeshBasicMaterial({color:_pl.color,fog:false}));
             var _pa=_pl.angle;
@@ -3665,6 +3773,7 @@ function buildCity() {
         window._moonNebulae=[];
         var nebColors=[0x330044,0x220033,0x440022,0x110033,0x330033,0x220044,0x441122,0x112244];
         for(var ni=0;ni<20;ni++){
+        yield;
             var na=Math.random()*Math.PI*2;
             var ne2=(Math.random()-0.5)*Math.PI;
             var nd=500+Math.random()*800;
@@ -3683,6 +3792,7 @@ function buildCity() {
         window._moonStars=[];
         var starColors=[0xFFFFFF,0xFFFFFF,0xFFFFFF,0xCCDDFF,0xAABBFF,0xFFEECC,0xFFCCDD,0xDDCCFF];
         for(var sti=0;sti<500;sti++){
+        yield;
             var sa=Math.random()*Math.PI*2;
             var se=(Math.random()-0.5)*Math.PI;
             var sd=MOON_CITY_SIZE*4+Math.random()*MOON_CITY_SIZE*8;
@@ -3699,6 +3809,7 @@ function buildCity() {
         // Footprints — flat positioned near Apollo
         var fpMat=toon(0x666677);
         for(var fi=0;fi<15;fi++){
+        yield;
             var ffx=270+(Math.random()-0.5)*20;
             var ffz=280+(Math.random()-0.5)*20;
             var fp=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.05,0.8),fpMat);
@@ -3708,6 +3819,7 @@ function buildCity() {
         }
         // Moon rocks — flat positioned (outside city zones)
         for(var ri2=0;ri2<25;ri2++){
+        yield;
             var rrx=(Math.random()-0.5)*_moonCityHalf*1.8;
             var rrz=(Math.random()-0.5)*_moonCityHalf*1.8;
             // Skip if inside Von Braun zone
@@ -3721,6 +3833,7 @@ function buildCity() {
         // ---- Large craters with rims (battlefield terrain) ----
         var _bigCraters=[];
         for(var bci=0;bci<15;bci++){
+        yield;
             var bcx=30+Math.random()*320;
             var bcz=(Math.random()-0.5)*600;
             var bcr=8+Math.random()*20;
@@ -3757,6 +3870,7 @@ function buildCity() {
         rvFender2.position.set(0.9,0.7,0);roverG.add(rvFender2);
         // Wheels (wire mesh)
         for(var rwi=0;rwi<4;rwi++){
+        yield;
             var rwx=(rwi%2===0?-1:1)*1.2;
             var rwz=(rwi<2?-1:1)*0.8;
             var rwh=new THREE.Mesh(new THREE.TorusGeometry(0.4,0.1,6,12),toon(0x555555));
@@ -3782,6 +3896,7 @@ function buildCity() {
         // ---- Additional US flags scattered on battlefield ----
         var _flagPositions=[[100,0,50],[200,0,-80],[320,0,150],[80,0,-150],[250,0,250]];
         for(var fli=0;fli<_flagPositions.length;fli++){
+        yield;
             var fp2=_flagPositions[fli];
             var flG=new THREE.Group();
             var flPole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,5,4),toon(0xCCCCCC));
@@ -3804,6 +3919,7 @@ function buildCity() {
         // ---- More footprint trails across battlefield ----
         var fpMat2=toon(0x555566);
         for(var fti=0;fti<40;fti++){
+        yield;
             var ftx=50+Math.random()*300;
             var ftz=(Math.random()-0.5)*400;
             var ftp=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.05,0.9),fpMat2);
@@ -3813,6 +3929,7 @@ function buildCity() {
         }
         // ---- Regolith mounds (small hills on battlefield) ----
         for(var rmi=0;rmi<20;rmi++){
+        yield;
             var rmx=20+Math.random()*350;
             var rmz=(Math.random()-0.5)*600;
             var rmr=2+Math.random()*5;
@@ -3850,6 +3967,7 @@ function buildCity() {
         epSign.position.set(0,6.5,0);earthPortalG.add(epSign);
         // Orbiting particles
         for(var epi=0;epi<6;epi++){
+        yield;
             var epPart=new THREE.Mesh(new THREE.SphereGeometry(0.12,4,3),new THREE.MeshBasicMaterial({color:0x88CCFF,transparent:true,opacity:0.7}));
             epPart.userData.orbitPhase=epi/6*Math.PI*2;
             earthPortalG.add(epPart);
@@ -3874,6 +3992,7 @@ function buildCity() {
             {type:'antenna',x:-200+8*(-7),z:8*(-5)},{type:'antenna',x:-200+8*8,z:8*(-7)}
         ];
         for(var vpi=0;vpi<_vbPropsData.length;vpi++){
+        yield;
             var vpd=_vbPropsData[vpi];
             var vpG=new THREE.Group();
             if(vpd.type==='tank'){
@@ -3924,16 +4043,23 @@ function buildCity() {
         // Macross: 8 VF-1 Valkyrie, 1 SDF-1, 15 Zentradi pods, 6 Zentradi cruisers = 30 Macross
         var msUnits=[];
         msUnits.push({ms:'gundam',weapon:'rifle'});msUnits.push({ms:'gundam',weapon:'saber'});msUnits.push({ms:'gundam',weapon:'funnel'});msUnits.push({ms:'gundam',weapon:'rifle'});
-        for(var gmi=0;gmi<12;gmi++){msUnits.push({ms:'gm',weapon:Math.random()<0.5?'rifle':Math.random()<0.5?'saber':'missile'});}
+        for(var gmi=0;gmi<12;gmi++){
+        yield;msUnits.push({ms:'gm',weapon:Math.random()<0.5?'rifle':Math.random()<0.5?'saber':'missile'});}
         var zakuColors=[0x336633,0x225522,0x447744,0xCC2222,0x882222,0x224488,0x335533,0x556655,0x443366,0x228844];
-        for(var zki=0;zki<35;zki++){msUnits.push({ms:'zaku',weapon:Math.random()<0.35?'rifle':Math.random()<0.5?'missile':'saber',color:zakuColors[zki%zakuColors.length]});}
-        for(var dmi=0;dmi<8;dmi++){msUnits.push({ms:'dom',weapon:Math.random()<0.5?'rifle':'missile'});}
+        for(var zki=0;zki<35;zki++){
+        yield;msUnits.push({ms:'zaku',weapon:Math.random()<0.35?'rifle':Math.random()<0.5?'missile':'saber',color:zakuColors[zki%zakuColors.length]});}
+        for(var dmi=0;dmi<8;dmi++){
+        yield;msUnits.push({ms:'dom',weapon:Math.random()<0.5?'rifle':'missile'});}
         // Macross units
-        for(var vfi=0;vfi<5;vfi++){msUnits.push({ms:'valkyrie',weapon:'rifle'});}
+        for(var vfi=0;vfi<5;vfi++){
+        yield;msUnits.push({ms:'valkyrie',weapon:'rifle'});}
         msUnits.push({ms:'sdf1',weapon:'missile'});
-        for(var zpi=0;zpi<10;zpi++){msUnits.push({ms:'zenPod',weapon:'rifle'});}
-        for(var zci=0;zci<4;zci++){msUnits.push({ms:'zenCruiser',weapon:'missile'});}
+        for(var zpi=0;zpi<10;zpi++){
+        yield;msUnits.push({ms:'zenPod',weapon:'rifle'});}
+        for(var zci=0;zci<4;zci++){
+        yield;msUnits.push({ms:'zenCruiser',weapon:'missile'});}
         for(var gi=0;gi<msUnits.length;gi++){
+        yield;
             var mu=msUnits[gi];
             var gd=_buildMobileSuit(mu.ms,mu.weapon,mu.color);
             // Spawn above battlefield area (right side, x>0)
@@ -3987,6 +4113,7 @@ function buildCity() {
         // Pair up saber units for cross-faction duels
         var _allSabers=window._moonGundams.filter(function(g2){return g2.type==='saber';});
         for(var sp=0;sp<_allSabers.length;sp++){
+        yield;
             if(_allSabers[sp].duelPartner)continue;
             for(var sp2=sp+1;sp2<_allSabers.length;sp2++){
                 if(_allSabers[sp2].duelPartner)continue;
@@ -3997,6 +4124,7 @@ function buildCity() {
             }
         }
     }
+    yield;
 
     // PBR promotion and batching run once after portals, collectibles and pipes
     // have also been built (main.js / world.js). Running them here as well caused

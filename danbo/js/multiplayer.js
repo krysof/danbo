@@ -413,6 +413,9 @@
     }
     function sendLocalState(force){
         if(!room||!playerEgg||!playerEgg.mesh||gameState!=='city')return;
+        // The pipe path is a local cinematic, not a valid position in either city.
+        // Publish the destination and its spawn together after arrival.
+        if(typeof _pipeTraveling!=='undefined'&&_pipeTraveling)return;
         var now=performance.now();if(!force&&now-lastSendAt<SEND_INTERVAL)return;lastSendAt=now;
         var city=Number(currentCityStyle)||0,teleport=lastSentCity!==-1&&lastSentCity!==city;
         lastSentCity=city;sequence++;
