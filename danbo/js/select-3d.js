@@ -106,7 +106,7 @@
         // low quality; the static roster cards are throttled below to pay for it.
         var oldHigh=quality.high,oldLow=quality.low,model;
         quality.high=true;quality.low=false;
-        try{model=createEggMesh(ch.color,ch.accent,ch.type,screen.classList.contains('select-style-classic')?'classic':'cinematic',true);}
+        try{model=createEggMesh(ch.color,ch.accent,ch.type,screen.classList.contains('select-style-classic')?'classic':'cinematic',true,true);}
         finally{quality.high=oldHigh;quality.low=oldLow;}
         model.position.y=.06;stage.add(model);
         // Facial meshes no longer cast tiny self-shadows onto the body. The body and

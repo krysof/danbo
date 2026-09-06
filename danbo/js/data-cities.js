@@ -84,23 +84,22 @@ var CAMERA_CONFIG={
 
 // ---- Renderer / lighting parameters ----
 var RENDER_CONFIG={
-    fogColor:0x8EB3C4, fogDensity:0.0021,
+    fogColor:0xB9D8E4, fogDensity:0.0030,
     hdri:'assets/hdri/farm_sunset_1k.hdr',
-    environmentIntensity:0.72, backgroundIntensity:0.78,
-    sunColor:0xFFD9A0, sunIntensity:2.6, lowSunIntensity:5.0,
-    // Small Harbour Sunset has a low golden-hour sun. Keep the physical
-    // direction and the visible background aligned (about 7.6 degrees high).
-    // Farm Sunset's solar disc sits at roughly 37 degrees azimuth. Keep the key
-    // light on that same bearing and at the measured low sunset elevation.
-    sunPos:{x:79.4,y:13.34,z:60.0},
+    environmentIntensity:0.64, backgroundIntensity:0.78,
+    sunColor:0xFFE4BC, sunIntensity:3.2, lowSunIntensity:3.2,
+    // Authored daylight: HDRI is reflection-only, not a photographic backdrop.
+    // A higher key gives readable facades and grounded shadows, not kilometre-long
+    // sunset shadows from offscreen buildings. One shadow-casting light only.
+    sunPos:{x:48,y:68,z:36},
     shadowMapSize:4096, shadowBias:-0.0005, shadowNormalBias:0.03,
-    shadowRange:55, shadowNear:1, shadowFar:360, shadowRadius:3, shadowIntensity:0.68,
+    shadowRange:42, shadowNear:1, shadowFar:280, shadowRadius:2, shadowIntensity:0.78,
     // HDRI supplies the broad sky illumination. These legacy fills stay deliberately
     // low so non-PBR/toon props remain readable without flattening contact shadows.
     ambientIntensity:0.08, lowAmbientIntensity:0.13,
-    hemiSkyColor:0xD9EFFF, hemiGroundColor:0x59675A, hemiIntensity:0.18, lowHemiIntensity:0.28,
+    hemiSkyColor:0xBDDFFF, hemiGroundColor:0x887457, hemiIntensity:0.34, lowHemiIntensity:0.40,
     pixelRatioMin:1.0, pixelRatioMax:2.0,
-    toneExposure:0.70
+    toneExposure:0.78
 };
 
 // ---- Portal (race entrance) parameters ----

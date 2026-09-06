@@ -278,6 +278,7 @@ function _optimizeCityInstances(){
             !/(?:portal|coin|chest|water|ripple|foam|stream|droplet|glow|effect|fish|wheel)/i.test(mesh.name||''));
     }
     function primitiveGeometryKey(geometry){
+        if(geometry.userData&&geometry.userData.danboGeometryKey)return geometry.userData.danboGeometryKey;
         var parameters=geometry&&geometry.parameters;
         if(!parameters)return geometry.uuid;
         var parts=[],keys=Object.keys(parameters).sort();
@@ -299,7 +300,10 @@ function _optimizeCityInstances(){
             textureValue(material.lightMap),textureValue(material.bumpMap),textureValue(material.displacementMap),
             textureValue(material.normalMap),textureValue(material.aoMap),textureValue(material.roughnessMap),
             textureValue(material.metalnessMap),textureValue(material.emissiveMap),textureValue(material.gradientMap),
-            material.aoMapIntensity,material.normalScale&&material.normalScale.x,material.normalScale&&material.normalScale.y].join('|');
+            material.aoMapIntensity,material.normalScale&&material.normalScale.x,material.normalScale&&material.normalScale.y,
+            material.clearcoat,material.clearcoatRoughness,material.transmission,material.ior,
+            material.sheen,material.sheenRoughness,colorValue(material.sheenColor),
+            material.customProgramCacheKey?material.customProgramCacheKey():''].join('|');
     }
     function groupKey(mesh){
         return primitiveGeometryKey(mesh.geometry)+'|'+opaqueMaterialKey(mesh.material)+'|'+
@@ -639,8 +643,8 @@ function _decorateDefaultBuilding(b,bMeshes,col,st,i){
 }
 
 function _decorateHopePremiumBuilding(b,bMeshes,col,i){
-    var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
-    var near=Math.abs(b.x)<72&&Math.abs(b.z)<72;
+    var high=window.DANBO_VISUAL_QUALITY&&!DANBO_VISUAL_QUALITY.low;
+    var near=Math.abs(b.x)<(DANBO_VISUAL_QUALITY.high?72:48)&&Math.abs(b.z)<(DANBO_VISUAL_QUALITY.high?72:48);
     var archetype=i%5;
     var stone=_citySharedPBR('trim-stone',0xDED6C8,{roughness:0.82,envMapIntensity:0.18});
     var stoneDark=_citySharedPBR('trim-stone-dark',0xAA9C87,{roughness:0.88,envMapIntensity:0.14});
@@ -787,7 +791,7 @@ function _decorateHopePremiumBuilding(b,bMeshes,col,i){
 }
 
 function _buildHopeCinematicPlaza(){
-    var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
+    var high=window.DANBO_VISUAL_QUALITY&&!DANBO_VISUAL_QUALITY.low;
     var paving=_visualSurfaceMaterial('path',0xA89A84,{roughness:0.72,normalScale:new THREE.Vector2(0.72,0.72),envMapIntensity:0.34});
     var edge=_visualSurfaceMaterial('stone',0xC7BBA6,{roughness:0.76,normalScale:new THREE.Vector2(0.45,0.45)});
     var garden=_visualSurfaceMaterial('grass',0x326B39,{roughness:0.94,normalScale:new THREE.Vector2(0.55,0.55)});
@@ -835,15 +839,13 @@ function _buildHopeCinematicPlaza(){
     var treePos=[[-16,-13],[16,-13],[-19,10],[19,10],[-11,-20],[11,-20],[-23,-2],[23,-2]];
     if(!high)treePos=treePos.slice(0,4);
     var trunkMat=_visualSurfaceMaterial('bark',0x6C4933,{roughness:0.94,normalScale:new THREE.Vector2(0.45,0.45)});
-    var crownMat=softPBR(0x357A3C,{roughness:0.84,clearcoat:0.05,envMapIntensity:0.24});
-    var trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25,0.42,3.4,12),trunkMat,treePos.length),crowns=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.38,2),crownMat,treePos.length*4),td=new THREE.Object3D(),cn=0;
+    var crownMat=softPBR(0x43834B,{roughness:0.88,vertexColors:true,envMapIntensity:0.24});
+    var trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25,0.42,3.4,12),trunkMat,treePos.length);
+    var crowns=new THREE.InstancedMesh(_visualCanopyGeometry(1),crownMat,treePos.length),td=new THREE.Object3D();
     treePos.forEach(function(tp,ti){
         cityColliders.push({x:tp[0],z:tp[1],hw:0.48,hd:0.48,h:3.4});
         td.position.set(tp[0],1.70,tp[1]);td.rotation.set(0,ti*0.47,0);td.scale.set(1,1,1);td.updateMatrix();trunks.setMatrixAt(ti,td.matrix);
-        for(var l=0;l<4;l++){
-            var la=l/4*Math.PI*2+ti*0.61,lr=l===0?0:1.02;
-            td.position.set(tp[0]+Math.cos(la)*lr,4.25+(l%2)*0.62,tp[1]+Math.sin(la)*lr);td.rotation.set(0,la,0);td.scale.set(l===0?1.25:0.92,l===0?0.94:0.76,l===0?1.18:0.92);td.updateMatrix();crowns.setMatrixAt(cn++,td.matrix);
-        }
+        td.position.set(tp[0],4.1,tp[1]);td.rotation.set(0,ti*.71,0);td.scale.set(1.05,.95,1.05);td.updateMatrix();crowns.setMatrixAt(ti,td.matrix);
     });
     trunks.castShadow=trunks.receiveShadow=crowns.castShadow=true;cityGroup.add(trunks);cityGroup.add(crowns);
 
@@ -1202,11 +1204,12 @@ function buildCity() {
             }
         }
         var _leafColor=_cityMixHex(st.tree,currentCityStyle===4?0xFFB6D0:0x315C32,currentCityStyle===4?0.10:0.18);
-        var _crownMat=softPBR(_leafColor,{roughness:currentCityStyle===2?0.68:0.86,clearcoat:currentCityStyle===2?0.12:0.05,clearcoatRoughness:0.80,envMapIntensity:currentCityStyle===2?0.32:0.20});
+        var _sculptedCanopy=!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low);
+        var _crownMat=_citySharedPBR('sculpted-leaves-'+currentCityStyle,_leafColor,{roughness:currentCityStyle===2?0.68:0.86,vertexColors:_sculptedCanopy,envMapIntensity:currentCityStyle===2?0.32:0.26});
         var _crownLightMat=_citySharedPBR('tree-sunlit-'+currentCityStyle,_cityMixHex(_leafColor,currentCityStyle===4?0xFFD4E3:0x83B862,0.22),{roughness:0.90,envMapIntensity:0.14});
         var _crownR=2.15;
-        var _crownGeo=new THREE.IcosahedronGeometry(_crownR,_treeHigh?2:1);
-        if(_treeHigh){
+        var _crownGeo=_sculptedCanopy?_visualCanopyGeometry(i%3):new THREE.IcosahedronGeometry(_crownR,1);
+        if(_treeHigh&&!_sculptedCanopy){
             var _cp=_crownGeo.attributes.position;
             for(var _cvi=0;_cvi<_cp.count;_cvi++){
                 var _cx=_cp.getX(_cvi),_cy=_cp.getY(_cvi),_cz=_cp.getZ(_cvi);
@@ -1218,7 +1221,7 @@ function buildCity() {
         }
         const crown=new THREE.Mesh(_crownGeo,_crownMat);
         crown.position.y=_trunkH+1.05;crown.scale.set(1.12,0.88,1.05);crown.castShadow=true;crown.receiveShadow=true;tg.add(crown);
-        if(_treeHigh){
+        if(_treeHigh&&!_sculptedCanopy){
             for(var _lobe=0;_lobe<3;_lobe++){
                 var _la=_lobe/3*Math.PI*2+i*0.71;
                 var _lc=new THREE.Mesh(new THREE.IcosahedronGeometry(1.12,1),_lobe===1?_crownLightMat:_crownMat);
@@ -1272,7 +1275,8 @@ function buildCity() {
     var _waterSet=typeof _visualSurfaceTextureSet==='function'?_visualSurfaceTextureSet('water'):null;
     if(_waterSet)window._danboWaterBump=_waterSet.bumpMap;
     var _fountainWaterOpacity=Math.max(0.24,Math.min(0.72,Number(_fountainWaterDef.opacity)||0.50));
-    var waterM=_hopeFountainLow?new THREE.MeshPhongMaterial({color:currentCityStyle===3?0xA34828:0x4D9EAE,shininess:78,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:Math.max(0.32,_fountainWaterOpacity),depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshPhysicalMaterial({color:currentCityStyle===3?0xA34828:0x4298AA,roughness:0.085,metalness:0.0,clearcoat:0.82,clearcoatRoughness:0.12,envMapIntensity:0.92,ior:1.333,transmission:0.10,thickness:0.55,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:_fountainWaterOpacity,depthWrite:false,side:THREE.DoubleSide});
+    var waterM=_hopeFountainLow?new THREE.MeshPhongMaterial({color:currentCityStyle===3?0xA34828:0x4D9EAE,shininess:78,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.028,transparent:true,opacity:Math.max(0.32,_fountainWaterOpacity),depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshPhysicalMaterial({color:currentCityStyle===3?0xA34828:0x4298AA,roughness:0.085,metalness:0.0,clearcoat:0.82,clearcoatRoughness:0.12,envMapIntensity:0.92,ior:1.333,transmission:0,thickness:0.55,bumpMap:_waterSet&&_waterSet.bumpMap,bumpScale:0.038,transparent:true,opacity:_fountainWaterOpacity,depthWrite:false,side:THREE.DoubleSide});
+    _visualPolishWater(waterM);
     var goldM=softPBR(currentCityStyle===2?0xA9C9D4:0xB78C3C,{roughness:0.38,metalness:0.42,envMapIntensity:0.68,emissive:currentCityStyle===3?0x401000:0x2B1700,emissiveIntensity:0.018});
     if(currentCityStyle===0){
         // Broad cut-stone terraces replace the former floating donut silhouette.
@@ -1462,7 +1466,8 @@ function buildCity() {
             _ripple.position.set(Math.cos(_rpa)*_rr,_rr>3?0.724:1.512,Math.sin(_rpa)*_rr);
             _ripple.userData._phase=_rpi/_rippleCount;cityGroup.add(_ripple);window._fountainRipples.push(_ripple);
         }
-        var _fallMat=new THREE.MeshPhysicalMaterial({color:0xB8F1F6,roughness:0.06,metalness:0,clearcoat:0.72,clearcoatRoughness:0.10,envMapIntensity:0.86,ior:1.333,transmission:_hopeFountainLow?0:0.12,thickness:0.18,transparent:true,opacity:_hopeFountainLow?0.34:0.32,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
+        var _fallMat=new THREE.MeshPhysicalMaterial({color:0xB8F1F6,roughness:0.06,metalness:0,clearcoat:0.72,clearcoatRoughness:0.10,envMapIntensity:0.86,ior:1.333,transmission:0,thickness:0.18,transparent:true,opacity:_hopeFountainLow?0.34:0.32,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending});
+        _fallMat.forceSinglePass=true;
         var _flowHighlightMat=new THREE.MeshBasicMaterial({color:0xE9FDFF,transparent:true,opacity:0.22,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
         var _requestedArcCount=Math.round(Number(_fountainJetDef.count)||8);
         var _arcCount=Math.max(4,Math.min(_hopeFountainLow?6:12,_requestedArcCount));
@@ -1670,7 +1675,7 @@ function buildCity() {
 
     // ---- Streams & Canals (water city style 0) ----
     if(currentCityStyle===0){
-        var streamMat=waterM.clone();streamMat.opacity=_hopeFountainLow?0.56:0.50;
+        var streamMat=_visualPolishWater(softPBR(0x277F91,{roughness:0.16,metalness:0,clearcoat:0.5,clearcoatRoughness:0.18,envMapIntensity:0.85,transparent:true,opacity:0.72,depthWrite:false,side:THREE.DoubleSide}));
         var bankMat=typeof _visualSurfaceMaterial==='function'?_visualSurfaceMaterial('stone',0xB8AA91,{roughness:0.82,bumpScale:0.12}):toon(0xB8AA91);
         // 4 canals radiating from central fountain to city edges
         var canalDirs=[{dx:1,dz:0},{dx:-1,dz:0},{dx:0,dz:1},{dx:0,dz:-1}];
@@ -1692,13 +1697,15 @@ function buildCity() {
             cityGroup.add(bank2);
         }
         // Ring canal around the fountain (inner)
-        var ringCanal=new THREE.Mesh(new THREE.TorusGeometry(25,2.5,6,24),streamMat);
-        ringCanal.rotation.x=Math.PI/2;ringCanal.position.y=0.3;cityGroup.add(ringCanal);
+        // Water is a horizontal surface, not a 5 m diameter inflated blue tube.
+        // Keep the existing navigable layout and bridges; only rebuild its skin.
+        var ringCanal=new THREE.Mesh(new THREE.RingGeometry(22.5,27.5,128),streamMat);
+        ringCanal.rotation.x=-Math.PI/2;ringCanal.position.y=0.30;ringCanal.name='hope-inner-canal-water';cityGroup.add(ringCanal);
         var ringBank=new THREE.Mesh(new THREE.TorusGeometry(25,0.4,6,24),bankMat);
         ringBank.rotation.x=Math.PI/2;ringBank.position.y=0.4;cityGroup.add(ringBank);
         // Outer ring canal
-        var ringCanal2=new THREE.Mesh(new THREE.TorusGeometry(55,2,6,32),streamMat);
-        ringCanal2.rotation.x=Math.PI/2;ringCanal2.position.y=0.28;cityGroup.add(ringCanal2);
+        var ringCanal2=new THREE.Mesh(new THREE.RingGeometry(53,57,160),streamMat);
+        ringCanal2.rotation.x=-Math.PI/2;ringCanal2.position.y=0.28;ringCanal2.name='hope-outer-canal-water';cityGroup.add(ringCanal2);
         var ringBank2=new THREE.Mesh(new THREE.TorusGeometry(55,0.35,6,32),bankMat);
         ringBank2.rotation.x=Math.PI/2;ringBank2.position.y=0.38;cityGroup.add(ringBank2);
         // Stone bridges over canals (inner ring)

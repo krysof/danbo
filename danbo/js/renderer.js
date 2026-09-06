@@ -35,7 +35,9 @@ window.DANBO_VISUAL_QUALITY={
     mode:_visualQualityMode,
     high:_visualQualityMode==='high',
     low:_visualQualityMode==='low',
-    postScale:_visualQualityMode==='high'?1.0:(_visualQualityMobile?1.0:(_visualQualityMode==='low'?0.68:0.84)),
+    // Never multiply two independent downscales into a blurry main image.
+    // AO and Bloom own their lower-resolution buffers; DPR is the sole scene scale.
+    postScale:1.0,
     aoScale:_visualQualityMode==='high'?1.0:(_visualQualityMobile?0.60:(_visualQualityMode==='low'?0.50:0.60))
 };
 window.setDanboVisualQuality=function(mode){
@@ -122,10 +124,11 @@ if(typeof HDRLoader==='function'){
         window._danboReflectionEnvironment=environment;
         scene.environment=environment;
         scene.environmentIntensity=RENDER_CONFIG.environmentIntensity||0.9;
-        scene.background=texture;
+        // Keep the captured farm/roof out of the game sky. Use its convolved
+        // radiance only for material reflections, plus the authored gradient sky.
         scene.backgroundIntensity=RENDER_CONFIG.backgroundIntensity||0.85;
         scene.fog=new THREE.FogExp2(RENDER_CONFIG.fogColor,RENDER_CONFIG.fogDensity||0.0021);
-        if(typeof _skyDome!=='undefined')_skyDome.visible=false;
+        if(typeof _skyDome!=='undefined')_skyDome.visible=typeof currentCityStyle==='undefined'||currentCityStyle!==5;
     });
 }else{
     console.warn('HDRLoader unavailable, using procedural environment');
@@ -165,10 +168,10 @@ var _hemiStrength=_visualQualityMode==='low'?(RENDER_CONFIG.lowHemiIntensity||RE
 scene.add(new THREE.HemisphereLight(RENDER_CONFIG.hemiSkyColor,RENDER_CONFIG.hemiGroundColor,_hemiStrength));
 // Keep auxiliary lights permanently in the scene. Effects and city themes may only
 // modify intensity; adding/removing lights would force a full material shader recompile.
-const rimLight = new THREE.DirectionalLight(0xCFEAFF,0.04);
+const rimLight = new THREE.DirectionalLight(0xBDDAFF,0.24);
 rimLight.position.set(-50,45,-60);
 scene.add(rimLight);
-const softFillLight = new THREE.DirectionalLight(0xFFE2CF,0.03);
+const softFillLight = new THREE.DirectionalLight(0xFFE2CF,0.10);
 softFillLight.position.set(35,24,55);
 scene.add(softFillLight);
 var _danboEffectLightPool=[];
@@ -214,13 +217,14 @@ function _updateSkyDome(skyHex,horizonHex,groundHex){
     horizonHex=(horizonHex===undefined)?_mixHex(skyHex,0xffffff,0.35):horizonHex;
     groundHex=(groundHex===undefined)?_mixHex(skyHex,0x223344,0.35):groundHex;
     var pos=_skyDomeGeo.attributes.position;
-    var colors=[];
+    var colors=[],skyColor=new THREE.Color();
     for(var i=0;i<pos.count;i++){
         var y=pos.getY(i)/1100;
         var cHex;
         if(y>=0)cHex=_mixHex(horizonHex,skyHex,Math.pow(y,0.65));
         else cHex=_mixHex(horizonHex,groundHex,Math.min(1,-y*1.8));
-        colors.push(((cHex>>16)&255)/255,((cHex>>8)&255)/255,(cHex&255)/255);
+        skyColor.setHex(cHex);
+        colors.push(skyColor.r,skyColor.g,skyColor.b);
     }
     _skyDomeGeo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
     _skyDomeGeo.attributes.color.needsUpdate=true;
@@ -290,6 +294,41 @@ function _updateSunShadowFocus(){
         _shadowUpdateFrame=0;
         sun.shadow.needsUpdate=true;
     }
+}
+
+// Spend geometry on the player and nearby faces, not sub-pixel lashes and
+// fingernails across the city. Layers leave animation visibility flags intact.
+// All authored masks/shadows are restored outside city mode.
+function _updateCharacterRenderDetail(){
+    if(typeof cityNPCs==='undefined')return;
+    var cityMode=typeof gameState!=='undefined'&&gameState==='city';
+    var simplified=0;
+    for(var i=0;i<cityNPCs.length;i++){
+        var egg=cityNPCs[i];if(!egg||!egg.mesh||egg.isPlayer)continue;
+        var cache=egg._renderDetail;
+        if(!cache){
+            cache=egg._renderDetail={parts:[],level:0};
+            egg.mesh.traverse(function(part){
+                if(!part.isMesh||!part.geometry)return;
+                if(!part.geometry.boundingSphere)part.geometry.computeBoundingSphere();
+                var radius=part.geometry.boundingSphere?part.geometry.boundingSphere.radius:1;
+                radius*=Math.max(part.scale.x,part.scale.y,part.scale.z);
+                cache.parts.push({mesh:part,mask:part.layers.mask,shadow:part.castShadow,
+                    fine:part!==egg.mesh.userData.body&&radius<.19});
+            });
+        }
+        var distance=cityMode?camera.position.distanceTo(egg.mesh.position):0;
+        var far=cityMode&&distance>(cache.level?62:74),level=far?1:0;
+        if(level)simplified++;
+        if(cache.level===level)continue;
+        cache.level=level;
+        for(var j=0;j<cache.parts.length;j++){
+            var entry=cache.parts[j];
+            entry.mesh.layers.mask=far&&entry.fine?(entry.mask&~1):entry.mask;
+            entry.mesh.castShadow=entry.shadow&&(!far||!entry.fine);
+        }
+    }
+    if(window.DANBO_RENDER_PERF)DANBO_RENDER_PERF.simplifiedDistantCharacters=simplified;
 }
 
 // ---- Skins ----

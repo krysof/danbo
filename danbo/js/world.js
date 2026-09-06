@@ -1079,19 +1079,18 @@ function clearCity(){
 function applyCityTheme(){
     var st=CITY_STYLES[currentCityStyle];
     var isMoon=(currentCityStyle===5);
-    // Ground cities share one physically coherent HDRI. The raw equirectangular
-    // texture remains visible while its PMREM convolution drives PBR materials.
-    scene.background=(!isMoon&&window._danboHDRIBackground)?window._danboHDRIBackground:new THREE.Color(st.sky);
+    // Reflection radiance remains HDR; the visible sky is art-directed per city.
+    scene.background=new THREE.Color(st.sky);
     scene.backgroundIntensity=!isMoon?(RENDER_CONFIG.backgroundIntensity||0.85):1;
     scene.environmentIntensity=!isMoon?(RENDER_CONFIG.environmentIntensity||0.9):0.28;
     if(typeof _updateSkyDome==='function'){
         var horizon=st.fog||_mixHex(st.sky,0xFFFFFF,currentCityStyle===5?0.08:0.38);
         var groundTint=st.ground||st.path||0x88CCAA;
-        if(currentCityStyle===0){horizon=0x8FC4DA;groundTint=0x355D40;}
+        if(currentCityStyle===0){horizon=0xBDDDEB;groundTint=0x355D40;}
         if(currentCityStyle===7){horizon=0x91A7C9;groundTint=0x293C5A;}
         if(currentCityStyle===5){horizon=0x111133;groundTint=0x020208;}
-        _updateSkyDome(st.sky,horizon,groundTint);
-        if(typeof _skyDome!=='undefined')_skyDome.visible=!window._danboHDRIBackground&& !isMoon;
+        _updateSkyDome(currentCityStyle===0?0x57A9E1:st.sky,horizon,groundTint);
+        if(typeof _skyDome!=='undefined')_skyDome.visible=!isMoon;
     }
     if(typeof R!=='undefined'){
         R.toneMappingExposure=RENDER_CONFIG.toneExposure||0.66;
@@ -1100,10 +1099,10 @@ function applyCityTheme(){
     // with an unrelated linear fog color.
     scene.fog=isMoon?new THREE.FogExp2(0x070712,0.0008):new THREE.FogExp2(RENDER_CONFIG.fogColor,RENDER_CONFIG.fogDensity||0.0021);
     if(typeof rimLight!=='undefined'){
-        rimLight.visible=true;rimLight.color.setHex(0xCFEAFF);rimLight.intensity=isMoon?0:0.04;
+        rimLight.visible=true;rimLight.color.setHex(0xBDDAFF);rimLight.intensity=isMoon?0:0.24;
     }
     if(typeof softFillLight!=='undefined'){
-        softFillLight.visible=true;softFillLight.color.setHex(0xFFE2CF);softFillLight.intensity=isMoon?0:0.03;
+        softFillLight.visible=true;softFillLight.color.setHex(0xFFE2CF);softFillLight.intensity=isMoon?0:0.10;
     }
     // Keep the light set stable across themes; changing only intensity avoids the
     // expensive all-material shader recompile caused by changing light counts.
@@ -1112,8 +1111,8 @@ function applyCityTheme(){
     sun.color.setHex(RENDER_CONFIG.sunColor||0xFFD9A0);
     sun.shadow.camera.far=RENDER_CONFIG.shadowFar;
     sun.shadow.radius=RENDER_CONFIG.shadowRadius||3;
-    _sunMesh.visible=!isMoon&&!window._danboHDRIBackground;
-    _sunGlow.visible=!isMoon&&!window._danboHDRIBackground;
+    _sunMesh.visible=!isMoon;
+    _sunGlow.visible=!isMoon;
     scene.children.forEach(function(c){
         if(c.isAmbientLight){c.color.setHex(0xffffff);c.intensity=isMoon?0.08:RENDER_CONFIG.ambientIntensity;}
         if(c.isHemisphereLight){c.color.setHex(RENDER_CONFIG.hemiSkyColor);c.groundColor.setHex(RENDER_CONFIG.hemiGroundColor);c.intensity=isMoon?0.12:RENDER_CONFIG.hemiIntensity;}
@@ -1379,7 +1378,6 @@ function switchCity(targetStyle){
     addClouds();
     spawnCityNPCs();
     applyCityTheme();
-    _prewarmCityShaders();
     // Stop old BGM, start city BGM
     stopBGM();stopRaceBGM();
     startBGM();
@@ -1408,6 +1406,9 @@ function switchCity(targetStyle){
         camera.position.set(0,12,19);camera.lookAt(0,0,5);
         camera.up.set(0,1,0);
     }
+    // Compile only the final scene. Starting before the old player is disposed
+    // invalidates programs while compileAsync is still polling their readiness.
+    _prewarmCityShaders();
     // SOTN area name reveal
     _showCityAreaName(currentCityStyle);
 }

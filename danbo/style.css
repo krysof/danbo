@@ -7,15 +7,14 @@ body{overflow:hidden;background:#000;font-family:'Segoe UI','PingFang SC','Micro
 .danbo-ios-embedded #game-container{height:calc(100dvh - 72px)}
 .danbo-ios-embedded .multiplayer-overlay,.danbo-ios-embedded #worldmap-overlay,.danbo-ios-embedded #map-overlay,.danbo-ios-embedded #shop-overlay{bottom:72px!important}
 #three-root{position:absolute;inset:0;z-index:0;pointer-events:none}
-#three-root canvas{display:block;width:100%;height:100%;pointer-events:auto;filter:saturate(1.02) contrast(.96) brightness(1.04)}
+#three-root canvas{display:block;width:100%;height:100%;pointer-events:auto}
 #game-container::before{content:"";position:absolute;inset:-18%;z-index:1;pointer-events:none;background:radial-gradient(circle at 48% 28%,color-mix(in srgb,var(--city-accent) 24%,transparent),transparent 21%),radial-gradient(circle at 72% 22%,color-mix(in srgb,var(--city-glow) 18%,transparent),transparent 27%),linear-gradient(120deg,transparent 18%,color-mix(in srgb,var(--city-glow) 7%,transparent) 44%,transparent 66%);mix-blend-mode:screen;opacity:.36;animation:cinematicBreathe 8s ease-in-out infinite}
 #game-container::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 50% 34%,rgba(255,255,255,.10),rgba(255,255,255,0) 34%),linear-gradient(180deg,color-mix(in srgb,var(--city-sky) 10%,transparent),rgba(255,225,180,.05) 60%,rgba(0,0,0,.08)),radial-gradient(circle at center,rgba(0,0,0,0) 62%,rgba(0,0,0,.12) 100%);mix-blend-mode:soft-light;opacity:.72}
 @keyframes cinematicBreathe{0%,100%{transform:scale(1);opacity:.30}50%{transform:scale(1.04);opacity:.42}}
-body[data-city-style="1"] #three-root canvas{filter:saturate(1.03) contrast(.96) brightness(1.05)}
-body[data-city-style="2"] #three-root canvas,body[data-city-style="7"] #three-root canvas{filter:saturate(1.00) contrast(.95) brightness(1.07)}
-body[data-city-style="3"] #three-root canvas{filter:saturate(1.05) contrast(.97) brightness(1.04)}
+/* The renderer owns the world colour pipeline. Browser compositing filters and
+   animated white overlays used to wash out PBR and add another full-screen copy. */
+#game-container.danbo-world-view::before,#game-container.danbo-world-view::after{display:none}
 body[data-city-style="4"],body[data-city-style="6"]{--city-accent:#FFEAF5}
-body[data-city-style="5"] #three-root canvas{filter:saturate(1.03) contrast(.96) brightness(1.03)}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:10;pointer-events:auto}
 .screen.active{display:flex}
 #start-screen{background:#000;gap:0;padding:0}

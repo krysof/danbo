@@ -56,6 +56,97 @@ var _visualSurfaceTextures={};
 var _visualSurfaceTextureSets={};
 var _visualSurfaceMaterials={};
 var _visualGeometryCache={roundedRect:{},roundedBox:{},gable:{}};
+window.DANBO_VISUAL_UPGRADE={revision:'20260906.2',nativeScene:true,mergedPresentation:true,
+    sculptedFoliage:true,shellMicroSurface:true,waterSceneRecapture:false,contactAtlas:false};
+var _visualWaterTime={value:0};
+var _visualShellSurface=null;
+
+function _visualEggShellSurface(){
+    if(_visualShellSurface)return _visualShellSurface;
+    var c=document.createElement('canvas');c.width=c.height=128;
+    var ctx=c.getContext('2d'),pixels=ctx.createImageData(128,128),rnd=_visualSeededRandom(97823);
+    for(var i=0;i<pixels.data.length;i+=4){
+        var value=180+Math.floor(rnd()*48);
+        pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;pixels.data[i+3]=255;
+    }
+    ctx.putImageData(pixels,0,0);
+    _visualShellSurface=_visualCanvasTexture(c,false,5);
+    _visualShellSurface.name='danbo-shared-shell-micro-surface';
+    return _visualShellSurface;
+}
+
+// Sculpt the foliage once, not a separate draw call or transparent card for
+// every leaf. Three reusable silhouettes carry baked underside occlusion and
+// sun-facing leaf colour variation. Movable tree collision/animation is untouched.
+function _visualCanopyGeometry(variant){
+    if(!_visualGeometryCache.canopy)_visualGeometryCache.canopy={};
+    variant=Math.abs(variant||0)%3;
+    if(_visualGeometryCache.canopy[variant])return _visualGeometryCache.canopy[variant];
+    var lobe=new THREE.IcosahedronGeometry(1,1),src=lobe.attributes.position;
+    var count=src.count*7,positions=new Float32Array(count*3),colors=new Float32Array(count*3),normals=new Float32Array(count*3);
+    var rnd=_visualSeededRandom(8731+variant*181),offset=0;
+    for(var i=0;i<7;i++){
+        var angle=i*2.399+variant*.7,ring=i===0?0:(i<4?1.05:1.40);
+        var cx=Math.cos(angle)*ring,cz=Math.sin(angle)*ring,cy=i===0?.65:(i<4?.45:-.16);
+        var radius=i===0?1.52:1.05+rnd()*.32;
+        for(var j=0;j<src.count;j++){
+            var x=src.getX(j),y=src.getY(j),z=src.getZ(j);
+            var warp=1+Math.sin(x*4.3+z*5.1+variant)*.065;
+            positions[offset]=cx+x*radius*warp;
+            positions[offset+1]=cy+y*radius*.78*warp;
+            positions[offset+2]=cz+z*radius*warp;
+            var nl=Math.hypot(x,y/.78,z)||1;
+            normals[offset]=x/nl;normals[offset+1]=(y/.78)/nl;normals[offset+2]=z/nl;
+            var up=Math.max(0,Math.min(1,(positions[offset+1]+1.35)/3.1));
+            var variation=.96+.04*Math.sin(x*7.1+z*8.3+i);
+            colors[offset]=(.44+.50*up)*variation;
+            colors[offset+1]=(.62+.38*up)*variation;
+            colors[offset+2]=(.42+.42*up)*variation;
+            offset+=3;
+        }
+    }
+    lobe.dispose();
+    var geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+    geo.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    geo.setAttribute('normal',new THREE.BufferAttribute(normals,3));geo.computeBoundingSphere();
+    geo.userData.danboGeometryKey='sculpted-canopy-'+variant;
+    _visualGeometryCache.canopy[variant]=geo;
+    return geo;
+}
+
+// Stylised water: animated analytic ripples, shallow caustic ribbons and a
+// Fresnel rim. No transmission render target, no second scene capture, no SSR.
+function _visualPolishWater(material){
+    if(!material||material.userData.danboWater)return material;
+    material.userData.danboWater=true;
+    material.transmission=0;
+    material.forceSinglePass=true;
+    var previous=material.onBeforeCompile;
+    material.onBeforeCompile=function(shader,renderer){
+        if(previous)previous.call(this,shader,renderer);
+        shader.uniforms.danboWaterTime=_visualWaterTime;
+        shader.vertexShader='varying vec3 vDanboWaterWorld;\n'+shader.vertexShader;
+        shader.vertexShader=shader.vertexShader.replace('#include <project_vertex>',
+            '#include <project_vertex>\nvDanboWaterWorld=(modelMatrix*vec4(transformed,1.0)).xyz;');
+        shader.fragmentShader='uniform float danboWaterTime;\nvarying vec3 vDanboWaterWorld;\n'+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',[
+            '#include <normal_fragment_maps>',
+            'vec2 wp=vDanboWaterWorld.xz;',
+            'float wt=danboWaterTime;',
+            'float wx=sin(wp.x*2.7+wp.y*1.1+wt*1.2)*0.075+sin(wp.x*5.3-wt*.8)*.035;',
+            'float wz=cos(wp.y*3.1-wp.x*.8+wt*.9)*0.075;',
+            'normal=normalize(normal+mat3(viewMatrix)*vec3(wx,0.,wz));',
+            'float fresnel=pow(1.0-clamp(dot(normal,normalize(vViewPosition)),0.0,1.0),3.0);',
+            'float caustic=pow(max(0.,sin(wp.x*3.5+sin(wp.y*2.1+wt*.65))*cos(wp.y*3.4+sin(wp.x*1.9-wt*.45))),12.);',
+            'diffuseColor.rgb+=vec3(.07,.16,.13)*caustic;',
+            'diffuseColor.a=clamp(diffuseColor.a+fresnel*.27,0.,.9);'
+        ].join('\n'));
+    };
+    material.customProgramCacheKey=function(){return 'danbo-water-ripples-v1';};
+    material.needsUpdate=true;
+    return material;
+}
 
 function _visualSeededRandom(seed){
     var s=seed>>>0;
@@ -451,23 +542,30 @@ function _visualAddPlayerShadow(style){
 }
 
 function _visualAddBuildingContactShadows(style){
-    if(style!==0||typeof cityBuildingMeshes==='undefined'||!cityBuildingMeshes.length)return;
-    var mat=new THREE.MeshBasicMaterial({
-        map:_visualSoftTex,color:0x183622,transparent:true,opacity:0.17,
-        depthWrite:false,depthTest:true,polygonOffset:true,polygonOffsetFactor:-2
-    });
-    var geo=new THREE.PlaneGeometry(1,1);
-    var mesh=new THREE.InstancedMesh(geo,mat,cityBuildingMeshes.length);
-    var d=new THREE.Object3D();
+    if(style>4||typeof cityBuildingMeshes==='undefined'||!cityBuildingMeshes.length)return;
+    // A single city-local contact atlas, rebuilt only with map/theme changes.
+    // Unlike the old round blobs it follows rectangular building footprints and
+    // keeps wall/ground separation even when adaptive quality disables GTAO.
+    var size=1024,extent=CITY_SIZE*2,scale=size/extent;
+    var canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+    var ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,size,size);
     for(var i=0;i<cityBuildingMeshes.length;i++){
         var b=cityBuildingMeshes[i];
-        d.position.set(b.x,0.071,b.z+0.18);
-        d.rotation.set(-Math.PI/2,0,0);
-        d.scale.set(Math.max(3,(b.hw||3)*2.55),Math.max(3,(b.hd||3)*2.55),1);
-        d.updateMatrix();mesh.setMatrixAt(i,d.matrix);
+        var x=(b.x+CITY_SIZE)*scale,z=(b.z+CITY_SIZE)*scale;
+        var w=(b.hw||3)*2*scale,d=(b.hd||3)*2*scale;
+        ctx.shadowColor='rgba(255,255,255,.68)';ctx.shadowBlur=scale*2.1;
+        ctx.fillStyle='#ffffff';ctx.fillRect(x-w/2,z-d/2,w,d);
     }
-    mesh.name='hope-building-contact-shadows';mesh.renderOrder=2;
-    _visualFXGroup.add(mesh);_visualFXState.instanced.push(mesh);
+    var texture=new THREE.CanvasTexture(canvas);texture.name='danbo-city-contact-atlas';
+    var mat=new THREE.MeshBasicMaterial({map:texture,color:0x233349,transparent:true,opacity:.34,
+        depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
+    var mesh=new THREE.Mesh(new THREE.PlaneGeometry(extent,extent),mat);
+    mesh.rotation.x=-Math.PI/2;mesh.position.y=.073;
+    mesh.name='danbo-baked-building-contact-atlas';mesh.renderOrder=2;
+    mesh.userData.noAO=true;
+    _visualFXGroup.add(mesh);
+    DANBO_VISUAL_UPGRADE.contactAtlas=true;
 }
 
 function _visualAddHopeGroundPatches(){
@@ -816,7 +914,8 @@ function _rebuildCityVisualFX(style,st){
     if(style!==0)_visualAddHorizon(style,st,mood);
     _visualAddAtmosphericClouds(style,mood);
     _visualAddGroundInstanced(style,st,mood);
-    if(style===0)_visualAddBuildingContactShadows(style);
+    DANBO_VISUAL_UPGRADE.contactAtlas=false;
+    _visualAddBuildingContactShadows(style);
     _visualAddBuildingHalos(style,mood);
     _visualAddCitySpecific(style,st,mood);
 }
@@ -825,6 +924,11 @@ function _syncVisualFXVisibility(){
     if(!_visualFXGroup)return;
     var gs=(typeof gameState==='undefined')?'city':gameState;
     _visualFXGroup.visible=(gs==='city'||gs==='menu'||gs==='select');
+    var gameplay=gs!=='menu'&&gs!=='select';
+    if(_visualFXState.gameplay!==gameplay){
+        _visualFXState.gameplay=gameplay;
+        document.getElementById('game-container').classList.toggle('danbo-world-view',gameplay);
+    }
 }
 
 function _updateVisualFX(px,py,pz,t){

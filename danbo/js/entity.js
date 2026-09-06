@@ -552,11 +552,12 @@ function _setCharacterMeshStyle(mesh,style){
 }
 window._setCharacterMeshStyle=_setCharacterMeshStyle;
 
-function _createCuteRoundCharacterMesh(color,accent,charType,includeClassicRig){
+function _createCuteRoundCharacterMesh(color,accent,charType,includeClassicRig,heroDetail){
     var g=new THREE.Group(),type=charType||'egg';
     accent=(accent===undefined||accent===null)?0xFF6F7D:accent;
     var high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
-    var bodyGeo=new THREE.SphereGeometry(0.70,high?48:28,high?32:20);
+    var detailed=high||(heroDetail&&!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low));
+    var bodyGeo=new THREE.SphereGeometry(0.70,detailed?48:28,detailed?32:20);
     var bp=bodyGeo.attributes.position;
     var speciesX=type==='bear'?1.10:(type==='bull'||type==='cat'?1.05:(type==='cockroach'?0.92:1));
     var speciesY=type==='cockroach'?1.08:(type==='bear'?1.03:1);
@@ -573,9 +574,21 @@ function _createCuteRoundCharacterMesh(color,accent,charType,includeClassicRig){
         bp.setXYZ(bi,x,y,z);
     }
     bodyGeo.computeVertexNormals();
-    var bodyOpts={pastelAmount:0.035,roughness:0.36,clearcoat:0.30,clearcoatRoughness:0.24,envMapIntensity:0.50};
+    var bodyOpts={pastelAmount:0.015,roughness:0.48,clearcoat:0.42,clearcoatRoughness:0.25,envMapIntensity:0.72};
     if(type==='cat')bodyOpts={pastelAmount:0.025,roughness:0.25,metalness:0.015,clearcoat:0.62,clearcoatRoughness:0.16,envMapIntensity:0.68};
     if(type==='bear')bodyOpts={pastelAmount:0.018,roughness:0.89,metalness:0,clearcoat:0.025,clearcoatRoughness:0.88,envMapIntensity:0.13};
+    // Fine ceramic grain, not a noisy colour texture. Baked underside colour
+    // retains the shell's volume even when screen-space AO is disabled.
+    if(!(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low)&&typeof _visualEggShellSurface==='function'){
+        bodyOpts.bumpMap=_visualEggShellSurface();bodyOpts.bumpScale=type==='bear'?.017:.006;
+        bodyOpts.roughnessMap=_visualEggShellSurface();
+    }
+    var shellColors=new Float32Array(bp.count*3);
+    for(var sc=0;sc<bp.count;sc++){
+        var underside=Math.max(0,Math.min(1,(-bp.getY(sc)+.10)/.75));
+        shellColors[sc*3]=1-underside*.10;shellColors[sc*3+1]=1-underside*.13;shellColors[sc*3+2]=1-underside*.16;
+    }
+    bodyGeo.setAttribute('color',new THREE.BufferAttribute(shellColors,3));bodyOpts.vertexColors=true;
     var bodyMat=softPBR(color,bodyOpts);
     var body=new THREE.Mesh(bodyGeo,bodyMat);body.position.y=0.79;body.castShadow=true;body.receiveShadow=true;g.add(body);
 
@@ -819,12 +832,12 @@ function _createCuteRoundCharacterMesh(color,accent,charType,includeClassicRig){
     return g;
 }
 
-function createEggMesh(color, accent, charType, displayStyle, includeClassicRig) {
+function createEggMesh(color, accent, charType, displayStyle, includeClassicRig, heroDetail) {
     // Always use the clean mascot mesh. The older detailed mesh below is kept as
     // a fallback reference only, but we no longer enter it so cached style flags
     // cannot bring back the cluttered/human-looking characters.
     var resolvedStyle=displayStyle==='classic'?'classic':'cinematic';
-    return _setCharacterMeshStyle(_createCuteRoundCharacterMesh(color,accent,charType,resolvedStyle==='classic'||includeClassicRig===true),resolvedStyle);
+    return _setCharacterMeshStyle(_createCuteRoundCharacterMesh(color,accent,charType,resolvedStyle==='classic'||includeClassicRig===true,heroDetail),resolvedStyle);
     var g = new THREE.Group();
     var bodyGeo = new THREE.SphereGeometry(0.6,20,14);
     var pos = bodyGeo.attributes.position;
@@ -1418,7 +1431,7 @@ function createEgg(x,z,color,accent,isPlayer,targetScene,charType){
     // clean mascot look, while the player's arcade costume is exactly the same
     // mesh shown on the selection screen.
     const displayStyle=(isPlayer&&window.DANBO_SELECTED_CHARACTER_STYLE==='classic')?'classic':'cinematic';
-    const mesh=createEggMesh(color,accent,charType,displayStyle);
+    const mesh=createEggMesh(color,accent,charType,displayStyle,false,isPlayer);
     mesh.position.set(x,0.01,z);
     (targetScene||scene).add(mesh);
     let arrow=null;

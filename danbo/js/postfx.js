@@ -1,5 +1,5 @@
 // postfx.js — DANBO World / Three.js r180
-// Linear cinematic chain: Render → GTAO → Bloom → Grade → SMAA → Output.
+// Linear cinematic chain: Render → GTAO → Bloom → SMAA → Sharp/Grade/Output.
 // Keep tone mapping / sRGB conversion last: SMAA operates in linear-sRGB and
 // grading an already encoded image was the main cause of the milky grey look.
 /* global THREE, R, scene, camera, EffectComposer, RenderPass, GTAOPass,
@@ -18,72 +18,46 @@ var _postFXWidth=1,_postFXHeight=1,_postFXDpr=1;
 var _postFXLastTime=performance.now();
 var _postFXMarkFrame=0;
 
-var _cinematicGradeShader={
-    name:'DANBO_CinematicGrade',
-    uniforms:{
-        tDiffuse:{value:null},
-        time:{value:0},
-        resolution:{value:new THREE.Vector2(1,1)},
-        vignette:{value:1.05},
-        grain:{value:0.040},
-        chroma:{value:0.00045},
-        saturation:{value:1.08},
-        // Grade runs before OutputPass in linear space, so use a low contrast
-        // offset to retain mobile shadow detail instead of crushing near-black.
-        contrast:{value:1.10},
-        lift:{value:0.004},
-        shadowColor:{value:new THREE.Color(0.42,0.52,0.60)},
-        highlightColor:{value:new THREE.Color(1.0,0.88,0.70)},
-        splitAmount:{value:0.06}
-    },
-    vertexShader:[
+// Presentation is folded into OutputPass: one output conversion, no redundant
+// full-screen grade target, no chromatic fringing or animated film grain.
+// A bounded 5-tap reconstruction preserves detail when dynamic DPR is active.
+function _configurePresentationOutput(pass){
+    var uniforms=pass.uniforms;
+    uniforms.resolution={value:new THREE.Vector2(1,1)};
+    uniforms.sharpness={value:0.18};
+    uniforms.saturation={value:1.06};
+    uniforms.contrast={value:1.035};
+    uniforms.vignette={value:0.32};
+    uniforms.lift={value:0.002};
+    var source=pass.material.fragmentShader;
+    source=source.replace('varying vec2 vUv;',[
         'varying vec2 vUv;',
-        'void main(){',
-        '  vUv=uv;',
-        '  gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);',
-        '}'
-    ].join('\n'),
-    fragmentShader:[
-        'precision highp float;',
-        'uniform sampler2D tDiffuse;',
-        'uniform float time;',
         'uniform vec2 resolution;',
-        'uniform float vignette;',
-        'uniform float grain;',
-        'uniform float chroma;',
-        'uniform float saturation;',
-        'uniform float contrast;',
-        'uniform float lift;',
-        'uniform vec3 shadowColor;',
-        'uniform vec3 highlightColor;',
-        'uniform float splitAmount;',
-        'varying vec2 vUv;',
-        'float luma(vec3 c){return dot(c,vec3(0.2126,0.7152,0.0722));}',
-        'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}',
-        'void main(){',
-        '  vec2 fromCenter=vUv-0.5;',
-        '  vec2 chromaOffset=normalize(fromCenter+vec2(1e-5))*chroma;',
-        '  float r=texture2D(tDiffuse,vUv+chromaOffset).r;',
-        '  float g=texture2D(tDiffuse,vUv).g;',
-        '  float b=texture2D(tDiffuse,vUv-chromaOffset).b;',
-        '  vec3 color=vec3(r,g,b);',
-        '  float y=luma(color);',
-        '  float shadowWeight=1.0-smoothstep(0.18,0.58,y);',
-        '  float highlightWeight=smoothstep(0.48,0.92,y);',
-        '  color=mix(color,color*shadowColor*2.0,shadowWeight*splitAmount);',
-        '  color=mix(color,color*highlightColor,highlightWeight*splitAmount);',
-        '  color=(color-0.5)*contrast+0.5+lift;',
-        '  color=mix(vec3(luma(color)),color,saturation);',
-        // OutputPass owns the single ACES shoulder. Applying another shoulder here
-        // compressed most of the scene into the same pale mid/high-light band.
-        '  float edge=smoothstep(0.28,0.78,length(fromCenter)*1.4142);',
-        '  color*=1.0-edge*0.16*vignette;',
-        '  float noise=hash(gl_FragCoord.xy+vec2(time*71.0,time*37.0))-0.5;',
-        '  color+=noise*grain/8.0;',
-        '  gl_FragColor=vec4(max(color,vec3(0.0)),1.0);',
-        '}'
-    ].join('\n')
-};
+        'uniform float sharpness, saturation, contrast, vignette, lift;'
+    ].join('\n'));
+    source=source.replace('gl_FragColor = texture2D( tDiffuse, vUv );',[
+        'vec2 texel=1.0/resolution;',
+        'vec3 center=texture2D(tDiffuse,vUv).rgb;',
+        'vec3 n=texture2D(tDiffuse,vUv+vec2(0.,texel.y)).rgb;',
+        'vec3 s=texture2D(tDiffuse,vUv-vec2(0.,texel.y)).rgb;',
+        'vec3 e=texture2D(tDiffuse,vUv+vec2(texel.x,0.)).rgb;',
+        'vec3 w=texture2D(tDiffuse,vUv-vec2(texel.x,0.)).rgb;',
+        'vec3 lo=min(center,min(min(n,s),min(e,w)));',
+        'vec3 hi=max(center,max(max(n,s),max(e,w)));',
+        'vec3 color=clamp(center+(center-(n+s+e+w)*0.25)*sharpness,lo,hi);',
+        // Exposure-relative contrast retains shadow detail rather than subtracting
+        // a large constant from linear HDR blacks, as the old grade did.
+        'color=max(vec3(0.),(color-0.18)*contrast+0.18+lift);',
+        'float y=dot(color,vec3(0.2126,0.7152,0.0722));',
+        'color=mix(vec3(y),color,saturation);',
+        'float edge=smoothstep(0.35,0.78,length(vUv-0.5));',
+        'color*=1.0-edge*vignette*0.16;',
+        'gl_FragColor=vec4(max(vec3(0.),color),1.);'
+    ].join('\n'));
+    pass.material.fragmentShader=source;
+    pass.material.needsUpdate=true;
+    return {uniforms:uniforms,mergedIntoOutput:true};
+}
 
 function _markNoAOEffects(){
     // Scene-wide traversal is only a safety net for newly-added effects; doing
@@ -135,14 +109,13 @@ function _initCinematicPostFX(){
     _postFXBloom.radius=0.42;
     _postFXBloom.threshold=1.30;
     _postFXOutput=new OutputPass();
-    _postFXGrade=new ShaderPass(_cinematicGradeShader);
+    _postFXGrade=_configurePresentationOutput(_postFXOutput);
     var initialPostScale=(window.DANBO_VISUAL_QUALITY&&Number(DANBO_VISUAL_QUALITY.postScale))||1;
     _postFXSMAA=new SMAAPass(initialViewport.width*_renderPixelRatio*initialPostScale,initialViewport.height*_renderPixelRatio*initialPostScale);
 
     _postFXComposer.addPass(_postFXRenderPass);
     _postFXComposer.addPass(_postFXGTAO);
     _postFXComposer.addPass(_postFXBloom);
-    _postFXComposer.addPass(_postFXGrade);
     _postFXComposer.addPass(_postFXSMAA);
     _postFXComposer.addPass(_postFXOutput);
 
@@ -159,7 +132,6 @@ function _initCinematicPostFX(){
         _postFXBloom.strength=0.14;
     }else if(quality==='low'){
         _postFXBloom.strength=0.09;
-        _postFXGrade.uniforms.grain.value=0.025;
         // Low mode uses Lambert/toon fallbacks without HDR reflections. Preserve
         // their shadow readability while keeping the deeper authored albedo.
         _postFXGrade.uniforms.contrast.value=1.04;
@@ -176,7 +148,7 @@ function _initCinematicPostFX(){
         outputPass:_postFXOutput,
         gradePass:_postFXGrade,
         smaaPass:_postFXSMAA,
-        chain:'Render → GTAO → Bloom → Grade → SMAA → Output'
+        chain:'Render → GTAO → Bloom → SMAA → Sharp/Grade/Output'
     };
 }
 
@@ -204,10 +176,16 @@ function _updatePostFXSize(force){
         var aoScale=(window.DANBO_VISUAL_QUALITY&&Number(DANBO_VISUAL_QUALITY.aoScale))||0.72;
         _postFXGTAO.setSize(Math.max(1,Math.round(width*dpr*aoScale)),Math.max(1,Math.round(height*dpr*aoScale)));
     }
+    // Bloom is a broad glow, not image detail: do not spend the main scene's
+    // native pixel budget on its blur pyramid.
+    if(_postFXBloom)_postFXBloom.setSize(Math.max(1,Math.round(width*dpr*0.5)),Math.max(1,Math.round(height*dpr*0.5)));
     _postFXGrade.uniforms.resolution.value.set(width*dpr,height*dpr);
+    _postFXGrade.uniforms.sharpness.value=dpr<0.95?0.32:0.16;
 }
 
 function _renderCinematicFrame(){
+    if(typeof _visualWaterTime!=='undefined')_visualWaterTime.value=performance.now()*0.001;
+    if(typeof _updateCharacterRenderDetail==='function')_updateCharacterRenderDetail();
     if(!_postFXEnabled){R.render(scene,camera);return;}
     _initCinematicPostFX();
     if(!_postFXComposer){R.render(scene,camera);return;}
@@ -215,7 +193,6 @@ function _renderCinematicFrame(){
     _updatePostFXSize(false);
     var now=performance.now(),delta=Math.min(0.1,(now-_postFXLastTime)/1000);
     _postFXLastTime=now;
-    _postFXGrade.uniforms.time.value=now*0.001;
     _postFXComposer.render(delta);
 }
 
