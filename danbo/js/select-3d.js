@@ -486,10 +486,11 @@
         return {scene:sceneMap,world:world,camera:camera,index:characterIndex,cityStyle:index,cute:true};
     }
 
-    var stages=[],mapStages=[];
+    var stages=[],mapStages=[],disposed=false;
     try{for(var i=0;i<CHARACTERS.length;i++){stages.push(makeStage(CHARACTERS[i],i));mapStages.push(makeCuteSceneMap(i));}}
     catch(buildErr){console.error('Unable to build 3D roster',buildErr);renderer.dispose();screen.classList.add('select-3d-fallback');return;}
     function syncCharacterStyle(style){
+        if(disposed)return;
         style=style==='classic'?'classic':'cinematic';
         for(var si=0;si<stages.length;si++){
             if(typeof window._setCharacterMeshStyle==='function')window._setCharacterMeshStyle(stages[si].model,style);
@@ -498,9 +499,10 @@
         if(lastW&&lastH){renderer.setViewport(0,0,lastW,lastH);renderer.clear(true,true,true);}
         cardsDirty=true;mapDirty=true;wasActive=false;
     }
-    window.addEventListener('danbo-select-style',function(event){
+    function onSelectStyle(event){
         syncCharacterStyle(event&&event.detail&&event.detail.style);
-    });
+    }
+    window.addEventListener('danbo-select-style',onSelectStyle);
     syncCharacterStyle(screen.classList.contains('select-style-classic')?'classic':'cinematic');
     var _selectProofBody=stages[0]&&stages[0].model&&stages[0].model.userData.body;
     window.DANBO_SELECT_QUALITY.heroBodySegments=_selectProofBody&&_selectProofBody.geometry&&_selectProofBody.geometry.parameters?_selectProofBody.geometry.parameters.widthSegments:0;
@@ -710,9 +712,36 @@
         });
         item.camera.aspect=w/h;item.camera.updateProjectionMatrix();renderer.render(item.scene,item.camera);
     }
+    function disposeSelectionResources(){
+        if(disposed)return;
+        disposed=true;
+        window.removeEventListener('danbo-select-style',onSelectStyle);
+        for(var i=0;i<stages.length;i++){
+            if(stages[i]&&stages[i].stage)disposeTransientObject3D(stages[i].stage);
+            if(stages[i]&&stages[i].scene)stages[i].scene.environment=null;
+        }
+        for(var j=0;j<mapStages.length;j++){
+            if(mapStages[j]&&mapStages[j].world)disposeTransientObject3D(mapStages[j].world);
+            if(mapStages[j]&&mapStages[j].scene)mapStages[j].scene.environment=null;
+        }
+        _selectShadowTex.dispose();
+        if(renderer.renderLists&&renderer.renderLists.dispose)renderer.renderLists.dispose();
+        renderer.dispose();
+        stages.length=0;mapStages.length=0;
+        window._update3DCharacterSelect=null;
+        window._play3DSelectCardGesture=null;
+        window._play3DSelectCardWave=null;
+        window.DANBO_SELECT_DISPOSED=true;
+    }
     function frame(now){
+        if(disposed)return;
+        if(!screen.classList.contains('active')){
+            // Selection is a one-way startup step. Release its second WebGL
+            // renderer and sixteen preview scenes as soon as gameplay begins.
+            if(wasActive){disposeSelectionResources();return;}
+            requestAnimationFrame(frame);wasActive=false;return;
+        }
         requestAnimationFrame(frame);
-        if(!screen.classList.contains('active')){wasActive=false;return;}
         // Both presentations use the exact same live 3D character mesh. Classic
         // keeps its 2D route map, so only that small map viewport is skipped.
         var classicStyle=screen.classList.contains('select-style-classic');

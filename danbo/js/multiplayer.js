@@ -10,7 +10,7 @@
     var remotes=new Map();
     var client=null,room=null,joining=false,manualLeave=false;
     var lastSendAt=0,lastSentCity=-1,sequence=0,pendingAutoCode='';
-    var playerListSignature='',sdkPromise=null;
+    var playerListSignature='',buttonSignature='',sdkPromise=null;
     var status='offline',statusText='未连接';
     var selectedServerEndpoint='',selectedServerReady=false;
 
@@ -157,16 +157,20 @@
     }
     function updateButton(){
         if(!ui.button)return;
+        var text='服务器',online=false,title='';
         if(room&&status==='online'){
             var count=room.state&&room.state.players?room.state.players.size:1;
-            ui.button.textContent='在线 '+count+'/8';
-            ui.button.classList.add('online');
-            ui.button.title='联机房 '+normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value);
+            text='在线 '+count+'/8';online=true;
+            title='联机房 '+normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value);
         }else if(status==='joining'||status==='reconnecting'){
-            ui.button.textContent='连接中';ui.button.classList.remove('online');
-        }else{
-            ui.button.textContent='服务器';ui.button.classList.remove('online');
+            text='连接中';
         }
+        var signature=text+'|'+online+'|'+title;
+        if(signature===buttonSignature)return;
+        buttonSignature=signature;
+        ui.button.textContent=text;
+        ui.button.classList.toggle('online',online);
+        ui.button.title=title;
     }
     function messageForError(error){
         var text=String(error&&error.message||error||'连接失败');
@@ -241,7 +245,7 @@
         return sprite;
     }
     function rebuildRemoteAvatar(remote,statePlayer){
-        if(remote.avatar)remote.root.remove(remote.avatar);
+        if(remote.avatar){remote.root.remove(remote.avatar);disposeTransientObject3D(remote.avatar);}
         var index=Math.max(0,Math.min(7,Number(statePlayer.character)||0));
         var skin=CHARACTERS[index]||CHARACTERS[0];
         remote.avatar=createEggMesh(skin.color,skin.accent,skin.type,statePlayer.style==='classic'?'classic':'cinematic');
@@ -272,6 +276,7 @@
     function removeRemote(sessionId){
         var remote=remotes.get(sessionId);if(!remote)return;
         scene.remove(remote.root);
+        if(remote.avatar)disposeTransientObject3D(remote.avatar);
         if(remote.nameSprite&&remote.nameSprite.material&&remote.nameSprite.material.map)remote.nameSprite.material.map.dispose();
         if(remote.nameSprite&&remote.nameSprite.material)remote.nameSprite.material.dispose();
         remotes.delete(sessionId);
@@ -353,7 +358,7 @@
         });
     }
     function cleanupRoom(){
-        room=null;lastSentCity=-1;lastSendAt=0;sequence=0;playerListSignature='';removeAllRemotes();
+        room=null;lastSentCity=-1;lastSendAt=0;sequence=0;playerListSignature='';buttonSignature='';removeAllRemotes();
         setStatus('offline','未连接');showSummary('尚未连接联机房间。',false);refreshPlayerList([]);
         if(ui.leave)ui.leave.disabled=true;if(ui.share)ui.share.disabled=true;
     }

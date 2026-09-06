@@ -13,6 +13,7 @@ var _postFXBloom=null;
 var _postFXOutput=null;
 var _postFXGrade=null;
 var _postFXSMAA=null;
+var _postFXAdaptiveReduced=false;
 var _postFXWidth=1,_postFXHeight=1,_postFXDpr=1;
 var _postFXLastTime=performance.now();
 var _postFXMarkFrame=0;
@@ -85,7 +86,9 @@ var _cinematicGradeShader={
 };
 
 function _markNoAOEffects(){
-    if(++_postFXMarkFrame%45!==1)return;
+    // Scene-wide traversal is only a safety net for newly-added effects; doing
+    // it every 45 rendered frames caused a regular hitch on large cities.
+    if(++_postFXMarkFrame%300!==1)return;
     scene.traverse(function(object){
         if(!object||!object.material)return;
         var materials=Array.isArray(object.material)?object.material:[object.material];
@@ -107,7 +110,8 @@ function _initCinematicPostFX(){
     });
     _postFXComposer=new EffectComposer(R,target);
     _postFXRenderPass=new RenderPass(scene,camera);
-    _postFXGTAO=new GTAOPass(scene,camera,innerWidth,innerHeight);
+    var initialViewport=typeof _danboRenderViewport==='function'?_danboRenderViewport():{width:innerWidth,height:innerHeight};
+    _postFXGTAO=new GTAOPass(scene,camera,initialViewport.width,initialViewport.height);
     _postFXGTAO.updateGtaoMaterial({
         radius:0.55,
         distanceExponent:1.0,
@@ -126,14 +130,14 @@ function _initCinematicPostFX(){
         samples:16
     });
     _postFXGTAO.blendIntensity=0.95;
-    _postFXBloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.18,0.42,1.30);
+    _postFXBloom=new UnrealBloomPass(new THREE.Vector2(initialViewport.width,initialViewport.height),0.18,0.42,1.30);
     _postFXBloom.strength=0.18;
     _postFXBloom.radius=0.42;
     _postFXBloom.threshold=1.30;
     _postFXOutput=new OutputPass();
     _postFXGrade=new ShaderPass(_cinematicGradeShader);
     var initialPostScale=(window.DANBO_VISUAL_QUALITY&&Number(DANBO_VISUAL_QUALITY.postScale))||1;
-    _postFXSMAA=new SMAAPass(innerWidth*_renderPixelRatio*initialPostScale,innerHeight*_renderPixelRatio*initialPostScale);
+    _postFXSMAA=new SMAAPass(initialViewport.width*_renderPixelRatio*initialPostScale,initialViewport.height*_renderPixelRatio*initialPostScale);
 
     _postFXComposer.addPass(_postFXRenderPass);
     _postFXComposer.addPass(_postFXGTAO);
@@ -144,7 +148,7 @@ function _initCinematicPostFX(){
 
     var quality=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'high';
     var mobileQuality=!!(window.DANBO_RENDER_PERF&&DANBO_RENDER_PERF.mobile);
-    _postFXGTAO.enabled=quality!=='low';
+    _postFXGTAO.enabled=quality!=='low'&&!_postFXAdaptiveReduced;
     if(mobileQuality&&quality!=='low'&&quality!=='high'){
         _postFXGTAO.updateGtaoMaterial({samples:4});
         _postFXGTAO.updatePdMaterial({rings:2,samples:4,radius:2});
@@ -176,9 +180,18 @@ function _initCinematicPostFX(){
     };
 }
 
+function _setAdaptivePostFXReduction(reduced){
+    _postFXAdaptiveReduced=!!reduced;
+    if(_postFXGTAO){
+        var quality=(window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.mode)||'balanced';
+        _postFXGTAO.enabled=quality!=='low'&&!_postFXAdaptiveReduced;
+    }
+}
+
 function _updatePostFXSize(force){
     if(!_postFXComposer)return;
-    var width=Math.max(1,innerWidth),height=Math.max(1,innerHeight);
+    var viewport=typeof _danboRenderViewport==='function'?_danboRenderViewport():{width:innerWidth,height:innerHeight};
+    var width=viewport.width,height=viewport.height;
     var qualityScale=(window.DANBO_VISUAL_QUALITY&&Number(DANBO_VISUAL_QUALITY.postScale))||1;
     var dpr=Math.max(0.5,(_renderPixelRatio||1)*qualityScale);
     if(!force&&width===_postFXWidth&&height===_postFXHeight&&dpr===_postFXDpr)return;

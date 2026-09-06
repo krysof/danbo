@@ -1,8 +1,12 @@
 // renderer.js — DANBO World
 // ---- Renderer ----
 const root = document.getElementById('three-root');
+function _danboRenderViewport(){
+    return {width:Math.max(1,root.clientWidth||innerWidth),height:Math.max(1,root.clientHeight||innerHeight)};
+}
 const R = new THREE.WebGLRenderer({antialias:false, powerPreference:'high-performance', stencil:false});
-R.setSize(innerWidth,innerHeight);
+var _initialRenderViewport=_danboRenderViewport();
+R.setSize(_initialRenderViewport.width,_initialRenderViewport.height);
 var _visualQualityPref='auto';
 try{_visualQualityPref=localStorage.getItem('danbo_visual_quality')||'auto';}catch(e){}
 try{
@@ -20,7 +24,11 @@ if(['low','balanced','high'].indexOf(_visualQualityMode)<0){
     // Safari does not normally expose deviceMemory. Treating the missing value as
     // 4 GB forced modern iPhones into low quality, even when their GPU was fast.
     if(_visualQualityMobile)_visualQualityMode=((_visualQualityHasMemory&&_visualQualityMemory<=3)||_visualQualityCores<=3)?'low':'balanced';
-    else _visualQualityMode=(_visualQualityMemory>=6&&_visualQualityCores>=6)?'high':'balanced';
+    // CPU core count and system RAM do not describe WebGL fill-rate. The old
+    // heuristic promoted almost every modern desktop to 4096px shadows +
+    // full-resolution GTAO, which made "Auto" slower than it needed to be on
+    // integrated and mid-range GPUs. Keep that uncompromised path opt-in.
+    else _visualQualityMode='balanced';
 }
 window.DANBO_VISUAL_QUALITY={
     requested:_visualQualityPref,
@@ -42,7 +50,8 @@ var _qualityConfiguredDprCap=RENDER_CONFIG.pixelRatioMax||2;
 var _qualityPixelBudget=_visualQualityMode==='high'?0:(_visualQualityMode==='low'?1250000:2000000);
 var _qualityDprCap=1,_pixelRatioMax=1,_pixelRatioMin=1,_renderPixelRatio=1;
 function _refreshRenderPixelRatioBounds(){
-    var cssPixels=Math.max(1,innerWidth*innerHeight);
+    var viewport=_danboRenderViewport();
+    var cssPixels=Math.max(1,viewport.width*viewport.height);
     var deviceDpr=Math.max(0.5,Number(devicePixelRatio)||1);
     var budgetCap=_visualQualityMode==='high'?_qualityConfiguredDprCap:Math.sqrt(_qualityPixelBudget/cssPixels);
     _qualityDprCap=_visualQualityMobile?1:Math.min(_qualityConfiguredDprCap,budgetCap);
@@ -123,12 +132,13 @@ if(typeof HDRLoader==='function'){
     _danboRenderAssetsResolve({hdri:false});
 }
 
-const camera = new THREE.PerspectiveCamera(58, innerWidth/innerHeight, 0.1, 1200);
+const camera = new THREE.PerspectiveCamera(58, _initialRenderViewport.width/_initialRenderViewport.height, 0.1, 1200);
 window.addEventListener('resize', ()=>{
-    R.setSize(innerWidth,innerHeight);
+    var viewport=_danboRenderViewport();
+    R.setSize(viewport.width,viewport.height);
     _refreshRenderPixelRatioBounds();
     _setRenderPixelRatio(_renderPixelRatio);
-    camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+    camera.aspect=viewport.width/viewport.height; camera.updateProjectionMatrix();
 });
 
 // ---- Lighting ----
@@ -217,7 +227,7 @@ function _updateSkyDome(skyHex,horizonHex,groundHex){
 }
 _updateSkyDome(RENDER_CONFIG.fogColor,0xEAF7FF,0x88CCAA);
 
-var _qualityFrameCount=0,_qualityAvgMs=16.7,_qualityCooldown=0,_qualitySlowFrames=0;
+var _qualityFrameCount=0,_qualityAvgMs=16.7,_qualityCooldown=0,_qualitySlowFrames=0,_qualityEffectsReduced=false;
 function _updateRenderQuality(frameMs){
     if(!frameMs||gameState==='menu')return;
     frameMs=Math.min(250,frameMs);
@@ -236,9 +246,23 @@ function _updateRenderQuality(frameMs){
         _setRenderPixelRatio(_renderPixelRatio+0.05);
         _qualityCooldown=90;
     }
+    // Resolution alone cannot rescue fill-rate limited GPUs from AO + shadow
+    // passes. Auto may shed those optional passes after sustained slow frames;
+    // explicitly selected Balanced/High modes remain visually fixed.
+    if(_visualQualityPref==='auto'&&!_qualityEffectsReduced&&_qualitySlowFrames>=45){
+        _qualityEffectsReduced=true;
+        _shadowUpdateInterval=Math.max(_shadowUpdateInterval,5);
+        if(typeof _setAdaptivePostFXReduction==='function')_setAdaptivePostFXReduction(true);
+    }else if(_visualQualityPref==='auto'&&_qualityEffectsReduced&&_qualityFrameCount%600===0&&_qualityAvgMs<17.5){
+        _qualityEffectsReduced=false;
+        _shadowUpdateInterval=_visualQualityMode==='low'?4:3;
+        if(typeof _setAdaptivePostFXReduction==='function')_setAdaptivePostFXReduction(false);
+    }
     if(window.DANBO_RENDER_PERF){
         DANBO_RENDER_PERF.pixelRatio=_renderPixelRatio;
         DANBO_RENDER_PERF.averageFrameMs=_qualityAvgMs;
+        DANBO_RENDER_PERF.shadowUpdateInterval=_shadowUpdateInterval;
+        DANBO_RENDER_PERF.adaptiveEffectsReduced=_qualityEffectsReduced;
     }
 }
 
@@ -251,6 +275,7 @@ window.DANBO_RENDER_PERF={
     pixelRatioMax:_pixelRatioMax,
     shadowMapSize:_shadowQualitySize,
     shadowUpdateInterval:_shadowUpdateInterval,
+    adaptiveEffectsReduced:false,
     averageFrameMs:_qualityAvgMs
 };
 

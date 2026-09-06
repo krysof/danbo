@@ -211,7 +211,7 @@ function _spawnFootprint(type){
 function _updateFootprints(){
     for(var i=_fpParticles.length-1;i>=0;i--){
         var fp=_fpParticles[i];fp.life--;
-        if(fp.life<=0){scene.remove(fp.mesh);_fpParticles.splice(i,1);continue;}
+        if(fp.life<=0){scene.remove(fp.mesh);disposeTransientObject3D(fp.mesh);_fpParticles.splice(i,1);continue;}
         var t=fp.life/fp.max;fp.mesh.material.opacity=t*0.85;
         fp.mesh.position.y+=fp.vy;fp.mesh.rotation.z+=fp.rot;
         var sc=0.6+t*0.4;fp.mesh.scale.set(sc,sc,sc);

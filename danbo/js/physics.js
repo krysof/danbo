@@ -352,10 +352,10 @@ function updateEggPhysics(egg, isCity){
             egg.vx=0;egg.vy=0;egg.vz=0;
             egg.squash=0.3; // poof effect
             egg._fallPenalty=60; // 1 second stun after respawn
-            if(egg.holding){var h=egg.holding;h.heldBy=null;egg.holding=null;if(h.struggleBar){h.mesh.remove(h.struggleBar);h.struggleBar=null;}}
+            if(egg.holding){var h=egg.holding;h.heldBy=null;egg.holding=null;_removeEggStruggleBar(h);}
             if(egg.holdingObs){egg.holdingObs._grabbed=false;egg.holdingObs=null;}
             if(egg.holdingProp){egg.holdingProp.grabbed=false;egg.holdingProp=null;}
-            if(egg.heldBy){var hdr=egg.heldBy;hdr.holding=null;egg.heldBy=null;if(egg.struggleBar){egg.mesh.remove(egg.struggleBar);egg.struggleBar=null;}}
+            if(egg.heldBy){var hdr=egg.heldBy;hdr.holding=null;egg.heldBy=null;_removeEggStruggleBar(egg);}
         }
         // Fall penalty stun countdown
         if(egg._fallPenalty>0){egg._fallPenalty--;egg.vx=0;egg.vz=0;}

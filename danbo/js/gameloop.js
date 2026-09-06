@@ -87,6 +87,25 @@ function _safeSetEmissiveIntensity(obj,intensity){
     });
 }
 
+function _setElectricBodyFlash(egg,body,hex){
+    if(!egg||!body)return;
+    _forEachObjectMaterial(body,function(mat){
+        if(!mat.color||!mat.color.setHex)return;
+        if(mat._danboElectricBaseColor===undefined&&mat.color.getHex)mat._danboElectricBaseColor=mat.color.getHex();
+        mat.color.setHex(hex);
+    });
+}
+
+function _restoreElectricBody(egg,body){
+    if(!egg||!body)return;
+    _forEachObjectMaterial(body,function(mat){
+        if(mat.color&&mat.color.setHex&&mat._danboElectricBaseColor!==undefined){
+            mat.color.setHex(mat._danboElectricBaseColor);
+            delete mat._danboElectricBaseColor;
+        }
+    });
+}
+
 function _pulseSaberMaterial(saberObj,hex){
     _safeSetEmissive(saberObj,hex);
 }
@@ -128,6 +147,7 @@ function updateSlashEffects(){
         s.halfL.material.opacity=t*0.7;s.halfR.material.opacity=t*0.7;
         if(s.life<=0){
             scene.remove(s.line);scene.remove(s.halfL);scene.remove(s.halfR);
+            disposeTransientObject3D(s.line);disposeTransientObject3D(s.halfL);disposeTransientObject3D(s.halfR);
             window._slashEffects.splice(si,1);
         }
     }
@@ -722,13 +742,7 @@ function updateCity(){
             npc.throwTimer=0; // prevent physics bounce
             // Flash between normal and dark skeleton every 3 frames
             var _elecBody=npc.mesh.userData.body;
-            if(_elecBody){
-                if(Math.floor(npc._electrocuted/3)%2===0){
-                    _elecBody.material=new THREE.MeshBasicMaterial({color:0x111111,transparent:true,opacity:0.9});
-                } else {
-                    _elecBody.material=new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.9});
-                }
-            }
+            if(_elecBody)_setElectricBodyFlash(npc,_elecBody,Math.floor(npc._electrocuted/3)%2===0?0x111111:0xFFFFFF);
             // When shock phase ends — launch knockback (phase 2)
             if(npc._electrocuted<=0){
                 if(npc._elecKnockDir){
@@ -738,7 +752,7 @@ function updateCity(){
                     npc.vy=0.5; // bounce up high
                     npc.throwTimer=80;
                 } else {
-                    if(_elecBody)_elecBody.material=toon(npc._origColor||0xFFDD44);
+                    if(_elecBody)_restoreElectricBody(npc,_elecBody);
                     npc._stunTimer=40;npc._slamImmune=0;
                 }
             }
@@ -751,15 +765,9 @@ function updateCity(){
                 npc.vz=npc._elecFlyDir.z*0.4;
             }
             var _efBody=npc.mesh.userData.body;
-            if(_efBody){
-                if(Math.floor(npc._elecFlying/3)%2===0){
-                    _efBody.material=new THREE.MeshBasicMaterial({color:0x111111,transparent:true,opacity:0.9});
-                } else {
-                    _efBody.material=new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.9});
-                }
-            }
+            if(_efBody)_setElectricBodyFlash(npc,_efBody,Math.floor(npc._elecFlying/3)%2===0?0x111111:0xFFFFFF);
             if(npc._elecFlying<=0){
-                if(_efBody)_efBody.material=toon(npc._origColor||0xFFDD44);
+                if(_efBody)_restoreElectricBody(npc,_efBody);
                 npc.vx*=0.1;npc.vz*=0.1;
                 npc._stunTimer=40;npc._slamImmune=0;
                 npc._elecFlyDir=null;
@@ -1756,7 +1764,7 @@ function updateCity(){
                     }
                 }
             }
-            if(bb.life<=0){scene.remove(bb.mesh);window._moonBeams.splice(bbi,1);}
+            if(bb.life<=0){scene.remove(bb.mesh);disposeTransientObject3D(bb.mesh);window._moonBeams.splice(bbi,1);}
         }
         // Update missiles with smoke trails
         for(var mmi2=window._moonMissiles.length-1;mmi2>=0;mmi2--){
@@ -1777,7 +1785,7 @@ function updateCity(){
                 mm.trail[ti].mesh.material.opacity=mm.trail[ti].life/20*0.5;
                 mm.trail[ti].mesh.scale.multiplyScalar(1.04);
                 mm.trail[ti].mesh.visible=!_playerInShield;
-                if(mm.trail[ti].life<=0){scene.remove(mm.trail[ti].mesh);mm.trail.splice(ti,1);}
+                if(mm.trail[ti].life<=0){scene.remove(mm.trail[ti].mesh);disposeTransientObject3D(mm.trail[ti].mesh);mm.trail.splice(ti,1);}
             }
             // Missile hits shields — AT Field
             if(!mm._shieldHit){
@@ -1825,8 +1833,8 @@ function updateCity(){
                     shMesh.position.copy(mm.group.position);scene.add(shMesh);
                     window._moonBeams.push({mesh:shMesh,life:18,vx:shDir.x*2,vy:shDir.y*2,vz:shDir.z*2});
                 }
-                for(var tri=mm.trail.length-1;tri>=0;tri--){scene.remove(mm.trail[tri].mesh);}
-                scene.remove(mm.group);window._moonMissiles.splice(mmi2,1);
+                for(var tri=mm.trail.length-1;tri>=0;tri--){scene.remove(mm.trail[tri].mesh);disposeTransientObject3D(mm.trail[tri].mesh);}
+                scene.remove(mm.group);disposeTransientObject3D(mm.group);window._moonMissiles.splice(mmi2,1);
             }
         }
     }
@@ -1943,7 +1951,7 @@ function _showChatBubble(egg,msg,duration){
     // Remove old bubble for this egg
     for(var i=_chatBubbles.length-1;i>=0;i--){
         if(_chatBubbles[i].egg===egg){
-            if(_chatBubbles[i].sprite)egg.mesh.remove(_chatBubbles[i].sprite);
+            if(_chatBubbles[i].sprite){egg.mesh.remove(_chatBubbles[i].sprite);disposeTransientObject3D(_chatBubbles[i].sprite,true);}
             _chatBubbles.splice(i,1);
         }
     }
@@ -1992,6 +2000,7 @@ function _updateChatBubbles(){
         if(cb.timer<30&&cb.sprite)cb.sprite.material.opacity=cb.timer/30;
         if(cb.timer<=0){
             if(cb.sprite&&cb.egg&&cb.egg.mesh)cb.egg.mesh.remove(cb.sprite);
+            if(cb.sprite)disposeTransientObject3D(cb.sprite,true);
             _chatBubbles.splice(i,1);
         }
     }
@@ -2012,6 +2021,12 @@ function _npcRandomChat(egg){
 }
 
 // ---- Held egg follow + struggle + NPC grab AI ----
+function _removeEggStruggleBar(egg){
+    if(!egg||!egg.struggleBar)return;
+    try{if(egg.mesh)egg.mesh.remove(egg.struggleBar);}catch(e){}
+    disposeTransientObject3D(egg.struggleBar);
+    egg.struggleBar=null;
+}
 function updateHeldEggs(){
     ensureStruggleBar();
     var playerIsHeld=false;
@@ -2019,7 +2034,7 @@ function updateHeldEggs(){
         var egg=allEggs[i];
         if(!egg.heldBy){
             // Remove 3D bar if it had one
-            if(egg.struggleBar){egg.mesh.remove(egg.struggleBar);egg.struggleBar=null;}
+            _removeEggStruggleBar(egg);
             // Reset upside-down rotation if was held (skip during attack spins)
             var _inSpin=egg._blankaSpinTimer||egg._blankaSpinFalling||egg._guileSomersault||egg._hondaDash;
             if(egg.mesh.rotation.x>Math.PI*0.5&&!_inSpin){egg.mesh.rotation.x=0;egg.mesh.rotation.z=0;}
@@ -2057,7 +2072,7 @@ function updateHeldEggs(){
         // NPC holder may throw the held egg randomly
         if(!holder.isPlayer&&holder.holding===egg&&Math.random()<0.006){
             holder.holding=null; egg.heldBy=null;
-            if(egg.struggleBar){egg.mesh.remove(egg.struggleBar);egg.struggleBar=null;}
+            _removeEggStruggleBar(egg);
             holder.grabCD=40; egg.grabCD=40;
             var throwDir=holder.mesh.rotation.y;
             egg.mesh.position.set(holder.mesh.position.x+Math.sin(throwDir)*1.5, holder.mesh.position.y+0.5, holder.mesh.position.z+Math.cos(throwDir)*1.5);
@@ -2078,7 +2093,7 @@ function updateHeldEggs(){
             egg.mesh.position.z=holder.mesh.position.z+Math.cos(escDir)*1.5;
             egg.vx=Math.sin(escDir)*0.2;egg.vy=0.18;egg.vz=Math.cos(escDir)*0.2;
             egg.squash=0.6;
-            if(egg.struggleBar){egg.mesh.remove(egg.struggleBar);egg.struggleBar=null;}
+            _removeEggStruggleBar(egg);
             _dropNpcStolenCoins(egg);
             continue;
         }
@@ -2555,7 +2570,7 @@ function enterCity(spawnX,spawnZ){
         var npc=cityNPCs[ni];
         npc.holding=null;npc.heldBy=null;npc.holdingObs=null;npc.holdingProp=null;
         npc.throwTimer=0;npc.grabCD=60;npc.finished=false;npc._stunTimer=0;
-        if(npc.struggleBar){try{npc.mesh.remove(npc.struggleBar);}catch(e){}npc.struggleBar=null;}
+        _removeEggStruggleBar(npc);
     }
 
     // Create player in city — spawn at correct height immediately
@@ -2621,6 +2636,13 @@ var _lastFrameTime=0;
 var _targetFrameInterval=1000/60; // target 60fps
 var _accumulator=0;
 var _fixedStep=1000/60; // fixed timestep
+var _menuUiSyncFrame=0;
+
+function _hideWorldUiBehindMenus(){
+    ['chest-hud','minimap-wrap','map-btn','lb-btn','area-name-overlay','shop-prompt','shop-btn','door-prompt','portal-prompt'].forEach(function(id){
+        var element=document.getElementById(id);if(element)element.style.display='none';
+    });
+}
 
 function animate(now){
     requestAnimationFrame(animate);
@@ -2628,6 +2650,16 @@ function animate(now){
     var _elapsed=now-_lastFrameTime;
     if(_elapsed<8)return; // skip if too fast (>120fps)
     _lastFrameTime=now;
+    // Title/server/character screens have their own animation loops. Rendering
+    // the full city behind them doubled GPU work (especially during 3D select).
+    if(gameState==='menu'){
+        // Some legacy HUD widgets are created dynamically and used to rely on
+        // the city update loop to hide them. Keep that housekeeping lightweight.
+        if(_menuUiSyncFrame++%30===0)_hideWorldUiBehindMenus();
+        _accumulator=0;
+        return;
+    }
+    _menuUiSyncFrame=0;
     // Accumulate time and run fixed timestep updates (catch up if behind)
     _accumulator+=Math.min(_elapsed,100); // cap at 100ms to prevent spiral
     var _ticks=0;
@@ -2706,7 +2738,7 @@ function _gameUpdate(){
             playerEgg._electrocuted--;
             playerEgg.vx=0;playerEgg.vz=0;playerEgg.vy=0;playerEgg.throwTimer=0;
             var _peBody=playerEgg.mesh.userData.body;
-            if(_peBody)_peBody.material=new THREE.MeshBasicMaterial({color:Math.floor(playerEgg._electrocuted/3)%2===0?0x111111:0xFFFFFF,transparent:true,opacity:0.9});
+            if(_peBody)_setElectricBodyFlash(playerEgg,_peBody,Math.floor(playerEgg._electrocuted/3)%2===0?0x111111:0xFFFFFF);
             if(playerEgg._electrocuted<=0&&playerEgg._elecKnockDir){
                 playerEgg._elecFlying=60;
                 playerEgg._elecFlyDir={x:playerEgg._elecKnockDir.x,z:playerEgg._elecKnockDir.z};
@@ -2714,7 +2746,7 @@ function _gameUpdate(){
                 playerEgg.vy=0.35;
                 playerEgg.throwTimer=60;
             } else if(playerEgg._electrocuted<=0){
-                if(_peBody)_peBody.material=toon(playerEgg._origColor||0xFFDD44);
+                if(_peBody)_restoreElectricBody(playerEgg,_peBody);
                 playerEgg._stunTimer=40;playerEgg._slamImmune=0;
             }
         }
@@ -2725,9 +2757,9 @@ function _gameUpdate(){
                 playerEgg.vz=playerEgg._elecFlyDir.z*0.4;
             }
             var _peBody2=playerEgg.mesh.userData.body;
-            if(_peBody2)_peBody2.material=new THREE.MeshBasicMaterial({color:Math.floor(playerEgg._elecFlying/3)%2===0?0x111111:0xFFFFFF,transparent:true,opacity:0.9});
+            if(_peBody2)_setElectricBodyFlash(playerEgg,_peBody2,Math.floor(playerEgg._elecFlying/3)%2===0?0x111111:0xFFFFFF);
             if(playerEgg._elecFlying<=0){
-                if(_peBody2)_peBody2.material=toon(playerEgg._origColor||0xFFDD44);
+                if(_peBody2)_restoreElectricBody(playerEgg,_peBody2);
                 playerEgg.vx*=0.1;playerEgg.vz*=0.1;
                 playerEgg._stunTimer=40;playerEgg._slamImmune=0;playerEgg._elecFlyDir=null;
             }
@@ -2785,7 +2817,7 @@ function _gameUpdate(){
     } else if(gameState==='racing'){
         // Safety: release player if holder is not in allEggs (stale grab from city mode)
         if(playerEgg&&playerEgg.heldBy&&allEggs.indexOf(playerEgg.heldBy)===-1){
-            playerEgg.heldBy=null;if(playerEgg.struggleBar){playerEgg.mesh.remove(playerEgg.struggleBar);playerEgg.struggleBar=null;}
+            playerEgg.heldBy=null;_removeEggStruggleBar(playerEgg);
         }
         handlePlayerInput();
         const raceEggs=allEggs.filter(e=>!e.cityNPC);

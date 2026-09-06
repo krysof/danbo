@@ -196,6 +196,8 @@ function MoveProjectile_update(proj){
 function MoveProjectile_cleanup(proj){
     scene.remove(proj.ball);
     scene.remove(proj.ring);
+    disposeTransientObject3D(proj.ball,true);
+    disposeTransientObject3D(proj.ring,true);
     // Clear player reference if this was the player's projectile
     if(proj.isPlayer && window._playerHadouken===proj){
         window._playerHadouken=null;

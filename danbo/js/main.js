@@ -289,6 +289,14 @@ if(_pfBackBtn)_pfBackBtn.addEventListener('click', function(){if(typeof _pfEndGa
 (function(){
     var tc=document.getElementById('touch-controls');
     if(!tc)return;
+    var ua=navigator.userAgent||'';
+    var ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    var standalone=!!navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+    // WKWebView/in-app browsers omit the normal Safari version token. Their
+    // persistent bottom toolbar overlays the CSS viewport instead of resizing it.
+    var embeddedIOS=ios&&!standalone&&!/Version\/[\d.]+.*Safari/i.test(ua);
+    document.documentElement.classList.toggle('danbo-ios-embedded',embeddedIOS);
+    if(embeddedIOS)window.dispatchEvent(new Event('resize'));
     function calcOffset(){
         var offset=12; // base minimum
         // Method 1: visualViewport — most reliable on Android Chrome
@@ -334,10 +342,6 @@ if(_pfBackBtn)_pfBackBtn.addEventListener('click', function(){if(typeof _pfEndGa
     var pn=_e('portal-no');if(pn)pn.textContent=L('portalNo');
     var mb=_e('music-btn');if(mb)mb.title=L('music');
     var sb2=_e('sfx-btn');if(sb2)sb2.title=L('sfx');
-    var gt=document.querySelector('.hud-pill:last-child');
-    // Grab/throw pill in city HUD
-    var pills=document.querySelectorAll('#city-hud .hud-pill');
-    if(pills.length>=3)pills[2].textContent=L('grabThrow');
     var zh2=_e('zoom-hud');if(zh2)zh2.textContent=(currentCityStyle===5)?L('moonCamHint'):L('zoomHint');
     var rb=_e('race-back-btn');if(rb)rb.textContent=L('raceBack');
     var bc=_e('back-city-btn');if(bc)bc.textContent=L('backCity');

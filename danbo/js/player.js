@@ -29,7 +29,7 @@ function handlePlayerInput(){
     // Cannot control while thrown or stunned (except struggle when held)
     if(playerEgg.throwTimer>0||playerEgg._stunTimer>0){
         // Interrupt: drop held items and cancel ALL special moves
-        if(playerEgg.holding){var _ih=playerEgg.holding;_ih.heldBy=null;playerEgg.holding=null;if(_ih.struggleBar){_ih.mesh.remove(_ih.struggleBar);_ih.struggleBar=null;}playerEgg.grabCD=20;}
+        if(playerEgg.holding){var _ih=playerEgg.holding;_ih.heldBy=null;playerEgg.holding=null;_removeEggStruggleBar(_ih);playerEgg.grabCD=20;}
         if(playerEgg.holdingProp){playerEgg.holdingProp.grabbed=false;playerEgg.holdingProp=null;playerEgg.grabCD=20;}
         if(playerEgg.holdingObs){playerEgg.holdingObs._grabbed=false;playerEgg.holdingObs=null;playerEgg.grabCD=20;}
         _jumpCharging=false;_jumpCharge=0;_chargeHoldTimer=0;
@@ -334,7 +334,7 @@ function handlePlayerInput(){
         if(playerEgg.holding&&!playerEgg.onGround&&(keys['KeyS']||keys['ArrowDown'])){
             var _bsHeld=playerEgg.holding;
             _bsHeld.heldBy=null;playerEgg.holding=null;
-            if(_bsHeld.struggleBar){_bsHeld.mesh.remove(_bsHeld.struggleBar);_bsHeld.struggleBar=null;}
+            _removeEggStruggleBar(_bsHeld);
             // Slam down fast
             playerEgg.vy=-0.6;playerEgg.vx*=0.1;playerEgg.vz*=0.1;
             playerEgg._bodySlam=true;playerEgg._bodySlamTarget=_bsHeld;
@@ -396,7 +396,7 @@ function handlePlayerInput(){
             var throwMul=1+chargePct*4;
             if(playerEgg.holding){
                 var held=playerEgg.holding;
-                held.heldBy=null; playerEgg.holding=null; if(held.struggleBar){held.mesh.remove(held.struggleBar);held.struggleBar=null;}
+                held.heldBy=null; playerEgg.holding=null; _removeEggStruggleBar(held);
                 held.mesh.position.set(playerEgg.mesh.position.x+Math.sin(dir)*2, playerEgg.mesh.position.y+0.5, playerEgg.mesh.position.z+Math.cos(dir)*2);
                 var tw=held.weight||1.0;var tf=0.5/tw*throwMul;held.vx=Math.sin(dir)*tf;held.vy=0.05+chargePct*0.25;held.vz=Math.cos(dir)*tf;held._throwTotal=80+Math.floor(chargePct*100);held.throwTimer=held._throwTotal;held._bounces=2+Math.floor(chargePct*2);held._chargeDrag=0.985+chargePct*0.01;
                 held.squash=0.5; playerEgg.grabCD=20;
@@ -435,7 +435,7 @@ function handlePlayerInput(){
                 playerEgg.grabCD=20; playThrowSound();
             } else if(playerEgg.holding){
                 var held2=playerEgg.holding;
-                held2.heldBy=null; playerEgg.holding=null; if(held2.struggleBar){held2.mesh.remove(held2.struggleBar);held2.struggleBar=null;}
+                held2.heldBy=null; playerEgg.holding=null; _removeEggStruggleBar(held2);
                 var dir2=playerEgg.mesh.rotation.y;
                 held2.mesh.position.set(playerEgg.mesh.position.x+Math.sin(dir2)*2, playerEgg.mesh.position.y+0.5, playerEgg.mesh.position.z+Math.cos(dir2)*2);
                 var tw2=held2.weight||1.0;var tf2=0.4/tw2;held2.vx=Math.sin(dir2)*tf2;held2.vy=0.15;held2.vz=Math.cos(dir2)*tf2;held2._throwTotal=80;held2.throwTimer=80;held2._bounces=2;held2._chargeDrag=0.992;
@@ -1120,7 +1120,7 @@ function handlePlayerInput(){
             _yfpp.life--;_yfpp.mesh.position.y+=0.03;
             _yfpp.mesh.material.opacity=_yfpp.life/15*0.85;
             _yfpp.mesh.scale.multiplyScalar(0.95);
-            if(_yfpp.life<=0){scene.remove(_yfpp.mesh);window._yogaFlameParticles.splice(_yfpi,1);}
+            if(_yfpp.life<=0){scene.remove(_yfpp.mesh);disposeTransientObject3D(_yfpp.mesh);window._yogaFlameParticles.splice(_yfpi,1);}
         }
     }
     // ---- Blanka in-place spin (Rolling Attack) ----

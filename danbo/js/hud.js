@@ -139,12 +139,12 @@ function _updateStunStars(egg){
         // Remove stun stars when stun ends so next stun picks a new random type
         if(egg._stunStars&&egg._stunStars.group.visible){
             egg._stunStars.group.visible=false;
-            scene.remove(egg._stunStars.group);egg._stunStars=null;
+            scene.remove(egg._stunStars.group);disposeTransientObject3D(egg._stunStars.group);egg._stunStars=null;
         }
     }
 }
 function _removeStunStars(egg){
-    if(egg._stunStars){scene.remove(egg._stunStars.group);egg._stunStars=null;}
+    if(egg._stunStars){scene.remove(egg._stunStars.group);disposeTransientObject3D(egg._stunStars.group);egg._stunStars=null;}
 }
 
 // ---- Sonic spin dash state ----
@@ -373,7 +373,7 @@ function _updateChargeParticles(){
     for(var i=_chargeParticles.length-1;i>=0;i--){
         var p=_chargeParticles[i];
         p.life--;
-        if(p.life<=0){scene.remove(p.mesh);_chargeParticles.splice(i,1);continue;}
+        if(p.life<=0){scene.remove(p.mesh);disposeTransientObject3D(p.mesh);_chargeParticles.splice(i,1);continue;}
         var t=p.life/p.maxLife;
         p.mesh.material.opacity=t*(p.type==='smoke'?0.5:0.6);
         if(p.type==='ring'){
@@ -491,7 +491,7 @@ function _pruneShellIndicators(){
     for(var i=_shellIndicators.length-1;i>=0;i--){
         var e=_shellIndicators[i];
         if(!e||!e.mesh||e.mesh.parent===null){
-            if(e&&e._shellIndicator){scene.remove(e._shellIndicator);e._shellIndicator=null;}
+            if(e&&e._shellIndicator){scene.remove(e._shellIndicator);disposeTransientObject3D(e._shellIndicator,true);e._shellIndicator=null;}
             _shellIndicators.splice(i,1);
         }
     }
@@ -662,7 +662,7 @@ function _updateEggTag(egg){
 function _pruneEggTags(){
     for(var i=_eggTags.length-1;i>=0;i--){
         var e=_eggTags[i];
-        if(!e||!e.mesh||e.mesh.parent===null){if(e&&e._tagSprite){scene.remove(e._tagSprite);e._tagSprite=null;}_eggTags.splice(i,1);}
+        if(!e||!e.mesh||e.mesh.parent===null){if(e&&e._tagSprite){scene.remove(e._tagSprite);disposeTransientObject3D(e._tagSprite,true);e._tagSprite=null;}_eggTags.splice(i,1);}
     }
 }
 // Kept for Explorer.addPoints(): force-refresh the player's tag on level change.

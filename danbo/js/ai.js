@@ -592,7 +592,7 @@ function updateCityNPC(egg){if(egg.heldBy)return;
             if(egg.holding&&!egg.onGround&&egg.vy<0&&Math.random()<0.02){
                 var _nbst=egg.holding;
                 _nbst.heldBy=null;egg.holding=null;
-                if(_nbst.struggleBar){_nbst.mesh.remove(_nbst.struggleBar);_nbst.struggleBar=null;}
+                _removeEggStruggleBar(_nbst);
                 egg.vy=-0.4;egg._npcBodySlam=_nbst;
                 _nbst.mesh.position.set(egg.mesh.position.x,egg.mesh.position.y-1.5,egg.mesh.position.z);
                 _nbst.vy=-0.4;
@@ -724,7 +724,7 @@ function updateCityNPC(egg){if(egg.heldBy)return;
             _npdt.mesh.position.set(egg.mesh.position.x,egg.mesh.position.y+1.5,egg.mesh.position.z);
         } else if(egg.onGround||egg.mesh.position.y<0.5){
             _npdt.heldBy=null;egg.holding=null;
-            if(_npdt.struggleBar){_npdt.mesh.remove(_npdt.struggleBar);_npdt.struggleBar=null;}
+            _removeEggStruggleBar(_npdt);
             _npdt.squash=0.1;
             var _npdDir=Math.random()*Math.PI*2;
             _npdt.vx=Math.sin(_npdDir)*0.4;_npdt.vy=0.25;_npdt.vz=Math.cos(_npdDir)*0.4;

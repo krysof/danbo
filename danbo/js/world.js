@@ -999,10 +999,11 @@ function clearCity(){
     cityColliders.length=0;
     cityBuildingMeshes.length=0;
     // Remove scene-added coins (cloud world coins)
+    // Coin geometry/material comes from the shared cinematic coin cache.
     for(var ci=0;ci<cityCoins.length;ci++){if(cityCoins[ci].inScene)scene.remove(cityCoins[ci].mesh);}
     cityCoins.length=0;
     // Remove scene-added chests (cloud world) and reset chest list
-    for(var chi=0;chi<cityChests.length;chi++){if(cityChests[chi].inScene&&cityChests[chi].group)scene.remove(cityChests[chi].group);}
+    for(var chi=0;chi<cityChests.length;chi++){if(cityChests[chi].inScene&&cityChests[chi].group){scene.remove(cityChests[chi].group);disposeTransientObject3D(cityChests[chi].group);}}
     cityChests.length=0;
     cityProps.length=0;
     window.DANBO_DYNAMIC_CITY_INSTANCES=[];
@@ -1029,48 +1030,48 @@ function clearCity(){
     window._snowParticles=null;
     window._snowCitySteam=null;
     window._snowCityWater=null;
-    if(window._cityAnimals){for(var _cai=0;_cai<window._cityAnimals.length;_cai++){var _ca=window._cityAnimals[_cai];if(_ca._inScene)scene.remove(_ca.group);else if(_ca.group&&_ca.group.parent)_ca.group.parent.remove(_ca.group);}}
+    if(window._cityAnimals){for(var _cai=0;_cai<window._cityAnimals.length;_cai++){var _ca=window._cityAnimals[_cai];if(_ca._inScene)scene.remove(_ca.group);else if(_ca.group&&_ca.group.parent)_ca.group.parent.remove(_ca.group);disposeTransientObject3D(_ca.group);}}
     window._cityAnimals=null;
     if(window._allProjectiles){for(var _api2=0;_api2<window._allProjectiles.length;_api2++){MoveProjectile_cleanup(window._allProjectiles[_api2]);}window._allProjectiles=[];}
     window._playerHadouken=null;
     // Remove city NPCs
-    for(var i=0;i<cityNPCs.length;i++){_removeStunStars(cityNPCs[i]);scene.remove(cityNPCs[i].mesh);}
+    for(var i=0;i<cityNPCs.length;i++){_removeStunStars(cityNPCs[i]);scene.remove(cityNPCs[i].mesh);disposeTransientObject3D(cityNPCs[i].mesh);}
     cityNPCs.length=0;
     // Remove from allEggs
     for(var j=allEggs.length-1;j>=0;j--){if(allEggs[j].cityNPC){scene.remove(allEggs[j].mesh);allEggs.splice(j,1);}}
     // Remove clouds
-    for(var k=0;k<cityCloudPlatforms.length;k++){scene.remove(cityCloudPlatforms[k].group);}
+    for(var k=0;k<cityCloudPlatforms.length;k++){scene.remove(cityCloudPlatforms[k].group);disposeTransientObject3D(cityCloudPlatforms[k].group);}
     cityCloudPlatforms.length=0;
     // Remove cloud world moon pipes
     if(_cloudWorldPipes&&_cloudWorldPipes.length){
-        for(var _cwpi=0;_cwpi<_cloudWorldPipes.length;_cwpi++)if(_cloudWorldPipes[_cwpi]&&_cloudWorldPipes[_cwpi].group)scene.remove(_cloudWorldPipes[_cwpi].group);
+        for(var _cwpi=0;_cwpi<_cloudWorldPipes.length;_cwpi++)if(_cloudWorldPipes[_cwpi]&&_cloudWorldPipes[_cwpi].group){scene.remove(_cloudWorldPipes[_cwpi].group);disposeTransientObject3D(_cloudWorldPipes[_cwpi].group);}
         _cloudWorldPipes.length=0;
-    }else if(_cloudWorldPipe&&_cloudWorldPipe.group)scene.remove(_cloudWorldPipe.group);
+    }else if(_cloudWorldPipe&&_cloudWorldPipe.group){scene.remove(_cloudWorldPipe.group);disposeTransientObject3D(_cloudWorldPipe.group);}
     _cloudWorldPipe=null;
     // Remove moon earth
-    if(window._moonEarth){scene.remove(window._moonEarth);window._moonEarth=null;}
+    if(window._moonEarth){scene.remove(window._moonEarth);disposeTransientObject3D(window._moonEarth);window._moonEarth=null;}
     // Remove moon stars
-    if(window._moonStars){for(var si=0;si<window._moonStars.length;si++){scene.remove(window._moonStars[si].mesh);}window._moonStars=null;}
+    if(window._moonStars){for(var si=0;si<window._moonStars.length;si++){scene.remove(window._moonStars[si].mesh);disposeTransientObject3D(window._moonStars[si].mesh);}window._moonStars=null;}
     // Remove moon nebulae
-    if(window._moonNebulae){for(var ni=0;ni<window._moonNebulae.length;ni++){scene.remove(window._moonNebulae[ni]);}window._moonNebulae=null;}
+    if(window._moonNebulae){for(var ni=0;ni<window._moonNebulae.length;ni++){scene.remove(window._moonNebulae[ni]);disposeTransientObject3D(window._moonNebulae[ni]);}window._moonNebulae=null;}
     // Remove moon Gundams
-    if(window._moonGundams){for(var gi=0;gi<window._moonGundams.length;gi++){scene.remove(window._moonGundams[gi].group);}window._moonGundams=null;}
-    if(window._moonBeams){for(var bi=0;bi<window._moonBeams.length;bi++){scene.remove(window._moonBeams[bi].mesh);}window._moonBeams=null;}
-    if(window._moonMissiles){for(var mmi=0;mmi<window._moonMissiles.length;mmi++){scene.remove(window._moonMissiles[mmi].group);}window._moonMissiles=null;}
+    if(window._moonGundams){for(var gi=0;gi<window._moonGundams.length;gi++){scene.remove(window._moonGundams[gi].group);disposeTransientObject3D(window._moonGundams[gi].group);}window._moonGundams=null;}
+    if(window._moonBeams){for(var bi=0;bi<window._moonBeams.length;bi++){scene.remove(window._moonBeams[bi].mesh);disposeTransientObject3D(window._moonBeams[bi].mesh);}window._moonBeams=null;}
+    if(window._moonMissiles){for(var mmi=0;mmi<window._moonMissiles.length;mmi++){var _mm=window._moonMissiles[mmi];scene.remove(_mm.group);disposeTransientObject3D(_mm.group);for(var _mti=0;_mti<(_mm.trail||[]).length;_mti++){scene.remove(_mm.trail[_mti].mesh);disposeTransientObject3D(_mm.trail[_mti].mesh);}}window._moonMissiles=null;}
     window._moonShields=null;
     // Remove shield dome visual meshes from scene
-    if(window._moonShieldDomes){for(var _sdi=0;_sdi<window._moonShieldDomes.length;_sdi++){scene.remove(window._moonShieldDomes[_sdi]);}window._moonShieldDomes=null;}
+    if(window._moonShieldDomes){for(var _sdi=0;_sdi<window._moonShieldDomes.length;_sdi++){scene.remove(window._moonShieldDomes[_sdi]);disposeTransientObject3D(window._moonShieldDomes[_sdi]);}window._moonShieldDomes=null;}
     window._moonCities=null;
     window._moonBldgColliders=null;
     window._moonRover=null;
     window._earthReturnPortal=null;
     // Remove solar system objects
-    if(window._solarPlanets){for(var spi=0;spi<window._solarPlanets.length;spi++){scene.remove(window._solarPlanets[spi].mesh);}window._solarPlanets=null;}
-    if(window._sunSolar){scene.remove(window._sunSolar);window._sunSolar=null;}
-    if(window._sunSolarGlow){scene.remove(window._sunSolarGlow);window._sunSolarGlow=null;}
+    if(window._solarPlanets){for(var spi=0;spi<window._solarPlanets.length;spi++){scene.remove(window._solarPlanets[spi].mesh);disposeTransientObject3D(window._solarPlanets[spi].mesh);}window._solarPlanets=null;}
+    if(window._sunSolar){scene.remove(window._sunSolar);disposeTransientObject3D(window._sunSolar);window._sunSolar=null;}
+    if(window._sunSolarGlow){scene.remove(window._sunSolarGlow);disposeTransientObject3D(window._sunSolarGlow);window._sunSolarGlow=null;}
     if(window._solarLight){scene.remove(window._solarLight);window._solarLight=null;}
     // Remove Tower of Babel
-    if(_babylonTower){scene.remove(_babylonTower.group);_babylonTower=null;}
+    if(_babylonTower){scene.remove(_babylonTower.group);disposeTransientObject3D(_babylonTower.group);_babylonTower=null;}
     _babylonTriggered=false;_babylonRising=false;_babylonRiseY=-52;_earthquakeTimer=0;_babylonCoinsCollected=0;
     _moonPipeDismissed=false;_moonPipePromptOpen=false;
 }
@@ -1329,7 +1330,7 @@ function updatePipeTravel(){
     if(_pipeTimer>=_pipeDuration){
         _pipeTraveling=false;
         _pipeArrivalCooldown=60; // 1 second grace period before portal checks
-        if(_pipeTubeGroup){scene.remove(_pipeTubeGroup);_pipeTubeGroup=null;}
+        if(_pipeTubeGroup){scene.remove(_pipeTubeGroup);disposeTransientObject3D(_pipeTubeGroup);_pipeTubeGroup=null;}
         if(currentCityStyle===5){
             // Moon flat: spawn inside Von Braun city
             playerEgg.mesh.position.set(-200,3,0);
@@ -1383,7 +1384,7 @@ function switchCity(targetStyle){
     stopBGM();stopRaceBGM();
     startBGM();
     // Spawn player at center
-    if(playerEgg){scene.remove(playerEgg.mesh);var idx=allEggs.indexOf(playerEgg);if(idx!==-1)allEggs.splice(idx,1);playerEgg=null;}
+    if(playerEgg){scene.remove(playerEgg.mesh);disposeTransientObject3D(playerEgg.mesh);var idx=allEggs.indexOf(playerEgg);if(idx!==-1)allEggs.splice(idx,1);playerEgg=null;}
     var skin=CHARACTERS[selectedChar];
     playerEgg=createEgg(0,0,skin.color,skin.accent,true,undefined,skin.type);
     playerEgg.finished=false;playerEgg.alive=true;

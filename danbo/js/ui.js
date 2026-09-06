@@ -306,27 +306,8 @@ if (portraitCtx) _updateSF2Select(0);
     window._setCharacterSelectStyle=setStyle;
     setStyle(initial,false);
 
-    // On narrow screens the confirmation row must escape the roster panel's
-    // overflow clipping before it can be fixed above mobile browser chrome.
-    // Moving the existing node preserves its click handler and translated text.
-    var confirmRow=document.querySelector('.select-confirm-row');
-    if(confirmRow&&confirmRow.parentNode){
-        var confirmHome=document.createComment('select-confirm-home');
-        confirmRow.parentNode.insertBefore(confirmHome,confirmRow);
-        var mobileQuery=window.matchMedia('(max-width:700px)');
-        var iosBrowser=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-        document.documentElement.classList.toggle('danbo-ios-browser',iosBrowser);
-        function syncConfirmPlacement(){
-            if(mobileQuery.matches){
-                if(confirmRow.parentNode!==screen)screen.appendChild(confirmRow);
-            }else if(confirmHome.parentNode&&confirmRow.parentNode!==confirmHome.parentNode){
-                confirmHome.parentNode.insertBefore(confirmRow,confirmHome.nextSibling);
-            }
-        }
-        if(mobileQuery.addEventListener)mobileQuery.addEventListener('change',syncConfirmPlacement);
-        else if(mobileQuery.addListener)mobileQuery.addListener(syncConfirmPlacement);
-        syncConfirmPlacement();
-    }
+    // Keep confirmation inside the roster grid. Pulling it into a fixed layer
+    // made it cover the second row of characters on portrait phones.
 })();
 
 // ---- State ----
