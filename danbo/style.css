@@ -402,3 +402,6 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 @media(max-width:700px){.server-list-item{grid-template-columns:auto minmax(0,1fr) auto;min-height:88px}.server-ping{display:none}.server-state-text{grid-column:2/-1}.server-main-copy strong{font-size:16px}}
 
 .coop-card{margin:16px 0;padding:14px;border:1px solid #75cebc55;border-radius:16px;background:#16414d}.coop-card h3{color:#8ce9d2;margin:0 0 8px}.coop-card #coop-status{color:#ffe0a0;font-weight:700}.coop-card #coop-note{color:#8ce9d2}
+.coop-steps{padding-left:1.4em;font-size:13px;line-height:1.6}.coop-steps li+li{margin-top:6px}#coop-title:focus-visible{outline:2px solid #ffd886;outline-offset:3px}#coop-card{scroll-margin:12px}#journey-task{white-space:pre-line}
+/* Keep dismissal available after the task scrolls directly to the rules. */
+#journey-close{position:sticky;top:0;right:0;float:right;z-index:2;width:36px;height:36px;border-radius:10px;background:#153746}#coop-title{padding-right:30px}
