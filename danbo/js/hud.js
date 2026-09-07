@@ -629,29 +629,18 @@ function _eggDisplayName(egg){
     if(!egg._explorerName){egg._explorerName=_NPC_NICKS[_explorerNameSeq%_NPC_NICKS.length];_explorerNameSeq++;}
     return egg._explorerName;
 }
-function _makeTagSprite(){
-    var cv=document.createElement('canvas');cv.width=256;cv.height=96;
-    var tex=new THREE.CanvasTexture(cv);
-    var spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
-    spr.scale.set(2.7,1.0,1);
-    spr._ctx=cv.getContext('2d');spr._tex=tex;
+function _makeTagSprite(egg){
+    // Keep the existing Object3D anchor/lifecycle, not a low-resolution sprite.
+    var spr=DANBO_WORLD_LABELS.create('name',egg.mesh);
+    DANBO_WORLD_LABELS.setLocal(spr,egg.isPlayer);
     return spr;
 }
 function _drawEggTag(spr,name,levelLine){
-    var ctx=spr._ctx;ctx.clearRect(0,0,256,96);
-    ctx.textAlign='center';ctx.lineJoin='round';
-    var ny=levelLine?30:54;
-    ctx.font='bold 30px system-ui,Segoe UI,sans-serif';ctx.lineWidth=6;ctx.strokeStyle='rgba(0,0,0,0.85)';ctx.fillStyle='#FFFFFF';
-    ctx.strokeText('['+name+']',128,ny);ctx.fillText('['+name+']',128,ny);
-    if(levelLine){
-        ctx.font='bold 22px system-ui,Segoe UI,sans-serif';ctx.fillStyle='#FFD86B';
-        ctx.strokeText(levelLine,128,66);ctx.fillText(levelLine,128,66);
-    }
-    spr._tex.needsUpdate=true;
+    DANBO_WORLD_LABELS.setText(spr,name,levelLine);
 }
 function _updateEggTag(egg){
     if(typeof scene==='undefined'||!egg||!egg.mesh)return;
-    if(!egg._tagSprite){egg._tagSprite=_makeTagSprite();egg._tagKey='';scene.add(egg._tagSprite);_eggTags.push(egg);}
+    if(!egg._tagSprite){egg._tagSprite=_makeTagSprite(egg);egg._tagKey='';scene.add(egg._tagSprite);_eggTags.push(egg);}
     var spr=egg._tagSprite;spr.visible=true;
     var name=_eggDisplayName(egg);
     var levelLine='';

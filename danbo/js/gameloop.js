@@ -1853,7 +1853,7 @@ function ensureStruggleBar(){
 }
 
 // ---- PSOBB-style Chat Bubble System ----
-var _chatBubbles=[]; // {egg, div, timer}
+var _chatBubbles=[]; // {egg, sprite: Object3D text anchor, timer}
 var _chatInput=null, _chatOpen=false;
 function _ensureChatInput(){
     if(_chatInput)return;
@@ -1955,33 +1955,10 @@ function _showChatBubble(egg,msg,duration){
             _chatBubbles.splice(i,1);
         }
     }
-    // Create 3D sprite bubble above egg head (PSOBB comic style)
-    var canvas=document.createElement('canvas');
-    canvas.width=512;canvas.height=128;
-    var ctx2=canvas.getContext('2d');
-    // Comic bubble background
-    ctx2.fillStyle='rgba(255,255,255,0.92)';
-    _drawBubblePath(ctx2,10,10,492,90,18);
-    ctx2.fill();
-    ctx2.strokeStyle='rgba(0,0,0,0.5)';ctx2.lineWidth=3;
-    _drawBubblePath(ctx2,10,10,492,90,18);
-    ctx2.stroke();
-    // Tail triangle
-    ctx2.fillStyle='rgba(255,255,255,0.92)';
-    ctx2.beginPath();ctx2.moveTo(230,100);ctx2.lineTo(256,125);ctx2.lineTo(280,100);ctx2.fill();
-    ctx2.strokeStyle='rgba(0,0,0,0.5)';ctx2.lineWidth=3;
-    ctx2.beginPath();ctx2.moveTo(230,100);ctx2.lineTo(256,125);ctx2.lineTo(280,100);ctx2.stroke();
-    // Text — auto-size font to fit
-    ctx2.fillStyle='#222';ctx2.textAlign='center';ctx2.textBaseline='middle';
-    var _bfs=32;ctx2.font='bold '+_bfs+'px sans-serif';
-    var _btxt=msg.substring(0,24);
-    while(ctx2.measureText(_btxt).width>470&&_bfs>14){_bfs-=2;ctx2.font='bold '+_bfs+'px sans-serif';}
-    ctx2.fillText(_btxt,256,55);
-    var tex=new THREE.CanvasTexture(canvas);
-    var spriteMat=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});
-    var sprite=new THREE.Sprite(spriteMat);
-    sprite.scale.set(4,1,1);
-    sprite.position.y=3.2;
+    var sprite=DANBO_WORLD_LABELS.create('chat',egg.mesh);
+    DANBO_WORLD_LABELS.setText(sprite,String(msg||'').slice(0,40));
+    DANBO_WORLD_LABELS.setLocal(sprite,egg.isPlayer);
+    sprite.position.y=egg.isPlayer?4.9:3.2;
     egg.mesh.add(sprite);
     _chatBubbles.push({egg:egg,sprite:sprite,timer:_bubbleTime});
 }
@@ -1997,7 +1974,8 @@ function _updateChatBubbles(){
     for(var i=_chatBubbles.length-1;i>=0;i--){
         var cb=_chatBubbles[i];
         cb.timer--;
-        if(cb.timer<30&&cb.sprite)cb.sprite.material.opacity=cb.timer/30;
+        if(cb.timer<30&&cb.sprite)DANBO_WORLD_LABELS.setOpacity(cb.sprite,cb.timer/30);
+        if(!cb.egg||!cb.egg.mesh||!cb.egg.mesh.parent)cb.timer=0;
         if(cb.timer<=0){
             if(cb.sprite&&cb.egg&&cb.egg.mesh)cb.egg.mesh.remove(cb.sprite);
             if(cb.sprite)disposeTransientObject3D(cb.sprite,true);
@@ -2658,10 +2636,11 @@ function animate(now){
     _lastFrameTime=now;
     // A staged city rebuild owns the scene. Keep its last complete frame and
     // let the compositor animate the transfer indicator; never render half a city.
-    if(typeof _pipeCityBuilding!=='undefined'&&_pipeCityBuilding){_accumulator=0;return;}
+    if(typeof _pipeCityBuilding!=='undefined'&&_pipeCityBuilding){_accumulator=0;DANBO_WORLD_LABELS.hide();return;}
     // Title/server/character screens have their own animation loops. Rendering
     // the full city behind them doubled GPU work (especially during 3D select).
     if(gameState==='menu'){
+        DANBO_WORLD_LABELS.hide();
         // Some legacy HUD widgets are created dynamically and used to rely on
         // the city update loop to hide them. Keep that housekeeping lightweight.
         if(_menuUiSyncFrame++%30===0)_hideWorldUiBehindMenus();
@@ -2678,6 +2657,7 @@ function animate(now){
         _ticks++;
     }
     if(_pipeTraveling){
+        DANBO_WORLD_LABELS.hide();
         if(!_pipeCityBuilding)_renderPipeTravelFrame();
         return;
     }
@@ -2687,6 +2667,7 @@ function animate(now){
     if(typeof _syncDynamicCityInstances==='function')_syncDynamicCityInstances();
     if(typeof _renderCinematicFrame==='function')_renderCinematicFrame();
     else R.render(scene,camera);
+    DANBO_WORLD_LABELS.update();
 }
 
 function _gameUpdate(){
@@ -2717,6 +2698,7 @@ function _gameUpdate(){
     if(gameState==='city'&&_pipeTraveling){updatePipeTravel();return;}
     // Shell status above EVERY character, every mode (player + race rivals + city NPCs).
     if(typeof _updateAllShellStatus==='function')_updateAllShellStatus();
+    _updateChatBubbles();
     // Cosmetic shop / equipped looks / footprints (single-player, local).
     if(typeof Cosmetics!=='undefined'&&Cosmetics.update)Cosmetics.update();
     // Chest exploration HUD only shows while roaming a city (not inside a house).
@@ -2829,7 +2811,6 @@ function _gameUpdate(){
         resolveEggCollisions(cityEggList);
         checkThrownEggImpact(cityEggList);
         updateHeldEggs();
-        _updateChatBubbles();
         for(var _nci=0;_nci<allEggs.length;_nci++){if(!allEggs[_nci].isPlayer)_npcRandomChat(allEggs[_nci]);}
         if(_pfActive&&typeof _pfUpdateCamera==='function'){_pfUpdateCamera();}else{updateCamera();}
     } else if(gameState==='racing'){

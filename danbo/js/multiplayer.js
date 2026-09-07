@@ -293,26 +293,8 @@
         if(typeof R!=='undefined'&&R.domElement)R.domElement.focus();
     }
     function makeNameSprite(name){
-        var canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
-        var ctx=canvas.getContext('2d');
-        ctx.clearRect(0,0,512,128);
-        ctx.fillStyle='rgba(8,18,30,.78)';
-        ctx.beginPath();
-        if(ctx.roundRect)ctx.roundRect(20,18,472,90,30);
-        else{
-            ctx.moveTo(50,18);ctx.lineTo(462,18);ctx.quadraticCurveTo(492,18,492,48);
-            ctx.lineTo(492,78);ctx.quadraticCurveTo(492,108,462,108);ctx.lineTo(50,108);
-            ctx.quadraticCurveTo(20,108,20,78);ctx.lineTo(20,48);ctx.quadraticCurveTo(20,18,50,18);
-        }
-        ctx.fill();
-        ctx.strokeStyle='rgba(255,239,185,.9)';ctx.lineWidth=5;ctx.stroke();
-        ctx.font='800 42px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillStyle='#fff8dc';ctx.fillText(String(name||'Player').slice(0,16),256,63,430);
-        var texture=new THREE.CanvasTexture(canvas);
-        if(typeof THREE.SRGBColorSpace!=='undefined')texture.colorSpace=THREE.SRGBColorSpace;
-        var material=new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,alphaTest:0.04});
-        var sprite=new THREE.Sprite(material);sprite.scale.set(2.6,0.65,1);sprite.position.y=2.25;
-        sprite.renderOrder=30;sprite.userData.noAO=true;
+        var sprite=DANBO_WORLD_LABELS.create('name');sprite.position.y=2.25;
+        DANBO_WORLD_LABELS.setText(sprite,String(name||'Player').slice(0,16));
         return sprite;
     }
     function rebuildRemoteAvatar(remote,statePlayer){
@@ -330,8 +312,7 @@
     function rebuildRemoteName(remote,name){
         if(remote.nameSprite){
             remote.root.remove(remote.nameSprite);
-            if(remote.nameSprite.material&&remote.nameSprite.material.map)remote.nameSprite.material.map.dispose();
-            if(remote.nameSprite.material)remote.nameSprite.material.dispose();
+            disposeTransientObject3D(remote.nameSprite,true);
         }
         remote.nameSprite=makeNameSprite(name);remote.root.add(remote.nameSprite);remote.name=name;
     }
@@ -349,8 +330,7 @@
         var remote=remotes.get(sessionId);if(!remote)return;
         scene.remove(remote.root);
         if(remote.avatar)disposeTransientObject3D(remote.avatar);
-        if(remote.nameSprite&&remote.nameSprite.material&&remote.nameSprite.material.map)remote.nameSprite.material.map.dispose();
-        if(remote.nameSprite&&remote.nameSprite.material)remote.nameSprite.material.dispose();
+        if(remote.nameSprite)disposeTransientObject3D(remote.nameSprite,true);
         remotes.delete(sessionId);
     }
     function removeAllRemotes(){var ids=Array.from(remotes.keys());for(var i=0;i<ids.length;i++)removeRemote(ids[i]);}

@@ -18,11 +18,12 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260907.7">
+<link rel="stylesheet" href="style.css?v=20260907.8">
 </head>
 <body>
 <div id="game-container">
   <div id="three-root"></div>
+  <div id="world-label-layer" aria-hidden="true" hidden></div>
   <button id="journey-task" type="button" hidden>初次旅行</button>
   <div id="journey-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="journey-title">
     <section class="account-card journey-card">
@@ -340,7 +341,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.7';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.8';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -388,6 +389,7 @@
     'js/intro.js',
     'js/audio.js',
     'js/renderer.js',
+    'js/world-labels.js',
     'js/postfx.js',
     'js/visuals.js',
     'js/characters.js',

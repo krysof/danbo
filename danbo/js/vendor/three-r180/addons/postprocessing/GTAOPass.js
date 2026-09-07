@@ -666,7 +666,8 @@ class GTAOPass extends Pass {
 
 			}
 
-			if ( ( object.isPoints || object.isLine || object.isLine2 || noAO ) && object.visible ) {
+			// Exclude new sprites immediately, not only after DANBO's periodic mark.
+			if ( ( object.isSprite || object.isPoints || object.isLine || object.isLine2 || noAO ) && object.visible ) {
 
 				object.visible = false;
 				cache.push( object );
