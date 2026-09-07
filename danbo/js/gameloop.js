@@ -2728,7 +2728,7 @@ function _gameUpdate(){
     if(gameState==='city'){
         // ---- Inside a house: run isolated interior loop, skip all city updates ----
         if(window._interiorActive){
-            if(!window._worldMapOpen&&!window._multiplayerPanelOpen&&typeof handlePlayerInput==='function')handlePlayerInput();
+            if(!window._worldMapOpen&&!window._multiplayerPanelOpen&&!window._accountPanelOpen&&typeof handlePlayerInput==='function')handlePlayerInput();
             if(typeof _interiorPhysics==='function')_interiorPhysics(playerEgg);
             if(typeof _interiorCheckExit==='function')_interiorCheckExit();
             if(playerEgg){_updateStunStars(playerEgg);_updatePainFace(playerEgg);}
@@ -2738,7 +2738,7 @@ function _gameUpdate(){
         if(_pipeTraveling){
             updatePipeTravel();
         } else {
-            if(!window._worldMapOpen&&!window._shopOpen&&!window._multiplayerPanelOpen)handlePlayerInput(); // pause movement while a UI panel is open
+            if(!window._worldMapOpen&&!window._shopOpen&&!window._multiplayerPanelOpen&&!window._accountPanelOpen)handlePlayerInput(); // pause movement while a UI panel is open
         }
         if(playerEgg&&!_pipeTraveling) updateEggPhysics(playerEgg, true);
         if(playerEgg){_updateStunStars(playerEgg);_updatePainFace(playerEgg);}

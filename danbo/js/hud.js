@@ -624,6 +624,7 @@ function _updateAllShellStatus(){
 var _eggTags=[],_explorerNameSeq=0;
 var _NPC_NICKS=['\u5C0F\u86CB','\u86CB\u9171','\u65C5\u4EBA','\u963F\u5149','\u7CD6\u7CD6','\u96EA\u5B9D','\u55B5\u55B5','\u5927\u529B','\u95EA\u7535','\u6CE1\u6CE1','\u679C\u51BB','\u5495\u5495','\u5947\u5947','\u8E66\u8E66','\u661F\u661F','momo'];
 function _eggDisplayName(egg){
+    if(egg.isPlayer&&window.DANBO_ACCOUNT){var profile=DANBO_ACCOUNT.getUser();if(profile&&profile.characterName)return profile.characterName;}
     if(egg.isPlayer)return (typeof CHARACTERS!=='undefined'&&typeof selectedChar!=='undefined'&&CHARACTERS[selectedChar])?CHARACTERS[selectedChar].name:'Player';
     if(!egg._explorerName){egg._explorerName=_NPC_NICKS[_explorerNameSeq%_NPC_NICKS.length];_explorerNameSeq++;}
     return egg._explorerName;

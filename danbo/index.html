@@ -13,11 +13,44 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260907.1">
+<link rel="stylesheet" href="style.css?v=20260907.2">
 </head>
 <body>
 <div id="game-container">
   <div id="three-root"></div>
+
+  <div id="account-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="account-title">
+    <section class="account-card">
+      <button id="account-close" class="account-close" type="button" aria-label="关闭">×</button>
+      <small>DANBO ACCOUNT</small><h2 id="account-title">你的蛋宝世界</h2>
+      <p id="account-current"></p><p id="account-profile"></p>
+      <div id="account-tabs" class="account-tabs" role="tablist"><button id="account-tab-login" type="button" role="tab">登录</button><button id="account-tab-register" type="button" role="tab">注册并保存人物</button></div>
+      <form id="account-form">
+        <label><span id="account-login-label">用户名或邮箱</span><input id="account-login" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+        <label id="account-email-row" hidden><span>邮箱</span><input id="account-email" type="email" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false"></label>
+        <label><span>密码</span><input id="account-password" type="password" required maxlength="128" autocomplete="current-password"></label>
+        <p id="account-registration-note" class="account-hint" hidden>用户名 3–16 字；密码 15–128 字。当前人物名字和角色将保存到账号。邮箱暂不验证，尚不支持邮件找回密码。</p>
+        <button id="account-submit" class="account-primary" type="submit">登录</button>
+      </form>
+      <p id="account-message" class="account-error" role="status" aria-live="polite"></p>
+      <button id="account-guest" class="account-guest" type="button">先以游客身份游玩 →</button>
+      <button id="account-logout" class="account-guest" type="button" hidden>退出账号</button>
+      <p class="account-hint">游客人物资料保存在此浏览器；清除网站数据会丢失。注册后人物名字和角色可跨设备使用。现有游戏进度仍保存在本地。</p>
+    </section>
+  </div>
+  <div id="character-name-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="character-name-title">
+    <section class="account-card character-name-card">
+      <small>MEET YOUR DANBO</small><h2 id="character-name-title">给人物起个名字</h2>
+      <p id="character-name-hero"></p>
+      <form id="character-name-form">
+        <label><span>人物名字（与登录用户名分开）</span><input id="character-name-input" required minlength="2" maxlength="16" autocomplete="off" placeholder="例如：星光蛋宝"></label>
+        <p class="account-hint">2–16 字，可用文字、数字、空格、下划线或短横线。下次会记住这个名字。</p>
+        <p id="character-name-message" class="account-error" role="status"></p>
+        <button id="character-name-submit" class="account-primary" type="submit">保存名字，进入游戏 →</button>
+        <button id="character-name-back" class="account-guest" type="button">返回选角色</button>
+      </form>
+    </section>
+  </div>
 
   <!-- Title screen — SF2 style animated intro -->
   <div id="start-screen" class="screen active">
@@ -41,6 +74,7 @@
           <small>DANBO ONLINE</small>
           <h2>选择服务器</h2>
           <p>刷新服务器状态，选择后再进入角色界面。</p>
+          <button id="account-server-open" class="server-refresh-btn" type="button">游客 / 登录注册</button>
         </div>
         <button id="server-list-refresh" class="server-refresh-btn" type="button">↻ 刷新列表</button>
       </header>
@@ -181,6 +215,7 @@
         <label><span>房间码</span><input id="multiplayer-code" maxlength="8" autocapitalize="characters" autocomplete="off" value="PUBLIC" placeholder="例如 DANBO88"></label>
       </div>
       <div class="multiplayer-actions">
+        <button id="account-open" type="button">游客 · 注册</button>
         <button id="multiplayer-browse" type="button">选择服务器 / 换服</button>
         <button id="multiplayer-quick" class="multiplayer-primary" type="button">快速加入公共房</button>
         <button id="multiplayer-create" type="button">创建私人房</button>
@@ -258,7 +293,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.1';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.2';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -314,6 +349,7 @@
     'js/input.js',
     'js/entity.js',
     'js/multiplayer.js',
+    'js/account.js',
     'js/select-3d.js',
     'js/city.js',
     'js/world.js',

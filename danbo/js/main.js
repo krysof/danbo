@@ -108,9 +108,16 @@ if('ontouchstart' in window){
 }
 
 var _selectConfirmed=false;
-document.getElementById('confirm-btn').addEventListener('click',()=>{
+document.getElementById('confirm-btn').addEventListener('click',async()=>{
     if(_selectConfirmed)return;
     _selectConfirmed=true;
+    if(window.DANBO_ACCOUNT){
+        try{
+            if(!await DANBO_ACCOUNT.ensure(DANBO_MULTIPLAYER.getEndpoint())||!await DANBO_ACCOUNT.requestCharacter()){
+                _selectConfirmed=false;return;
+            }
+        }catch(_error){_selectConfirmed=false;return;}
+    }
     playMenuConfirm();
     stopSelectBGM();
     var _selCh=CHARACTERS[selectedChar];
@@ -133,6 +140,7 @@ document.getElementById('confirm-btn').addEventListener('click',()=>{
 var _menuJoyCD=0; // cooldown to prevent rapid scrolling
 var _menuJoyConfirmCD=0;
 function _updateMenuJoy(){
+    if(window._accountPanelOpen){requestAnimationFrame(_updateMenuJoy);return;}
     if(gameState!=='menu'){requestAnimationFrame(_updateMenuJoy);return;}
     // Title screen: jump or grab button = start game
     var ss=document.getElementById('start-screen');
@@ -204,6 +212,7 @@ function selectCharByIndex(idx){
     playMenuMove();
 }
 addEventListener('keydown',function(e){
+    if(window._accountPanelOpen)return;
     if(gameState==='menu'){
         if(e.code==='Enter'||e.code==='Space'){
             e.preventDefault();

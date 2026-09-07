@@ -747,6 +747,8 @@ function _openLeaderboard(){
     var old=document.getElementById('lb-panel');if(old){old.parentNode.removeChild(old);return;}
     var lv=Explorer.levelInfo();
     var name=(typeof CHARACTERS!=='undefined'&&CHARACTERS[selectedChar])?CHARACTERS[selectedChar].name:'Player';
+    if(window.DANBO_ACCOUNT){var profile=DANBO_ACCOUNT.getUser();if(profile&&profile.characterName)name=profile.characterName;}
+    name=String(name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     var p=document.createElement('div');p.id='lb-panel';
     p.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:130;min-width:300px;max-width:86vw;'+
         'padding:18px 22px;border-radius:16px;background:linear-gradient(160deg,rgba(18,22,38,0.97),rgba(40,30,60,0.97));'+

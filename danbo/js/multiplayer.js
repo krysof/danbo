@@ -155,6 +155,9 @@
     }
     function enterSelectedServer(){
         if(!selectedServerReady||!selectedServerEndpoint)return false;
+        if(window.DANBO_ACCOUNT&&!DANBO_ACCOUNT.getToken(selectedServerEndpoint)){
+            DANBO_ACCOUNT.ensure(selectedServerEndpoint).then(function(ok){if(ok)enterSelectedServer();});return false;
+        }
         try{localStorage.setItem('danbo_multiplayer_server_v2',selectedServerEndpoint);}catch(_error){}
         if(ui.endpoint)ui.endpoint.value=selectedServerEndpoint;
         if(gameState==='city'&&playerEgg){
@@ -173,7 +176,8 @@
         if(typeof window.DANBO_OPEN_CHARACTER_SELECT==='function')window.DANBO_OPEN_CHARACTER_SELECT();
         return true;
     }
-    function openServerBrowser(){
+    async function openServerBrowser(){
+        if(window.DANBO_ACCOUNT&&!await DANBO_ACCOUNT.ensure(configuredEndpoint()))return false;
         closePanel();
         if(ui.serverBack)ui.serverBack.hidden=gameState!=='city';
         if(gameState==='city')window._multiplayerPanelOpen=true;
@@ -181,6 +185,8 @@
         refreshServerList();
     }
     function currentName(){
+        var account=window.DANBO_ACCOUNT&&DANBO_ACCOUNT.getUser();
+        if(account)return account.characterName;
         var name=ui.name?ui.name.value.trim():'';
         if(!name){
             try{name=(localStorage.getItem('danbo_player_name')||'').trim();}catch(e){}
@@ -431,6 +437,7 @@
         var endpoint=normalizeEndpoint(ui.endpoint&&ui.endpoint.value||configuredEndpoint());
         if(!endpoint){openPanel();setStatus('error','需要服务器');showSummary('尚未配置联机服务器地址。请在“高级设置”中填写 WSS 地址。',true);return false;}
         code=normalizeCode(code);
+        if(window.DANBO_ACCOUNT&&!await DANBO_ACCOUNT.ensure(endpoint))return false;
         var name=currentName();
         if(gameState!=='city'||!playerEgg){openPanel();showSummary('请先选好角色并进入城市，再加入房间。',true);return false;}
         joining=true;setStatus('joining','连接中…');showSummary('正在进入房间 '+code+'…',false);
@@ -439,6 +446,7 @@
             if(room)await leaveRoom();
             var SDK=await ensureSDK();
             client=new SDK.ColyseusSDK(endpoint);
+            if(window.DANBO_ACCOUNT)client.http.authToken=DANBO_ACCOUNT.getToken(endpoint);
             manualLeave=false;
             var options=localStateOptions();options.code=code;
             if(isPublicCode(code)){
@@ -459,7 +467,7 @@
             room.onReconnect(function(){setStatus('online','已重连');showSummary('已恢复房间 '+code+'。',false);});
             room.onError(function(_code,error){showSummary(messageForError(error),true);});
             var joinedRoom=room;
-            room.onLeave(function(){if(!manualLeave&&room===joinedRoom)cleanupRoom();});
+            room.onLeave(function(code){if(!manualLeave&&room===joinedRoom){cleanupRoom();if(code===4001&&window.DANBO_ACCOUNT){DANBO_ACCOUNT.invalidate();DANBO_ACCOUNT.open('login');}}});
             saveSettings(endpoint,name);
             if(ui.endpoint)ui.endpoint.value=endpoint;if(ui.name)ui.name.value=name;if(ui.code)ui.code.value=code;
             setStatus('online','房间 '+code);showSummary('已加入 '+code+'，同一城市的玩家会显示在场景中。',false);
@@ -467,7 +475,9 @@
             lastSentCity=-1;sendLocalState(true);refreshPlayerList();
             return true;
         }catch(error){
-            cleanupRoom();setStatus('error','连接失败');showSummary(messageForError(error),true);openPanel();console.warn('[multiplayer]',error);return false;
+            cleanupRoom();setStatus('error','连接失败');showSummary(messageForError(error),true);openPanel();
+            if(window.DANBO_ACCOUNT&&(error.code===401||error.status===401||/log in/i.test(error.message))){DANBO_ACCOUNT.invalidate();DANBO_ACCOUNT.open('login');}
+            return false;
         }finally{
             joining=false;if(ui.quick)ui.quick.disabled=false;if(ui.create)ui.create.disabled=false;if(ui.join)ui.join.disabled=false;
         }
@@ -554,6 +564,7 @@
         open:openPanel,close:closePanel,connect:connectRoom,leave:leaveRoom,update:update,sendChat:sendChat,
         isConnected:function(){return !!room&&status==='online';},
         getRoom:function(){return room;},
+        getEndpoint:function(){return normalizeEndpoint(ui.endpoint&&ui.endpoint.value||configuredEndpoint());},
         getStatus:function(){return{status:status,text:statusText,roomCode:room&&room.state?room.state.code:null,remoteCount:remotes.size};}
     };
 })();

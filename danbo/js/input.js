@@ -3,6 +3,7 @@
 // ---- Input ----
 const keys={};
 addEventListener('keydown',e=>{
+    if(window._accountPanelOpen)return;
     keys[e.code]=true;
     if(e.code==='KeyG')keys['Space']=true;
     if(['Space','KeyG','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','KeyF','ShiftLeft','ShiftRight'].includes(e.code))e.preventDefault();
