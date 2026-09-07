@@ -18,7 +18,7 @@
     }
     function toggleConsent(value){
         try{localStorage.setItem('danbo_metrics_consent_v1',value?'yes':'no');if(!value)localStorage.removeItem('danbo_metrics_visitor_v1');}catch(_){}
-        $('journey-consent').checked=value;$('account-metrics').checked=value;
+        $('journey-consent').checked=value;
         if(!value){sent={};pending={};visit=randomId();started=performance.now();}
         if(value)event('open');
     }
@@ -141,7 +141,6 @@
     $('journey-register').addEventListener('click',function(){close();DANBO_ACCOUNT.open('register');});
     $('journey-updates').addEventListener('change',function(){action(async function(){await DANBO_ACCOUNT.request('/preferences',{emailUpdates:$('journey-updates').checked});message('邮件订阅偏好已保存。当前尚未启用邮件发送。');});});
     $('journey-consent').addEventListener('change',function(){toggleConsent(this.checked);});
-    $('account-metrics').checked=consent();$('account-metrics').addEventListener('change',function(){toggleConsent(this.checked);});
     $('journey-install').addEventListener('click',function(){action(async function(){
         if(installPrompt){await installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;}
         else message('iPhone：在 Safari 中点“分享 → 添加到主屏幕”。Android / PC：使用浏览器菜单的“安装应用 / 添加到主屏幕”。仍需网络连接。');

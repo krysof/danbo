@@ -115,6 +115,12 @@ function _getLangBtnText(){
     if(_langMode==='auto')return '\uD83C\uDF10'+(_autoLabels[_langCode]||'Auto');
     return '\uD83C\uDF10'+(_langShort[_langMode]||'');
 }
+function _setLanguage(code){
+    if(_langOrder.indexOf(code)<0)return;
+    _langMode=code;_langCode=code==='auto'?_autoLangCode:code;
+    try{localStorage.setItem('danbo_lang',code);}catch(_){}
+    _applyLang();_closeLangMenu();
+}
 function _closeLangMenu(){
     if(_langMenu&&_langMenu.parentNode){_langMenu.parentNode.removeChild(_langMenu);}
     _langMenu=null;_langMenuOpen=false;
@@ -136,12 +142,7 @@ function _openLangMenu(){
             item.addEventListener('mouseleave',function(){item.style.background=isActive?'rgba(255,255,255,0.15)':'';});
             item.addEventListener('click',function(e){
                 e.stopPropagation();
-                _langMode=code;
-                if(_langMode==='auto'){_langCode=_autoLangCode;}
-                else{_langCode=_langMode;}
-                try{localStorage.setItem('danbo_lang',_langMode);}catch(e2){}
-                _applyLang();
-                _closeLangMenu();
+                _setLanguage(code);
             });
             _langMenu.appendChild(item);
         })(_langOrder[li]);
@@ -176,8 +177,8 @@ function _applyLang(){
     var pn=document.getElementById('portal-no');if(pn)pn.textContent=L('portalNo');
     var mb=document.getElementById('music-btn');if(mb)mb.title=L('music');
     var sb2=document.getElementById('sfx-btn');if(sb2)sb2.title=L('sfx');
-    var pills=document.querySelectorAll('#city-hud .hud-pill');
-    if(pills.length>=3)pills[2].textContent=L('grabThrow');
+    var controls=document.getElementById('controls-hud');
+    if(controls)controls.textContent=L('grabThrow');
     var zh=document.getElementById('zoom-hud');if(zh)zh.textContent=L('zoomHint');
     var rb=document.getElementById('race-back-btn');if(rb)rb.textContent=L('raceBack');
     var bc=document.getElementById('back-city-btn');if(bc)bc.textContent=L('backCity');
@@ -220,6 +221,8 @@ function _applyLang(){
     for(var ci2=0;ci2<_cells.length&&ci2<CHARACTERS.length;ci2++){_cells[ci2].textContent=CHARACTERS[ci2].name;}
     // Update SF2 select if visible
     if(typeof _updateSF2Select==='function'&&typeof selectedChar!=='undefined'){_updateSF2Select(selectedChar);}
+    if(window.DANBO_ACCOUNT)DANBO_ACCOUNT.refreshLanguage();
+    if(window.DANBO_JOURNEY)DANBO_JOURNEY.render();
 }
 if(langBtn){
     langBtn.textContent=_getLangBtnText();

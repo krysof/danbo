@@ -18,7 +18,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260907.5">
+<link rel="stylesheet" href="style.css?v=20260907.6">
 </head>
 <body>
 <div id="game-container">
@@ -49,43 +49,52 @@
       <canvas id="journey-card" hidden aria-label="蛋宝纪念卡和一次性接力二维码"></canvas>
       <div id="journey-card-actions" class="journey-actions" hidden><button id="journey-download" type="button">保存纪念卡图片</button><button id="journey-copy" type="button">复制接力链接</button></div>
       <p class="account-hint">接力码 10 分钟有效，领取后失效。它包含人物和当前进度，不含账号登录权限。长期保存请注册；接力卡不要公开分享。</p>
-      <label class="journey-check"><input id="journey-consent" type="checkbox">允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）</label>
-      <label id="journey-preferences" class="journey-check" hidden><input id="journey-updates" type="checkbox">愿意接收游戏更新邮件（可选，随时取消）</label>
+      <details class="journey-settings"><summary id="journey-settings-label">设置</summary>
+        <label class="journey-check"><input id="journey-consent" type="checkbox"><span id="journey-consent-label">允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）</span></label>
+        <label id="journey-preferences" class="journey-check" hidden><input id="journey-updates" type="checkbox"><span id="journey-updates-label">愿意接收游戏更新邮件（可选，随时取消）</span></label>
+      </details>
       <button id="journey-next" type="button" hidden>展台：准备下一位游客</button>
     </section>
   </div>
 
   <div id="account-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="account-title">
-    <section class="account-card">
-      <button id="account-close" class="account-close" type="button" aria-label="关闭">×</button>
-      <small>DANBO ACCOUNT</small><h2 id="account-title">你的蛋宝世界</h2>
-      <p id="account-current"></p><p id="account-profile"></p>
-      <div id="account-tabs" class="account-tabs" role="tablist"><button id="account-tab-login" type="button" role="tab">登录</button><button id="account-tab-register" type="button" role="tab">注册并保存人物</button></div>
-      <form id="account-form">
-        <label><span id="account-login-label">用户名或邮箱</span><input id="account-login" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
-        <label id="account-email-row" hidden><span>邮箱</span><input id="account-email" type="email" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false"></label>
-        <label><span>密码</span><input id="account-password" type="password" required maxlength="128" autocomplete="current-password"></label>
-        <div id="account-registration-note" class="account-hint" hidden>用户名 3–16 字；密码 15–128 字。当前人物和游戏进度将保存到账号。邮箱暂不验证，尚不支持邮件找回密码。<label class="journey-check"><input id="account-updates" type="checkbox">愿意接收游戏更新邮件（可选，随时取消）</label></div>
-        <button id="account-submit" class="account-primary" type="submit">登录</button>
-      </form>
-      <p id="account-message" class="account-error" role="status" aria-live="polite"></p>
-      <button id="account-guest" class="account-guest" type="button">先以游客身份游玩 →</button>
-      <button id="account-logout" class="account-guest" type="button" hidden>退出账号</button>
-      <p class="account-hint">游客人物和进度保存在此浏览器，清除网站数据会丢失。注册后可同步金币、探索、装扮和旅程进度；请在退出前确认“云存档已同步”。</p>
-      <label class="journey-check account-hint"><input id="account-metrics" type="checkbox">允许匿名试玩统计（可选，不含姓名、邮箱、聊天；保留 90 天）</label>
+    <section class="account-shell">
+      <header class="account-toolbar">
+        <button id="account-back" class="account-back" type="button" hidden>← 返回</button>
+        <label class="account-language"><span aria-hidden="true">🌐</span><select id="account-language" aria-label="Language"><option value="auto">Auto</option><option value="zhs">简体中文</option><option value="zht">繁體中文</option><option value="ja">日本語</option><option value="en">English</option></select></label>
+        <button id="account-close" class="account-dismiss" type="button" aria-label="关闭">×</button>
+      </header>
+      <div id="account-content" class="account-card account-content">
+        <div id="account-brand" class="account-brand">DANBO</div><h2 id="account-title">你的蛋宝世界</h2>
+        <div id="account-welcome" class="account-welcome"><button id="account-guest" class="account-primary" type="button">直接玩</button><button id="account-create" class="account-guest" type="button">注册账号</button></div>
+        <p id="account-current" hidden></p><p id="account-profile" hidden></p>
+        <form id="account-form" hidden>
+          <label><span id="account-login-label">用户名</span><input id="account-login" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+          <label id="account-email-row" hidden><span id="account-email-label">邮箱</span><input id="account-email" type="email" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false"></label>
+          <label><span id="account-password-label">密码</span><input id="account-password" type="password" required maxlength="128" autocomplete="current-password"></label>
+          <p id="account-registration-note" class="account-hint" hidden>注册后可跨设备保存进度。</p>
+          <button id="account-submit" class="account-primary" type="submit">注册账号</button>
+        </form>
+        <p id="account-message" class="account-error" role="status" aria-live="polite"></p>
+        <div id="account-tabs" class="account-switch" hidden><button id="account-tab-login" type="button">已有账号？登录</button><button id="account-tab-register" type="button" hidden>没有账号？注册</button></div>
+        <details id="account-details" class="account-details" hidden><summary id="account-details-label">账号说明</summary><p id="account-details-copy"></p></details>
+        <button id="account-logout" class="account-guest" type="button" hidden>退出账号</button>
+      </div>
     </section>
   </div>
   <div id="character-name-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="character-name-title">
-    <section class="account-card character-name-card">
-      <small>MEET YOUR DANBO</small><h2 id="character-name-title">给人物起个名字</h2>
+    <section class="account-shell">
+      <header class="account-toolbar"><label class="account-language"><span aria-hidden="true">🌐</span><select id="character-name-language" aria-label="Language"><option value="auto">Auto</option><option value="zhs">简体中文</option><option value="zht">繁體中文</option><option value="ja">日本語</option><option value="en">English</option></select></label></header>
+      <div class="account-card account-content character-name-card"><h2 id="character-name-title">给人物起个名字</h2>
       <p id="character-name-hero"></p>
       <form id="character-name-form">
-        <label><span>人物名字（与登录用户名分开）</span><input id="character-name-input" required minlength="2" maxlength="16" autocomplete="off" placeholder="例如：星光蛋宝"></label>
-        <p class="account-hint">2–16 字，可用文字、数字、空格、下划线或短横线。下次会记住这个名字。</p>
+        <label><span id="character-name-label">人物名字</span><input id="character-name-input" required minlength="2" maxlength="16" autocomplete="off" placeholder="2–16 字"></label>
+        <p id="character-name-hint" class="account-hint">这不是登录用户名，下次会记住。</p>
         <p id="character-name-message" class="account-error" role="status"></p>
         <button id="character-name-submit" class="account-primary" type="submit">保存名字，进入游戏 →</button>
         <button id="character-name-back" class="account-guest" type="button">返回选角色</button>
       </form>
+      </div>
     </section>
   </div>
 
@@ -99,7 +108,7 @@
     </div>
     <div id="intro-ui" style="position:absolute;bottom:12%;left:0;right:0;text-align:center;z-index:2;">
       <p class="version-text" id="intro-version"></p>
-      <button id="start-btn" class="btn btn-primary" style="opacity:0;transition:opacity 0.5s;">🎮 Start Game</button>
+      <div class="start-actions" id="start-actions" style="opacity:0;pointer-events:none;transition:opacity 0.5s;"><button id="start-btn" class="btn btn-primary" type="button">直接玩</button><button id="start-register" class="btn start-register" type="button">注册账号</button></div>
     </div>
   </div>
 
@@ -226,7 +235,7 @@
       <span class="hud-pill" id="city-name-hud">🏙️ Egg City</span>
       <span class="hud-pill" id="coin-hud">⭐ 0</span>
       <button class="hud-pill hud-btn multiplayer-hud-btn" id="multiplayer-btn" type="button">服务器</button>
-      <span class="hud-pill hud-desktop-only">F：抓取/投掷 · R：拳击 · T：踢击 · 长按可蓄力</span>
+      <span class="hud-pill hud-desktop-only" id="controls-hud">F：抓取/投掷 · R：拳击 · T：踢击 · 长按可蓄力</span>
       <span class="hud-pill hud-desktop-only" id="zoom-hud">Scroll Zoom</span>
       <button class="hud-pill hud-btn" id="view-mode-btn">📷 Normal</button>
       <button class="hud-pill hud-btn" id="spectator-btn" style="display:none;">👁 Spectator</button>
@@ -331,7 +340,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.5';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.6';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";

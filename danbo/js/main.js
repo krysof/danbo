@@ -25,7 +25,8 @@ function _openCharacterSelect(){
     playMenuConfirm();
 }
 window.DANBO_OPEN_CHARACTER_SELECT=_openCharacterSelect;
-function _handleStart(){
+function _handleStart(entry){
+    entry=entry==='register'?'register':'play';
     if(_startTriggered)return;
     _startTriggered=true;
     _unlockAudio();
@@ -45,7 +46,7 @@ function _handleStart(){
         // Reset start triggered for next time
         _startTriggered=false;
         if(window.DANBO_SERVER_BROWSER&&typeof window.DANBO_SERVER_BROWSER.open==='function'){
-            window.DANBO_SERVER_BROWSER.open();
+            window.DANBO_SERVER_BROWSER.open(entry);
             if(_touchVisible)_showMenuTouch();
             _menuJoyConfirmCD=30;
             playMenuConfirm();
@@ -57,6 +58,7 @@ function _handleStart(){
 }
 _startBtn.addEventListener('click',_handleStart);
 _startBtn.addEventListener('touchend',function(e){e.preventDefault();_handleStart();},{passive:false});
+document.getElementById('start-register').addEventListener('click',function(){_handleStart('register');});
 
 // ---- Mobile touch for menu screens ----
 var _touchVisible=false;
@@ -148,12 +150,7 @@ function _updateMenuJoy(){
         if((keys['Space']||keys['KeyF']||keys['KeyR']||keys['KeyT'])&&_menuJoyConfirmCD<=0){
             _menuJoyConfirmCD=30;
             keys['Space']=false;keys['KeyF']=false;keys['KeyR']=false;keys['KeyT']=false;
-            // If intro not started, start it (tap-to-start)
-            if(typeof _introStart!=='undefined'&&!_introStart){if(typeof _onTapStart==='function')_onTapStart();}
-            // If intro playing, skip it
-            else if(typeof _introRunning!=='undefined'&&_introRunning&&!_introSkipped){if(typeof _skipIntro==='function')_skipIntro();}
-            // If intro done, start game
-            else{_handleStart();}
+            _handleStart();
         }
         if(_menuJoyConfirmCD>0)_menuJoyConfirmCD--;
         requestAnimationFrame(_updateMenuJoy);
@@ -213,13 +210,13 @@ function selectCharByIndex(idx){
 }
 addEventListener('keydown',function(e){
     if(window._accountPanelOpen||window._journeyPanelOpen)return;
+    if(gameState==='menu'&&e.target&&e.target.closest&&e.target.closest('button,input,select,textarea,summary'))return;
     if(gameState==='menu'){
         if(e.code==='Enter'||e.code==='Space'){
             e.preventDefault();
             var ss=document.getElementById('start-screen');
             if(ss&&ss.classList.contains('active')){
-                // Don't skip to select if intro is still playing
-                if(!(typeof _introRunning!=='undefined'&&_introRunning&&!_introSkipped)){_handleStart();}
+                _handleStart();
             } else {
                 var serverScreen=document.getElementById('server-select-screen');
                 var serverEnter=document.getElementById('server-list-enter');
@@ -362,4 +359,7 @@ if(_pfBackBtn)_pfBackBtn.addEventListener('click', function(){if(typeof _pfEndGa
     var pn2=_e('portrait-name');if(pn2)pn2.textContent=CHARACTERS[0].name;
 })();
 
+if(window.DANBO_ACCOUNT)DANBO_ACCOUNT.refreshLanguage();
+// No extra tap-to-start or mandatory intro before the two entry choices.
+var _entryActions=document.getElementById('start-actions');if(_entryActions){_entryActions.style.opacity='1';_entryActions.style.pointerEvents='auto';}
 animate();

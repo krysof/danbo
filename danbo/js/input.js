@@ -3,6 +3,7 @@
 // ---- Input ----
 const keys={};
 addEventListener('keydown',e=>{
+    if(gameState==='menu'&&e.target&&e.target.closest&&e.target.closest('button,input,select,textarea,summary'))return;
     if(window._accountPanelOpen||window._journeyPanelOpen)return;
     keys[e.code]=true;
     if(e.code==='KeyG')keys['Space']=true;

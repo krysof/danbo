@@ -181,8 +181,8 @@
         if(typeof window.DANBO_OPEN_CHARACTER_SELECT==='function')window.DANBO_OPEN_CHARACTER_SELECT();
         return true;
     }
-    async function openServerBrowser(){
-        if(window.DANBO_ACCOUNT&&!await DANBO_ACCOUNT.ensure(configuredEndpoint()))return false;
+    async function openServerBrowser(entry){
+        if(window.DANBO_ACCOUNT&&!await DANBO_ACCOUNT.ensure(configuredEndpoint(),entry))return false;
         closePanel();
         if(ui.serverBack)ui.serverBack.hidden=gameState!=='city';
         if(gameState==='city')window._multiplayerPanelOpen=true;

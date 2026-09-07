@@ -715,14 +715,8 @@ function _renderIntro(now){
     // ======== PHASE 5: PRESS START + button (8.5s+) ========
     if(t>8.5){
         if(!_introSkipped){_introSkipped=true;if(_introCanvas)_introCanvas.style.pointerEvents='none';}
-        var btn=document.getElementById('start-btn');
-        if(btn)btn.style.opacity='1';
-        if(Math.floor(t*2)%2===0){
-            ctx.fillStyle='rgba(255,255,255,0.9)';
-            ctx.font='bold '+Math.floor(18*scale)+'px "Segoe UI",sans-serif';
-            ctx.textAlign='center';
-            ctx.fillText('PRESS START',W/2,H*0.75);
-        }
+        var btn=document.getElementById('start-actions');
+        if(btn){btn.style.opacity='1';btn.style.pointerEvents='auto';}
     }
 
     if(_introRunning) requestAnimationFrame(_renderIntro);
@@ -749,8 +743,8 @@ function _skipIntro(){
         // After battle: skip to title (t=7.5s)
         _introSkipped=true;
         _introStart=_now-7500;
-        var btn=document.getElementById('start-btn');
-        if(btn)btn.style.opacity='1';
+        var btn=document.getElementById('start-actions');
+        if(btn){btn.style.opacity='1';btn.style.pointerEvents='auto';}
         if(_introCanvas)_introCanvas.style.pointerEvents='none';
     }
 }
@@ -778,43 +772,24 @@ if(_introCanvas){
     },{passive:true});
 }
 
-// Show tap-to-start screen first (needed for iOS audio unlock)
+// The two entry buttons unlock audio themselves. Background taps can still play the intro.
 var _tapStartShown=false;
 function _showTapStart(){
     if(_tapStartShown)return;
     _tapStartShown=true;
     if(!_introCtx||!_introCanvas)return;
     _resizeIntroCanvas();
-    var W=_introCanvas.width,H=_introCanvas.height;
     var ctx=_introCtx;
-    var scale=Math.min(W,H)/600;
-    // Black screen with tap prompt
-    ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
-    // Game title small
-    ctx.fillStyle='rgba(255,215,0,0.6)';
-    ctx.font='bold '+Math.floor(28*scale)+'px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.textAlign='center';
-    ctx.fillText(L('title'),W/2,H*0.35);
-    // Tap to start text (multi-language)
-    var _tapText={zhs:'\u70B9\u51FB\u5F00\u59CB',zht:'\u9EDE\u64CA\u958B\u59CB',ja:'\u30BF\u30C3\u30D7\u3057\u3066\u30B9\u30BF\u30FC\u30C8',en:'TAP TO START'};
-    var _tapStr=_tapText[_langCode]||_tapText.en;
-    ctx.fillStyle='rgba(255,255,255,0.8)';
-    ctx.font='bold '+Math.floor(22*scale)+'px "Segoe UI","PingFang SC",sans-serif';
-    // Blink effect
     function _blinkTap(){
-        if(!_tapStartShown||_introStart)return;
+        if(!_tapStartShown||_introStart||!_introRunning)return;
         _resizeIntroCanvas();
         var W2=_introCanvas.width,H2=_introCanvas.height;
-        ctx.fillStyle='#000';ctx.fillRect(0,0,W2,H2);
-        ctx.fillStyle='rgba(255,215,0,0.6)';
-        ctx.font='bold '+Math.floor(28*(H2/600))+'px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+        var gradient=ctx.createLinearGradient(0,0,W2,H2);gradient.addColorStop(0,'#153d47');gradient.addColorStop(1,'#081e2a');ctx.fillStyle=gradient;ctx.fillRect(0,0,W2,H2);
+        ctx.fillStyle='#7be5c9';
+        ctx.font='900 '+Math.floor(Math.min(W2/6,H2/11))+'px "Segoe UI",sans-serif';
         ctx.textAlign='center';
-        ctx.fillText(L('title'),W2/2,H2*0.35);
-        if(Math.floor(Date.now()/500)%2===0){
-            ctx.fillStyle='rgba(255,255,255,0.8)';
-            ctx.font='bold '+Math.floor(22*(H2/600))+'px "Segoe UI","PingFang SC",sans-serif';
-            ctx.fillText(_tapStr,W2/2,H2*0.55);
-        }
+        ctx.fillText('DANBO',W2/2,H2*.38);
+        ctx.fillStyle='#e2f4ef';ctx.font='500 '+Math.floor(Math.min(W2/14,H2/26))+'px "Segoe UI","PingFang SC",sans-serif';ctx.fillText(L('title'),W2/2,H2*.46);
         requestAnimationFrame(_blinkTap);
     }
     _blinkTap();
@@ -829,6 +804,8 @@ function _onTapStart(){
     document.removeEventListener('keydown',_onTapStartKey);
 }
 function _onTapStartKey(e){
+    if(e.target&&e.target.closest&&e.target.closest('button,input,select,textarea'))return;
+    if(e.code==='Enter'||e.code==='Space')return; // handled by the direct Play entry in main.js
     if(_introStart&&!_introSkipped){_skipIntro();return;}
     if(!_introStart)_onTapStart();
 }
