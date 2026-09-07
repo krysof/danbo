@@ -1,4 +1,16 @@
 // hud.js — DANBO World
+// Network population / translations can wrap the top row. Stack the fixed
+// exploration HUD below its actual height without measuring every game frame.
+(function(){
+    var hud=document.getElementById('city-hud'),last=-1;
+    if(!hud)return;
+    function layout(){
+        var top=Math.max(44,Math.ceil(hud.getBoundingClientRect().bottom)+4);
+        if(top!==last){last=top;document.documentElement.style.setProperty('--danbo-status-top',top+'px');}
+    }
+    if(typeof ResizeObserver!=='undefined')new ResizeObserver(layout).observe(hud);
+    window.addEventListener('resize',layout);layout();
+})();
 var _chargeBeepTimer=0, _chargeHoldTimer=0, _chargeHoldMax=600; // 600 frames ≈ 10s at 60fps
 function _createChargeBar(){
     // Use a canvas texture on a Sprite — always faces camera automatically

@@ -268,6 +268,11 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 /* City HUD */
 #city-hud{position:absolute;top:0;left:0;right:0;padding:clamp(4px,1.5vw,10px) clamp(6px,2vw,14px);z-index:5;pointer-events:none}
 .hud-top{display:flex;justify-content:flex-start;gap:clamp(3px,1vw,8px);margin-bottom:4px;padding-right:clamp(80px,25vw,140px);flex-wrap:wrap}
+/* Match the global controls' 50vw reservation on phones, including longer
+   Japanese population labels. Wrap the HUD rather than cover language/audio. */
+@media(max-width:700px){.hud-top{padding-right:50vw}}
+#chest-hud{top:var(--danbo-status-top,44px)!important}
+#journey-task{top:calc(var(--danbo-status-top,44px) + 60px)!important}
 .hud-pill{background:rgba(0,0,0,.5);color:#fff;padding:clamp(2px,0.8vw,5px) clamp(6px,2vw,13px);border-radius:16px;font-size:clamp(10px,2.5vw,13px);font-weight:700;backdrop-filter:blur(5px);white-space:nowrap}
 .hud-desktop-only{display:none}
 @media(min-width:600px){.hud-desktop-only{display:inline-block}}

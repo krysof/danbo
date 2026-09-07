@@ -17,6 +17,11 @@
     var serverChosen=new URLSearchParams(location.search).has('room');
     var lastAppearance='',lastAppearanceAt=0,appearanceBudgetAt=0,appearanceIds=new Set();
     var selectedCapacity=0;
+    var companionBudgetAt=0,companionIds=new Set();
+    function eachActor(fn){
+        if(window.DANBO_COMPANIONS)DANBO_COMPANIONS.each(room&&room.state,fn);
+        else if(room&&room.state&&room.state.players)room.state.players.forEach(function(p,id){fn(p,id,false);});
+    }
 
     var ui={
         button:document.getElementById('multiplayer-btn'),
@@ -120,6 +125,11 @@
             if(recommended&&entry.code===recommended.code)button.querySelector('.server-region').textContent='推荐同服';
             var metrics=button.querySelectorAll('.server-metric b');
             metrics[0].textContent=entry.players+' / '+entry.capacity;
+            if(window.DANBO_COMPANIONS&&Number.isInteger(entry.bots)&&entry.bots>0){
+                metrics[0].textContent=(entry.players+entry.bots)+' '+DANBO_COMPANIONS.words().actors;
+                button.querySelector('.server-metric small').textContent=DANBO_COMPANIONS.detail(entry.players,entry.bots);
+                button.title=DANBO_COMPANIONS.detail(entry.players,entry.bots,entry.capacity);
+            }
             metrics[1].textContent=ping+'ms';
             button.querySelector('.server-state-text').textContent=entry.status==='full'?'已满（含预留席位）':entry.status==='online'?'可进入':'离线';
             button.addEventListener('click',function(){serverChosen=true;selectServer(entry.code);});
@@ -233,6 +243,14 @@
             text=(isPublicCode(code)?(code==='PUBLIC'?'1':code.slice(-1))+' 服 ':'在线 ')+count+'/'+(capacity||'--');online=true;
             if(ui.capacity)ui.capacity.textContent=capacity?'最多 '+capacity+' 人':'读取容量中…';
             title=serverLabel(normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value));
+            if(window.DANBO_COMPANIONS){
+                var totals=DANBO_COMPANIONS.count(room.state);
+                if(totals.bots){
+                    text=(isPublicCode(code)?(code==='PUBLIC'?'1':code.slice(-1))+' · ':'')+totals.characters+' '+DANBO_COMPANIONS.words().actors;
+                    title+=' · '+DANBO_COMPANIONS.detail(totals.players,totals.bots,capacity);
+                    if(ui.capacity)ui.capacity.textContent=DANBO_COMPANIONS.detail(totals.players,totals.bots,capacity)+' ('+DANBO_COMPANIONS.words().seats+')';
+                }
+            }
         }else if(status==='joining'||status==='reconnecting'){
             text='连接中';
         }
@@ -316,10 +334,11 @@
         }
         remote.nameSprite=makeNameSprite(name);remote.root.add(remote.nameSprite);remote.name=name;
     }
-    function createRemote(sessionId,statePlayer){
+    function createRemote(sessionId,statePlayer,isCompanion){
         var root=new THREE.Group();root.name='danbo-network-player-'+sessionId;scene.add(root);
         var remote={id:sessionId,root:root,avatar:null,nameSprite:null,name:'',character:-1,style:'',walkPhase:0,footBase:[],egg:null};
-        remote.egg={mesh:root,alive:true,isNetworkPlayer:true};
+        remote.companion=!!isCompanion;
+        remote.egg={mesh:root,alive:true,isNetworkPlayer:true,isSystemCompanion:!!isCompanion};
         rebuildRemoteAvatar(remote,statePlayer);rebuildRemoteName(remote,statePlayer.name);
         root.position.set(Number(statePlayer.x)||0,Number(statePlayer.y)||0,Number(statePlayer.z)||0);
         root.rotation.y=Number(statePlayer.rotation)||0;
@@ -341,7 +360,7 @@
     function animateRemote(remote,statePlayer,dt){
         var avatar=remote.avatar;if(!avatar)return;
         var speed=Math.hypot(Number(statePlayer.vx)||0,Number(statePlayer.vz)||0);
-        remote.walkPhase+=Math.min(0.48,speed*1.8+0.035)*(speed>0.008?1:0);
+        remote.walkPhase+=Math.min(0.48,speed*1.8+0.035)*(speed>0.008?1:0)*Math.min(3,dt*60);
         if(speed<=0.008)remote.walkPhase*=0.92;
         var feet=avatar.userData.feet||[];
         for(var i=0;i<feet.length&&i<remote.footBase.length;i++){
@@ -363,25 +382,32 @@
         if(leftLeg)leftLeg.visible=false;
         if(action==='jump')avatar.position.y=Math.sin(performance.now()*0.015)*0.035;
         else avatar.position.y*=0.78;
+        if(remote.companion&&window.DANBO_COMPANIONS)DANBO_COMPANIONS.animate(avatar,action,dt);
     }
     function syncRemotePlayers(dt){
         if(!room||!room.state||!room.state.players)return;
         var now=performance.now();
         if(now-appearanceBudgetAt>500||!appearanceBudgetAt){
             appearanceBudgetAt=now;var candidates=[],p=playerEgg&&playerEgg.mesh.position;
-            if(p)room.state.players.forEach(function(other,id){if(id!==room.sessionId&&Number(other.city)===Number(currentCityStyle)&&other.connected!==false){var d=Math.hypot(Number(other.x)-p.x,Number(other.z)-p.z);if(d<32)candidates.push({id:id,d:d});}});
+            if(p)eachActor(function(other,id){if(id!==room.sessionId&&Number(other.city)===Number(currentCityStyle)&&other.connected!==false){var d=Math.hypot(Number(other.x)-p.x,Number(other.z)-p.z);if(d<32)candidates.push({id:id,d:d});}});
             candidates.sort(function(a,b){return a.d-b.d;});var q=window.DANBO_VISUAL_QUALITY;
             appearanceIds=new Set(candidates.slice(0,q&&q.low?2:q&&q.high?6:4).map(function(v){return v.id;}));
         }
         var present=new Set(),list=[];
-        room.state.players.forEach(function(statePlayer,sessionId){
-            list.push({id:sessionId,name:statePlayer.name,city:statePlayer.city,connected:statePlayer.connected});
+        if(now-companionBudgetAt>500||!companionBudgetAt){
+            companionBudgetAt=now;var near=[],local=playerEgg&&playerEgg.mesh.position;
+            if(local)eachActor(function(p,id,bot){if(bot&&p.connected!==false&&Number(p.city)===Number(currentCityStyle)){var d=Math.hypot(Number(p.x)-local.x,Number(p.z)-local.z);if(d<42)near.push({id:id,d:d});}});
+            near.sort(function(a,b){return a.d-b.d;});var quality=window.DANBO_VISUAL_QUALITY;
+            companionIds=new Set(near.slice(0,quality&&quality.low?3:quality&&quality.high?6:4).map(function(p){return p.id;}));
+        }
+        eachActor(function(statePlayer,sessionId,isCompanion){
+            list.push({id:sessionId,name:statePlayer.name,city:statePlayer.city,connected:statePlayer.connected,companion:isCompanion});
             if(sessionId===room.sessionId)return;
             present.add(sessionId);
             var visible=gameState==='city'&&!window._interiorActive&&!window._danboPluginTransition&&
-                Number(statePlayer.city)===Number(currentCityStyle)&&statePlayer.connected!==false;
+                Number(statePlayer.city)===Number(currentCityStyle)&&statePlayer.connected!==false&&(!isCompanion||companionIds.has(sessionId));
             if(!visible){removeRemote(sessionId);return;}
-            var remote=remotes.get(sessionId)||createRemote(sessionId,statePlayer);
+            var remote=remotes.get(sessionId)||createRemote(sessionId,statePlayer,isCompanion);
             if(remote.character!==Number(statePlayer.character)||remote.style!==statePlayer.style)rebuildRemoteAvatar(remote,statePlayer);
             if(remote.name!==statePlayer.name)rebuildRemoteName(remote,statePlayer.name);
             if(window.DANBO_APPEARANCE){
@@ -407,9 +433,9 @@
         if(!ui.list)return;
         var list=optionalList||[];
         if(!optionalList&&room&&room.state&&room.state.players){
-            room.state.players.forEach(function(player,id){list.push({id:id,name:player.name,city:player.city,connected:player.connected});});
+            eachActor(function(player,id,bot){list.push({id:id,name:player.name,city:player.city,connected:player.connected,companion:bot});});
         }
-        var signature=list.map(function(p){return p.id+':'+p.name+':'+p.city+':'+p.connected;}).join('|');
+        var signature=(typeof _langCode==='undefined'?'':_langCode)+'|'+list.map(function(p){return p.id+':'+p.name+':'+p.city+':'+p.connected+':'+p.companion;}).join('|');
         if(signature===playerListSignature)return;playerListSignature=signature;
         ui.list.textContent='';
         if(!list.length){var empty=document.createElement('li');empty.textContent='尚未加入房间';ui.list.appendChild(empty);return;}
@@ -419,11 +445,12 @@
             name.textContent=(room&&item.id===room.sessionId?'你 · ':'')+(item.name||'Player');
             var cityName=I18N&&I18N.cityNames&&I18N.cityNames[_langCode]?I18N.cityNames[_langCode][item.city]:('城市 '+item.city);
             city.textContent=cityName||('城市 '+item.city);
+            if(item.companion&&window.DANBO_COMPANIONS)city.textContent=DANBO_COMPANIONS.words().bots+' · '+city.textContent;
             li.appendChild(dot);li.appendChild(name);li.appendChild(city);ui.list.appendChild(li);
         });
     }
     function cleanupRoom(){
-        room=null;lastSentCity=-1;lastSendAt=0;sequence=0;playerListSignature='';buttonSignature='';removeAllRemotes();
+        room=null;lastSentCity=-1;lastSendAt=0;sequence=0;playerListSignature='';buttonSignature='';companionIds.clear();companionBudgetAt=0;removeAllRemotes();
         setStatus('offline','未连接');showSummary('尚未连接联机房间。',false);refreshPlayerList([]);
         if(ui.leave)ui.leave.disabled=true;if(ui.share)ui.share.disabled=true;
     }
@@ -503,7 +530,7 @@
         var p=playerEgg.mesh.position;
         room.send('state',{
             sequence:sequence,city:city,x:p.x,y:p.y,z:p.z,rotation:playerEgg.mesh.rotation.y,
-            vx:playerEgg.vx||0,vy:playerEgg.vy||0,vz:playerEgg.vz||0,action:detectAction(),teleport:teleport
+            vx:playerEgg.vx||0,vy:playerEgg.vy||0,vz:playerEgg.vz||0,action:detectAction(),teleport:teleport,language:typeof _langCode==='undefined'?'ja':_langCode
             ,worldActive:!!playerEgg.onGround&&!playerEgg.heldBy&&!(playerEgg.throwTimer>0)&&!document.hidden&&!window._interiorActive&&!window._danboPluginTransition&&!window._journeyPanelOpen&&!window._accountPanelOpen&&!window._multiplayerPanelOpen&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())
         });
     }
@@ -572,6 +599,6 @@
         isConnected:function(){return !!room&&status==='online';},
         getRoom:function(){return room;},
         getEndpoint:function(){return normalizeEndpoint(ui.endpoint&&ui.endpoint.value||configuredEndpoint());},
-        getStatus:function(){return{status:status,text:statusText,roomCode:room&&room.state?room.state.code:null,remoteCount:remotes.size};}
+        getStatus:function(){return{status:status,text:statusText,roomCode:room&&room.state?room.state.code:null,remoteCount:remotes.size,population:window.DANBO_COMPANIONS?DANBO_COMPANIONS.count(room&&room.state):null};}
     };
 })();
