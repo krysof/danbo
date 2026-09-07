@@ -180,6 +180,7 @@ function updateEggPhysics(egg, isCity){
             for(var tei=0;tei<allEggs.length;tei++){
                 var te=allEggs[tei];
                 if(te===egg||!te.alive||te.heldBy)continue;
+                if(te.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(te))continue;
                 if(te._slamImmune&&te._slamImmune>0)continue; // immune after body slam
                 var htdx=egg.mesh.position.x-te.mesh.position.x;
                 var htdz=egg.mesh.position.z-te.mesh.position.z;

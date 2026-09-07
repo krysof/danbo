@@ -1,0 +1,93 @@
+// Room-coordinated Star Duet; this client renders and opts in, never decides wins.
+(function(){
+    'use strict';
+    var PADS=[[[-10,44],[10,44]],[[-18,44],[18,44]],[[-10,36],[10,36]]];
+    var $=function(id){return document.getElementById(id);},markers=null,lastRender=0,lastSignature='',note='',rewardNoteUntil=0,lastRoom=null;
+    var copy={
+        title:['星光协奏 · 多人协作','星のデュエット · 協力プレイ','Star Duet · Co-op'],
+        intro:['至少 2 位玩家加入，在希望之城喷泉南侧分别站上 A / B 光环，保持 3.5 秒，点亮 3 段星光。限时 3 分钟，失败不扣奖励。','2人以上で参加。希望の街の噴水の南で、A と B のリングに分かれて3.5秒立ち、3段階をクリア！制限時間3分、失敗のペナルティはありません。','Join with at least 2 players. Stand on separate A / B rings south of the Hope City fountain for 3.5 seconds, across 3 stages. Three-minute limit; no penalty for retrying.'],
+        reward:['参与成功点亮，可永久解锁「羁绊羽翼」。游客也能参加。','協力してクリアすると「絆の翼」を獲得。ゲストも参加できます。','Help complete the duet to unlock Bond Wings. Guests are welcome.'],
+        join:['加入协作','参加する','Join duet'],leave:['退出协作','参加をやめる','Leave duet'],share:['邀请朋友来同服','同じサーバーに招待','Invite to this server'],
+        disconnected:['请先进入服务器；暂时无人时可以先自由探索。','まずサーバーに入ってください。仲間を待つ間は自由に探索できます。','Enter a server first. You can explore while waiting for a partner.'],
+        old:['此服务器尚未支持协作，请更新服务器。','このサーバーは協力プレイの更新が必要です。','This server needs the co-op update.'],
+        returnToHope:['请在希望之城室外站稳、脱离抓取后加入；室内和小游戏中不能参加。','希望の街の屋外で地面に立ち、つかまれていない状態で参加してください。屋内やミニゲーム中は参加できません。','Stand on the ground outdoors in Hope City, free from being grabbed, to join. Buildings and minigames do not count.'],
+        waiting:['等待伙伴 · 已准备 {n} 人','仲間を待っています · 準備完了 {n} 人','Waiting for a partner · {n} ready'],
+        active:['第 {stage}/3 段 · 双环 {mask}/2 · 共鸣 {hold}/3.5 秒 · 剩余 {time} 秒','ステージ {stage}/3 · リング {mask}/2 · 共鳴 {hold}/3.5 秒 · 残り {time} 秒','Stage {stage}/3 · Rings {mask}/2 · Hold {hold}/3.5s · {time}s left'],
+        go:['前往 {pad} 环 · {distance} 米','{pad} リングへ · {distance} m','To ring {pad} · {distance}m'],
+        complete:['本轮协作成功！稍后可再加入。','協力成功！まもなく再び参加できます。','Duet complete! You can join again shortly.'],
+        failed:['本轮超时，没有扣除奖励。稍后可重新加入。','時間切れです。報酬は減りません。まもなく再挑戦できます。','Time is up. No rewards lost; join again shortly.'],
+        earned:['协作成功！羁绊羽翼已解锁；已有背饰不会被替换。','協力成功！「絆の翼」を獲得しました。装備中の背飾りは変更しません。','Bond Wings unlocked! Your existing back accessory stays equipped.'],
+        cooldown:['本轮正在结算，稍后再加入。','結果を処理中です。少し待ってから参加してください。','This round is settling. Please try again shortly.'],
+        rewardUnavailable:['奖励暂未到账，请保持登录后重试协作；当前进度不会扣除。','報酬を保存できませんでした。ログインしたまま再挑戦してください。進行状況は減りません。','Reward delivery failed. Stay logged in and retry the duet; no progress was deducted.']
+    };
+    function t(key,values){var lang=typeof _langCode==='string'?_langCode:'zhs',s=(copy[key]||copy.disconnected)[lang==='ja'?1:lang==='en'?2:0];if(values)Object.keys(values).forEach(function(k){s=s.replace('{'+k+'}',values[k]);});return s;}
+    function state(){var room=DANBO_MULTIPLAYER.getRoom();return room&&DANBO_MULTIPLAYER.isConnected()?{room:room,s:room.state,p:room.state&&room.state.players&&room.state.players.get(room.sessionId)}:null;}
+    function statusText(info){
+        if(!info)return t('disconnected');var s=info.s;
+        if(!s||typeof s.coopPhase!=='string')return t('old');
+        if(s.coopPhase==='active')return t('active',{stage:Math.min(3,s.coopStage+1),mask:(s.coopMask&1?1:0)+(s.coopMask&2?1:0),hold:(Math.max(0,s.coopHold)/1000).toFixed(1),time:Math.max(0,Math.ceil((s.coopEndsAt-s.coopNow)/1000))});
+        return s.coopPhase==='idle'?t('waiting',{n:s.coopMembers||0}):t(s.coopPhase==='complete'?'complete':'failed');
+    }
+    function hint(){
+        if(Date.now()<rewardNoteUntil)return t('earned');
+        var info=state();if(!info||!info.p||!info.p.coopJoined)return '';
+        var text=statusText(info),p=typeof playerEgg!=='undefined'&&playerEgg&&playerEgg.mesh.position;
+        if(p&&currentCityStyle===0&&info.s.coopStage<3){
+            var pads=PADS[info.s.coopStage],idx=0;
+            if(info.s.coopMask===1)idx=1;else if(info.s.coopMask===2)idx=0;
+            else if(Math.hypot(p.x-pads[1][0],p.z-pads[1][1])<Math.hypot(p.x-pads[0][0],p.z-pads[0][1]))idx=1;
+            text+=' · '+t('go',{pad:idx?'B':'A',distance:Math.ceil(Math.hypot(p.x-pads[idx][0],p.z-pads[idx][1]))});
+        }
+        return text;
+    }
+    function render(){
+        var info=state(),s=info&&info.s,p=info&&info.p,joined=!!(p&&p.coopJoined);
+        $('coop-title').textContent=t('title');$('coop-intro').textContent=t('intro');$('coop-reward').textContent=t('reward');
+        $('coop-status').textContent=statusText(info);$('coop-note').textContent=note;
+        $('coop-join').textContent=t('join');$('coop-leave').textContent=t('leave');$('coop-share').textContent=t('share');
+        $('coop-join').hidden=joined;$('coop-leave').hidden=!joined;
+        $('coop-join').disabled=!info||!s||typeof s.coopPhase!=='string'||s.coopPhase==='complete'||s.coopPhase==='failed';
+        $('coop-share').disabled=!info;
+    }
+    function error(code){note=t(copy[code]?code:'disconnected');render();}
+    function label(text){var canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;var c=canvas.getContext('2d');c.fillStyle='#123442';c.beginPath();c.arc(64,64,56,0,Math.PI*2);c.fill();c.fillStyle='#fff5ce';c.textAlign='center';c.textBaseline='middle';c.font='bold 78px sans-serif';c.fillText(text,64,68);var texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthWrite:false}));}
+    function build(){
+        markers=new THREE.Group();markers.name='danbo-coop-pads';
+        var ring=new THREE.TorusGeometry(2.5,0.075,4,40),gem=new THREE.OctahedronGeometry(0.4,0);
+        [0x6CDECA,0xFFD576].forEach(function(color,i){
+            var root=new THREE.Group(),material=new THREE.MeshBasicMaterial({color:color}),outline=new THREE.Mesh(ring,material),star=new THREE.Mesh(gem,material);
+            outline.rotation.x=-Math.PI/2;outline.position.y=0.07;star.position.y=0.9;root.add(outline,star);
+            var sign=label(i?'B':'A');sign.position.y=2.5;sign.scale.set(1.15,1.15,1);root.add(sign);markers.add(root);
+        });scene.add(markers);
+    }
+    function update(){
+        var info=state(),s=info&&info.s,p=info&&info.p,now=performance.now();
+        if(info&&info.room!==lastRoom){lastRoom=info.room;note='';lastSignature='';}
+        if(p&&p.coopWon&&typeof Cosmetics!=='undefined'&&!Cosmetics.isOwned('back_bond')){
+            Cosmetics.data().owned.back_bond=true;
+            if(!Cosmetics.equipment().back)Cosmetics.equip('back','back_bond');else Cosmetics.save();
+            DANBO_PROGRESS.capture();DANBO_PROGRESS.flush();note=t('earned');rewardNoteUntil=Date.now()+12000;
+            if(window.DANBO_JOURNEY)DANBO_JOURNEY.event('coop');
+        }
+        var visible=!!(s&&typeof s.coopPhase==='string'&&gameState==='city'&&currentCityStyle===0&&!window._interiorActive&&!window._pipeTraveling&&!window._pipeCityBuilding&&!window._danboPluginTransition&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive()));
+        if(visible&&!markers)build();if(markers)markers.visible=visible;
+        if(visible){
+            var pads=PADS[Math.min(2,s.coopStage||0)];
+            for(var i=0;i<2;i++){var m=markers.children[i];m.position.set(pads[i][0],0,pads[i][1]);m.children[1].rotation.y=now*0.001;m.children[1].scale.setScalar(s.coopMask&(1<<i)?1.45:1);}
+        }
+        if(now-lastRender>250){lastRender=now;var signature=hint()+'|'+(s&&s.coopPhase)+'|'+(s&&s.coopMembers)+'|'+(typeof _langCode!=='undefined'?_langCode:'');if(signature!==lastSignature){lastSignature=signature;render();}}
+    }
+    function protects(egg){
+        var info=state();if(!egg||!egg.isPlayer||!info||!info.p||!info.p.coopJoined||gameState!=='city'||currentCityStyle!==0||window._interiorActive)return false;
+        // Cover the approach and paths between stages, not only the rings.
+        var p=egg.mesh.position;return Math.abs(p.x)<=24&&p.z>=14&&p.z<=50;
+    }
+    $('coop-join').addEventListener('click',function(){
+        if(gameState!=='city'||currentCityStyle!==0||window._interiorActive){error('returnToHope');return;}
+        note='';DANBO_JOURNEY.close();DANBO_MULTIPLAYER.close();
+        if(!DANBO_MULTIPLAYER.coop('join'))error('disconnected');render();
+    });
+    $('coop-leave').addEventListener('click',function(){DANBO_MULTIPLAYER.coop('leave');note='';render();});
+    $('coop-share').addEventListener('click',function(){DANBO_MULTIPLAYER.share();});
+    window.DANBO_COOP={update:update,render:render,error:error,hint:hint,protects:protects,pads:PADS};render();
+})();

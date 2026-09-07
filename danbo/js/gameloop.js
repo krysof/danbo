@@ -2265,6 +2265,7 @@ function updateHeldEggs(){
         for(var tpe=0;tpe<allEggs.length;tpe++){
             var tpeg=allEggs[tpe];
             if(!tpeg.alive||tpeg.heldBy)continue;
+            if(tpeg.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(tpeg))continue;
             var tpdx=tpeg.mesh.position.x-tp.group.position.x;
             var tpdz=tpeg.mesh.position.z-tp.group.position.z;
             var tpd=DANBO_WASM.len2D(tpdx,tpdz);
@@ -2314,6 +2315,7 @@ function updateHeldEggs(){
         for(var te=0;te<allEggs.length;te++){
             var teg=allEggs[te];
             if(!teg.alive||teg.heldBy)continue;
+            if(teg.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(teg))continue;
             var tdx=teg.mesh.position.x-tob.mesh.position.x;
             var tdz=teg.mesh.position.z-tob.mesh.position.z;
             if(DANBO_WASM.len2D(tdx,tdz)<1.5){
@@ -2610,6 +2612,7 @@ function checkThrownEggImpact(eggList){
         for(var j=0;j<eggList.length;j++){
             var b=eggList[j];
             if(!b||b===a||!b.alive||b.heldBy)continue;
+            if(b.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(b))continue;
             var dx=b.mesh.position.x-a.mesh.position.x;
             var dz=b.mesh.position.z-a.mesh.position.z;
             var dy=b.mesh.position.y-a.mesh.position.y;
@@ -2690,6 +2693,7 @@ function _gameUpdate(){
     const dt=1/60;
     if(window.DANBO_PLUGIN_HOST&&typeof window.DANBO_PLUGIN_HOST.update==='function')window.DANBO_PLUGIN_HOST.update(dt);
     if(window.DANBO_MULTIPLAYER&&typeof window.DANBO_MULTIPLAYER.update==='function')window.DANBO_MULTIPLAYER.update(dt);
+    if(window.DANBO_COOP)DANBO_COOP.update();
     if(window.DANBO_JOURNEY)DANBO_JOURNEY.update();
     var _activePlugin=(window.DANBO_PLUGIN_HOST&&window.DANBO_PLUGIN_HOST.getActive)?window.DANBO_PLUGIN_HOST.getActive():null;
     // Integrated legacy games share this scene and this update loop. Only an

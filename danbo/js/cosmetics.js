@@ -83,6 +83,7 @@ var _ITEMS=[
     {id:'halo_cloud',cat:'halo',price:2500,name:'\u4E91\u6735\u5149\u73AF'},
     {id:'halo_rainbow',cat:'halo',price:5000,name:'\u5F69\u8679\u5149\u73AF'},
     // back
+    {id:'back_bond',cat:'back',price:0,unlockOnly:true,name:'羁绊羽翼（协作奖励）'},
     {id:'back_small_wings',cat:'back',price:3000,name:'\u5C0F\u7FC5\u8180'},
     {id:'back_angel',cat:'back',price:8000,name:'\u5929\u4F7F\u7FC5\u8180'},
     {id:'back_devil',cat:'back',price:8000,name:'\u6076\u9B54\u7FC5\u8180'},
@@ -157,6 +158,7 @@ function _buildCosmetic(id){
         case 'halo_cloud':{for(var cl2=0;cl2<6;cl2++){var ca=cl2/6*Math.PI*2;var pf=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,6),new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.85}));pf.position.set(Math.cos(ca)*0.36,1.85,Math.sin(ca)*0.36);g.add(pf);}g.userData._spin=true;return g;}
         case 'halo_rainbow':{var cols=[0xFF5555,0xFFAA33,0xFFE033,0x55CC55,0x55AAFF,0xAA66FF];for(var rc=0;rc<cols.length;rc++){var ra=rc/cols.length*Math.PI*2;var seg=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6),new THREE.MeshBasicMaterial({color:cols[rc]}));seg.position.set(Math.cos(ra)*0.4,1.85,Math.sin(ra)*0.4);g.add(seg);}g.userData._spin=true;return g;}
         // ---------------- BACK ----------------
+        case 'back_bond':{var featherGeo=new THREE.SphereGeometry(1,8,6);[-1,1].forEach(function(sd){var material=new THREE.MeshBasicMaterial({color:sd<0?0x64DDCB:0xFFD476});for(var f=0;f<2;f++){var feather=new THREE.Mesh(featherGeo,material);feather.position.set(sd*(0.65+f*0.22),0.92-f*0.18,-0.6);feather.scale.set(0.26-f*0.04,0.58-f*0.13,0.065);feather.rotation.z=sd*(0.6+f*0.25);g.add(feather);}});return g;}
         case 'back_small_wings':{[-1,1].forEach(function(sd){var w=new THREE.Mesh(new THREE.SphereGeometry(0.22,8,6),new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.9}));w.position.set(sd*0.3,0.85,-0.5);w.scale.set(0.4,0.7,0.18);w.rotation.z=sd*0.4;g.add(w);});return g;}
         case 'back_angel':{[-1,1].forEach(function(sd){for(var f=0;f<3;f++){var w=new THREE.Mesh(new THREE.SphereGeometry(0.3-f*0.05,8,6),new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.92}));w.position.set(sd*(0.36+f*0.12),0.95-f*0.18,-0.5);w.scale.set(0.4,0.9,0.16);w.rotation.z=sd*(0.5+f*0.15);g.add(w);}});return g;}
         case 'back_devil':{[-1,1].forEach(function(sd){var w=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6),new THREE.MeshBasicMaterial({color:0x3a1030,transparent:true,opacity:0.92}));w.position.set(sd*0.36,0.92,-0.5);w.scale.set(0.45,0.85,0.16);w.rotation.z=sd*0.5;g.add(w);for(var sp=0;sp<3;sp++){var spike=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.16,4),toon(0x551133));spike.position.set(sd*(0.5+sp*0.12),1.05-sp*0.22,-0.5);spike.rotation.z=sd*-0.6;g.add(spike);}});return g;}
@@ -465,7 +467,7 @@ function _shopRender(){
             '<span class="shop-item-name">'+it.name+'</span>'+
             '<span class="shop-item-price '+(equipped?'equipped':(owned?'owned':''))+'">'+
             (owned?(equipped?'\u25C6 \u5DF2\u88C5\u5907':'\u25C7 \u5DF2\u62E5\u6709'):('<span class="shop-coin-gem" style="width:11px;height:11px;"></span> '+it.price))+'</span>';
-        if(it.unlockOnly&&!owned)card.querySelector('.shop-item-price').textContent='旅程挑战解锁';
+        if(it.unlockOnly&&!owned)card.querySelector('.shop-item-price').textContent=it.id==='back_bond'?'协作挑战解锁':'旅程挑战解锁';
         card.onclick=function(){_shopSelectItem(it.id);};
         grid.appendChild(card);
     });
@@ -488,7 +490,7 @@ function _shopRenderAction(){
     var equipped=Cosmetics.equipment()[it.cat]===_shopSel;
     if(nameEl)nameEl.textContent=it.name+(owned?'':'  \u00B7  '+it.price+' \u91D1\u5E01');
     act.style.display='inline-block';
-    if(it.unlockOnly&&!owned){if(nameEl)nameEl.textContent=it.name;act.className='buy';act.textContent='完成初次旅行获得';act.onclick=function(){if(window.DANBO_JOURNEY){_closeShop();DANBO_JOURNEY.open();}};return;}
+    if(it.unlockOnly&&!owned){if(nameEl)nameEl.textContent=it.name;act.className='buy';act.textContent=it.id==='back_bond'?'完成星光协奏获得':'完成初次旅行获得';act.onclick=function(){if(window.DANBO_JOURNEY){_closeShop();DANBO_JOURNEY.open();}};return;}
     act.className=owned?(equipped?'unequip':'equip'):'buy';
     act.textContent=owned?(equipped?'\u5378\u4E0B':'\u88C5\u5907'):'\u8D2D\u4E70';
     act.onclick=function(){

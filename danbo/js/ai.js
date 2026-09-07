@@ -683,6 +683,7 @@ function updateCityNPC(egg){if(egg.heldBy)return;
             for(var sdi=0;sdi<allEggs.length;sdi++){
                 var sde2=allEggs[sdi];
                 if(sde2===egg||!sde2.alive||sde2.heldBy)continue;
+                if(sde2.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(sde2))continue;
                 var sddx2=sde2.mesh.position.x-egg.mesh.position.x;
                 var sddz2=sde2.mesh.position.z-egg.mesh.position.z;
                 var sddy2=sde2.mesh.position.y-egg.mesh.position.y;

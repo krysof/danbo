@@ -15,6 +15,7 @@
     var selectedServerEndpoint='',selectedServerReady=false;
     var serverEntries=[],selectedServerCode=requestedRoomCode(),serverRefreshSerial=0;
     var serverChosen=new URLSearchParams(location.search).has('room');
+    var lastAppearance='',lastAppearanceAt=0,appearanceBudgetAt=0,appearanceIds=new Set();
     var selectedCapacity=0;
 
     var ui={
@@ -205,7 +206,8 @@
             name:currentName(),character:Math.max(0,Math.min(7,selectedChar|0)),style:currentStyle(),
             city:typeof currentCityStyle==='number'?currentCityStyle:0,
             x:p?p.x:0,y:p?p.y:0.01,z:p?p.z:0,
-            rotation:playerEgg&&playerEgg.mesh?playerEgg.mesh.rotation.y:0
+            rotation:playerEgg&&playerEgg.mesh?playerEgg.mesh.rotation.y:0,
+            appearance:window.DANBO_APPEARANCE?DANBO_APPEARANCE.selected():'{}'
         };
     }
     function randomCode(){
@@ -320,6 +322,7 @@
         remote.avatar=createEggMesh(skin.color,skin.accent,skin.type,statePlayer.style==='classic'?'classic':'cinematic');
         remote.root.add(remote.avatar);
         remote.character=index;remote.style=statePlayer.style;
+        remote.appearance=null;
         remote.footBase=[];
         var feet=remote.avatar.userData.feet||[];
         for(var i=0;i<feet.length;i++)remote.footBase.push(feet[i].position.clone());
@@ -383,6 +386,13 @@
     }
     function syncRemotePlayers(dt){
         if(!room||!room.state||!room.state.players)return;
+        var now=performance.now();
+        if(now-appearanceBudgetAt>500||!appearanceBudgetAt){
+            appearanceBudgetAt=now;var candidates=[],p=playerEgg&&playerEgg.mesh.position;
+            if(p)room.state.players.forEach(function(other,id){if(id!==room.sessionId&&Number(other.city)===Number(currentCityStyle)&&other.connected!==false){var d=Math.hypot(Number(other.x)-p.x,Number(other.z)-p.z);if(d<32)candidates.push({id:id,d:d});}});
+            candidates.sort(function(a,b){return a.d-b.d;});var q=window.DANBO_VISUAL_QUALITY;
+            appearanceIds=new Set(candidates.slice(0,q&&q.low?2:q&&q.high?6:4).map(function(v){return v.id;}));
+        }
         var present=new Set(),list=[];
         room.state.players.forEach(function(statePlayer,sessionId){
             list.push({id:sessionId,name:statePlayer.name,city:statePlayer.city,connected:statePlayer.connected});
@@ -394,6 +404,12 @@
             var remote=remotes.get(sessionId)||createRemote(sessionId,statePlayer);
             if(remote.character!==Number(statePlayer.character)||remote.style!==statePlayer.style)rebuildRemoteAvatar(remote,statePlayer);
             if(remote.name!==statePlayer.name)rebuildRemoteName(remote,statePlayer.name);
+            if(window.DANBO_APPEARANCE){
+                var gear=appearanceIds.has(sessionId)?String(statePlayer.appearance||'{}'):'{}';
+                if(gear!==remote.appearance){remote.appearance=gear;remote.hasGear=DANBO_APPEARANCE.apply(remote.avatar,gear);}
+                if(remote.nameSprite)remote.nameSprite.position.y=remote.hasGear?2.9:2.25;
+                DANBO_APPEARANCE.tick(remote.avatar,dt);
+            }
             remote.root.visible=true;
             var alpha=1-Math.exp(-dt/0.085);
             remote.root.position.x+=(Number(statePlayer.x)-remote.root.position.x)*alpha;
@@ -467,6 +483,7 @@
             }else room=await client.joinOrCreate(ROOM_NAME,options);
             room.reconnection.enabled=true;room.reconnection.maxRetries=8;room.reconnection.minDelay=350;room.reconnection.maxDelay=3500;
             room.onMessage('chat',receiveChat);
+            room.onMessage('coop-error',function(message){if(window.DANBO_COOP)DANBO_COOP.error(message&&message.code);});
             room.onDrop(function(){setStatus('reconnecting','重连中…');showSummary('网络中断，正在保留席位并自动重连。',false);});
             room.onReconnect(function(){setStatus('online','已重连');showSummary('已恢复房间 '+code+'。',false);});
             room.onError(function(_code,error){showSummary(messageForError(error),true);});
@@ -476,7 +493,7 @@
             if(ui.endpoint)ui.endpoint.value=endpoint;if(ui.name)ui.name.value=name;if(ui.code)ui.code.value=code;
             setStatus('online','房间 '+code);showSummary('已加入 '+code+'，同一城市的玩家会显示在场景中。',false);
             if(ui.leave)ui.leave.disabled=false;if(ui.share)ui.share.disabled=false;
-            lastSentCity=-1;sendLocalState(true);refreshPlayerList();
+            lastSentCity=-1;lastAppearance='';lastAppearanceAt=0;appearanceBudgetAt=0;sendLocalState(true);refreshPlayerList();
             return true;
         }catch(error){
             cleanupRoom();setStatus('error','连接失败');showSummary(messageForError(error),true);openPanel();
@@ -507,6 +524,7 @@
         room.send('state',{
             sequence:sequence,city:city,x:p.x,y:p.y,z:p.z,rotation:playerEgg.mesh.rotation.y,
             vx:playerEgg.vx||0,vy:playerEgg.vy||0,vz:playerEgg.vz||0,action:detectAction(),teleport:teleport
+            ,worldActive:!!playerEgg.onGround&&!playerEgg.heldBy&&!(playerEgg.throwTimer>0)&&!document.hidden&&!window._interiorActive&&!window._danboPluginTransition&&!window._journeyPanelOpen&&!window._accountPanelOpen&&!window._multiplayerPanelOpen&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())
         });
     }
     function receiveChat(message){
@@ -533,7 +551,10 @@
     }
     function update(dt){
         if(pendingAutoCode&&!joining&&!room&&gameState==='city'&&playerEgg){var code=pendingAutoCode;pendingAutoCode='';connectRoom(code);}
-        if(room){sendLocalState(false);syncRemotePlayers(dt||1/60);}
+        if(room){
+            sendLocalState(false);syncRemotePlayers(dt||1/60);
+            var now=performance.now();if(now-lastAppearanceAt>500&&window.DANBO_APPEARANCE){lastAppearanceAt=now;var selected=DANBO_APPEARANCE.selected();if(selected!==lastAppearance){lastAppearance=selected;room.send('profile',{appearance:selected});}}
+        }
         else if(remotes.size)removeAllRemotes();
     }
 
@@ -566,6 +587,8 @@
 
     window.DANBO_MULTIPLAYER={
         open:openPanel,close:closePanel,connect:connectRoom,leave:leaveRoom,update:update,sendChat:sendChat,
+        share:shareRoom,
+        coop:function(action){if(!room||status!=='online')return false;sendLocalState(true);room.send('coop',{action:action});return true;},
         isConnected:function(){return !!room&&status==='online';},
         getRoom:function(){return room;},
         getEndpoint:function(){return normalizeEndpoint(ui.endpoint&&ui.endpoint.value||configuredEndpoint());},

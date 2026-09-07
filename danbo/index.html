@@ -18,7 +18,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260907.4">
+<link rel="stylesheet" href="style.css?v=20260907.5">
 </head>
 <body>
 <div id="game-container">
@@ -30,6 +30,12 @@
       <small>MY DANBO JOURNEY</small><h2 id="journey-title">把蛋宝带回家</h2>
       <h3 id="journey-card-name"></h3><p id="journey-objectives"></p><p id="journey-reward"></p>
       <p id="journey-stamps" class="account-hint"></p>
+      <section class="coop-card" aria-labelledby="coop-title">
+        <h3 id="coop-title">星光协奏 · 多人协作</h3>
+        <p id="coop-intro"></p><p id="coop-reward" class="account-hint"></p>
+        <p id="coop-status" role="status" aria-live="polite"></p><p id="coop-note" role="status"></p>
+        <div class="journey-actions"><button id="coop-join" type="button">加入协作</button><button id="coop-leave" type="button" hidden>退出协作</button><button id="coop-share" type="button">邀请朋友来同服</button></div>
+      </section>
       <p id="journey-status" role="status" aria-live="polite"></p>
       <div id="journey-conflict" hidden><p>未自动覆盖任何存档。请选择完整保留其中一份（不会合并金币）：</p><button id="journey-use-cloud" type="button">使用云端存档</button><button id="journey-use-local" type="button">用本机存档替换云端</button></div>
       <div class="journey-actions">
@@ -325,7 +331,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.4';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.5';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -388,9 +394,11 @@
     'js/map.js',
     'js/interior.js',
     'js/cosmetics.js',
+    'js/appearance.js',
     'js/progress.js',
     'js/vendor/qrcode.js',
     'js/journey.js',
+    'js/coop.js',
     'js/physics.js',
     'js/ai.js',
     'js/player.js',

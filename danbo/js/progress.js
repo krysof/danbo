@@ -33,6 +33,10 @@
         write(key,record);
     }
     function request(path,body){return DANBO_ACCOUNT.request(path,body);}
+    function unlock(items){
+        if(!Array.isArray(items))return;
+        items.forEach(function(id){if(id==='back_bond')Cosmetics.data().owned[id]=true;});
+    }
     function setStatus(text){status=text;if(window.DANBO_JOURNEY)DANBO_JOURNEY.render();}
     async function activate(next,reason,incoming){
         if(busy)await busy;
@@ -57,6 +61,7 @@
             if(record.dirty&&remote.revision!==record.revision){blocked=true;setStatus('发现两份进度，请打开旅程手册选择；没有覆盖任何一份');return;}
             if(!record.dirty&&remote.snapshot){record={revision:remote.revision,dirty:false,snapshot:remote.snapshot};apply(record.snapshot);capture();}
             else record.revision=remote.revision;
+            unlock(remote.unlocks);capture();
             blocked=false;
             await flush();
         }catch(error){blocked=true;setStatus('云存档暂不可用，本机进度保留。'+error.message);}
@@ -73,6 +78,7 @@
                 var result=await request('/progress',{revision:record.revision,snapshot:sent});
                 if(sentKey!==key)return false;
                 record.revision=result.revision;capture();record.dirty=JSON.stringify(record.snapshot)!==text;write(key,record);
+                unlock(result.unlocks);capture();
                 setStatus(record.dirty?'新进度等待同步':'云存档已同步');
                 if(window.DANBO_JOURNEY)DANBO_JOURNEY.event('save');
                 return true;
@@ -91,7 +97,7 @@
         write(key+':backup',record);
         if(which==='cloud'){
             if(!remote.snapshot)throw new Error('云端还没有存档');
-            record={revision:remote.revision,dirty:false,snapshot:remote.snapshot};apply(record.snapshot);
+            record={revision:remote.revision,dirty:false,snapshot:remote.snapshot};apply(record.snapshot);unlock(remote.unlocks);
         }else record.revision=remote.revision;
         blocked=false;capture();return flush();
     }

@@ -34,7 +34,8 @@
         var j=P.journey(),u=DANBO_ACCOUNT.getUser(),done=j.rewarded;
         var hint=!done?(j.distance<12?'移动 '+Math.min(12,Math.floor(j.distance))+'/12 米 · WASD / 左摇杆':!j.jumped?'轻按并松开空格 /「跳」按钮':j.steps<3?'沿金色路标收集星光 '+j.steps+'/3':'首个挑战完成！'):
             (j.stamps.indexOf(date())<0?'今日小目标：打开一个新宝箱':'今日旅程已盖章 · 自由探索吧');
-        $('journey-task').textContent=(done?'旅程手册 · ':'初次旅行 · ')+hint;
+        var coopHint=window.DANBO_COOP&&DANBO_COOP.hint();
+        $('journey-task').textContent=coopHint||(done?'旅程手册 · ':'初次旅行 · ')+hint;
         $('journey-objectives').textContent='① 移动 12 米 '+(j.distance>=12?'✓':'')+'　② 跳跃一次 '+(j.jumped?'✓':'')+'　③ 收集星光 '+j.steps+'/3';
         $('journey-reward').textContent=done?'已获得并解锁「初旅星环」！可以在装扮商店重新佩戴。':'完成后获得「初旅星环」，没有倒计时、不限尝试次数。';
         $('journey-stamps').textContent='旅行纪念章：'+j.stamps.length+' 枚。'+(j.stamps.indexOf(date())>=0?'今天已获得。':'打开一个新宝箱，留下今天的足迹。')+' 不连续登录也不会扣奖励。';
@@ -46,6 +47,7 @@
         $('journey-next').hidden=!booth;
         $('journey-consent').checked=consent();
         $('journey-card-name').textContent=u?u.characterName:'你的蛋宝';
+        if(window.DANBO_COOP)DANBO_COOP.render();
     }
     function lock(value){
         window._journeyPanelOpen=value;
@@ -60,6 +62,7 @@
     function close(){if(busy)return;opened=false;lock(false);$('journey-overlay').classList.add('hidden');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
     function resetRuntime(){previous=null;entered=false;if(marker)marker.visible=false;}
     function protects(egg){
+        if(window.DANBO_COOP&&DANBO_COOP.protects(egg))return true;
         if(!egg||!egg.isPlayer||gameState!=='city'||currentCityStyle!==0||P.journey().rewarded||window._interiorActive)return false;
         var p=egg.mesh.position;return Math.abs(p.x)<=6&&p.z>=14&&p.z<=45;
     }
@@ -168,6 +171,6 @@
             message('接力成功！关闭手册，选择服务器即可继续。建议注册账号长期保存。');
         });});
     }
-    window.DANBO_JOURNEY={update:update,jump:jump,render:render,open:open,event:event,resetRuntime:resetRuntime,protects:protects,route:route};
+    window.DANBO_JOURNEY={update:update,jump:jump,render:render,open:open,close:close,event:event,resetRuntime:resetRuntime,protects:protects,route:route};
     render();
 })();

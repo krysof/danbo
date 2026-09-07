@@ -13,6 +13,11 @@ const cityProps = []; // {group, x, z, radius, type, grabbed, origY}
 
 const CITY_SIZE = CITY_CONFIG.size;
 var currentCityStyle=0;
+// Keep first-journey and co-op approach space free of randomly placed props.
+function _hopeActivitySpace(x,z,padding){
+    padding=padding||0;
+    return currentCityStyle===0&&Math.abs(x)<24+padding&&z>14-padding&&z<50+padding;
+}
 var _prevCityStyle=0; // track previous city for earth return
 var CITY_STYLES=(window.DANBO_CITY_REGISTRY&&DANBO_CITY_REGISTRY.getStyles)?DANBO_CITY_REGISTRY.getStyles():[];
 if(!CITY_STYLES||!CITY_STYLES.length){
@@ -1162,6 +1167,7 @@ function* _buildCitySteps() {
             if(DANBO_WASM.aabb2D(tx,tz,c.x,c.z,c.hw,c.hd,2)) skip=true;
         }
         if(currentCityStyle===0&&Math.hypot(tx,tz)<25)skip=true;
+        if(_hopeActivitySpace(tx,tz,4))skip=true;
         if(DANBO_WASM.absDeltaLess(tx,0,10)&&currentCityStyle===6) skip=true; // avoid canyon
         else if(DANBO_WASM.aabb2D(tx,tz,0,0,4,4,0)) skip=true;
         if(skip) continue;
@@ -1850,7 +1856,7 @@ function* _buildCitySteps() {
     for(let i=0;i<20;i++){
         yield;
         const lx=(Math.random()-0.5)*CITY_SIZE*1.5, lz=(Math.random()-0.5)*CITY_SIZE*1.5;
-        let skip2=false;
+        let skip2=_hopeActivitySpace(lx,lz,1);
         for(const c of cityColliders) if(DANBO_WASM.aabb2D(lx,lz,c.x,c.z,c.hw,c.hd,1)) skip2=true;
         if(skip2) continue;
         const lg=new THREE.Group(); lg.position.set(lx,0,lz);
@@ -1878,7 +1884,7 @@ function* _buildCitySteps() {
     for(let i=0;i<12;i++){
         yield;
         const bx=(Math.random()-0.5)*CITY_SIZE*1.4, bz=(Math.random()-0.5)*CITY_SIZE*1.4;
-        let skip3=false;
+        let skip3=_hopeActivitySpace(bx,bz,2);
         for(const c of cityColliders) if(DANBO_WASM.aabb2D(bx,bz,c.x,c.z,c.hw,c.hd,1.5)) skip3=true;
         if(skip3) continue;
         const bg=new THREE.Group(); bg.position.set(bx,0,bz);
