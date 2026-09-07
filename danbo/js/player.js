@@ -293,6 +293,7 @@ function handlePlayerInput(){
                 var pct2=_jumpCharge/_jumpChargeMax;
                 var jumpF=JUMP_FORCE*(1.6+pct2*2.4);
                 playerEgg.vy=jumpF;
+                if(window.DANBO_JOURNEY)DANBO_JOURNEY.jump();
                 playerEgg.squash=0.65-pct2*0.2;
                 playJumpSound();
                 if(pct2>0.15)_spawnGroundDust(playerEgg.mesh.position.x,playerEgg.mesh.position.y,playerEgg.mesh.position.z,pct2);
@@ -300,6 +301,7 @@ function handlePlayerInput(){
             } else if(!_jumpCharging&&playerEgg._spaceHoldFrames>0&&playerEgg._spaceHoldFrames<_chargeDelay){
                 // Released before 0.3s → normal tap jump
                 playerEgg.vy=JUMP_FORCE*1.5;
+                if(window.DANBO_JOURNEY)DANBO_JOURNEY.jump();
                 playerEgg.squash=0.65;playJumpSound();
             }
         }

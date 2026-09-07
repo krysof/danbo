@@ -14,6 +14,7 @@
     var status='offline',statusText='未连接';
     var selectedServerEndpoint='',selectedServerReady=false;
     var serverEntries=[],selectedServerCode=requestedRoomCode(),serverRefreshSerial=0;
+    var serverChosen=new URLSearchParams(location.search).has('room');
     var selectedCapacity=0;
 
     var ui={
@@ -104,6 +105,8 @@
         ui.serverList.textContent='';
         var address='';
         try{address=new URL(selectedServerEndpoint).host;}catch(_error){}
+        var recommended=serverEntries.filter(function(e){return e.status==='online'&&e.available>0;}).sort(function(a,b){return b.players-a.players||b.available-a.available;})[0];
+        if(!serverChosen&&recommended)selectedServerCode=recommended.code;
         serverEntries.forEach(function(entry){
             var button=document.createElement('button');
             button.type='button';button.className='server-list-item '+entry.status;
@@ -113,11 +116,12 @@
             button.innerHTML='<span class="server-state-dot" aria-hidden="true"></span><span class="server-main-copy"><strong></strong><small></small></span><span class="server-region">公共分区</span><span class="server-metric"><b></b><small>在线 / 容量</small></span><span class="server-metric server-ping"><b></b><small>延迟</small></span><span class="server-state-text"></span>';
             button.querySelector('strong').textContent=entry.name;
             button.querySelector('.server-main-copy small').textContent=address;
+            if(recommended&&entry.code===recommended.code)button.querySelector('.server-region').textContent='推荐同服';
             var metrics=button.querySelectorAll('.server-metric b');
             metrics[0].textContent=entry.players+' / '+entry.capacity;
             metrics[1].textContent=ping+'ms';
             button.querySelector('.server-state-text').textContent=entry.status==='full'?'已满（含预留席位）':entry.status==='online'?'可进入':'离线';
-            button.addEventListener('click',function(){selectServer(entry.code);});
+            button.addEventListener('click',function(){serverChosen=true;selectServer(entry.code);});
             ui.serverList.appendChild(button);
         });
         if(!serverEntries.some(function(entry){return entry.code===selectedServerCode;}))selectedServerCode='PUBLIC';
@@ -558,7 +562,7 @@
     setInterval(function(){
         if(ui.serverScreen&&ui.serverScreen.classList.contains('active')&&!document.hidden)refreshServerList();
     },15000);
-    window.DANBO_SERVER_BROWSER={open:openServerBrowser,refresh:refreshServerList,enter:enterSelectedServer,select:selectServer,isReady:function(){return selectedServerReady;}};
+    window.DANBO_SERVER_BROWSER={open:openServerBrowser,refresh:refreshServerList,enter:enterSelectedServer,select:function(code){serverChosen=true;selectServer(code);},isReady:function(){return selectedServerReady;}};
 
     window.DANBO_MULTIPLAYER={
         open:openPanel,close:closePanel,connect:connectRoom,leave:leaveRoom,update:update,sendChat:sendChat,

@@ -86,7 +86,7 @@
         if(lastFocus&&lastFocus.focus)lastFocus.focus();
         if(pending){pending(false);pending=null;}
     }
-    function adopt(data){
+    async function adopt(data,reason){
         session={token:data.token,expiresAt:data.expiresAt,user:data.user};
         try{sessionStorage.setItem(storageKey(),JSON.stringify({token:session.token,expiresAt:session.expiresAt}));}catch(_){}
         if(data.user.kind==='guest')rememberGuest({characterName:data.user.characterName,character:data.user.character,style:data.user.style});
@@ -96,12 +96,14 @@
             if(typeof selectCharByIndex==='function')selectCharByIndex(selectedChar);
         }
         render();
+        if(window.DANBO_PROGRESS)await DANBO_PROGRESS.activate(data.user,reason||'resume',data.snapshot);
+        if(window.DANBO_JOURNEY)DANBO_JOURNEY.event('open');
     }
     async function resume(){
         if(session&&session.expiresAt>Date.now())return true;
         var stored;try{stored=JSON.parse(sessionStorage.getItem(storageKey())||'null');}catch(_){}
         if(!stored||stored.expiresAt<=Date.now())return false;
-        try{var data=await api('/me',undefined,stored.token);adopt(Object.assign({},data,{token:stored.token}));return true;}
+        try{var data=await api('/me',undefined,stored.token);await adopt(Object.assign({},data,{token:stored.token}));return true;}
         catch(error){if(error.status===401)clearSession();return false;}
     }
     async function ensure(value){
@@ -115,9 +117,9 @@
         try{
             var current=profile(),data;
             if(kind==='guest')data=await api('/guest',current);
-            else if(mode==='register')data=await api('/register',Object.assign({},current,{username:$('account-login').value,email:$('account-email').value,password:$('account-password').value}));
+            else if(mode==='register')data=await api('/register',Object.assign({},current,{username:$('account-login').value,email:$('account-email').value,password:$('account-password').value,emailUpdates:!!($('account-updates')&&$('account-updates').checked)}));
             else data=await api('/login',{login:$('account-login').value,password:$('account-password').value});
-            adopt(data);$('account-password').value='';
+            await adopt(data,kind==='guest'?'guest':mode);$('account-password').value='';
             if(old&&old.token!==session.token)api('/logout',{},old.token).catch(function(){});
             var done=pending;pending=null;busy=false;close();if(done)done(true);
             if(gameState==='city'&&kind!=='guest'&&mode==='login'){await DANBO_MULTIPLAYER.leave();location.reload();return;}
@@ -160,7 +162,7 @@
     [$('account-open'),$('account-server-open')].forEach(function(button){button.addEventListener('click',function(){open('register');});});
     $('account-logout').addEventListener('click',async function(){
         if(busy)return;busy=true;
-        try{await api('/logout',{},session.token);await DANBO_MULTIPLAYER.leave();clearSession();busy=false;location.reload();}
+        try{if(window.DANBO_PROGRESS)await DANBO_PROGRESS.flush();await api('/logout',{},session.token);await DANBO_MULTIPLAYER.leave();clearSession();busy=false;location.reload();}
         catch(error){$('account-message').textContent=error.message;busy=false;}
     });
     [box,nameBox].forEach(function(panel){
@@ -177,6 +179,8 @@
         panel.addEventListener('keyup',function(event){event.stopPropagation();});
     });
     window.DANBO_ACCOUNT={ensure:ensure,open:open,requestCharacter:requestCharacter,
+        request:function(path,body){if(!endpoint)configure(DANBO_MULTIPLAYER.getEndpoint());return api(path,body,session&&session.token);},
+        acceptHandoff:async function(data){var old=session;await adopt(data,'handoff');if(old)api('/logout',{},old.token).catch(function(){});},
         getUser:function(){return session&&session.user;},
         getToken:function(value){configure(value);return session&&session.expiresAt>Date.now()?session.token:null;},
         invalidate:clearSession};

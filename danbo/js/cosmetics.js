@@ -27,6 +27,7 @@ var Cosmetics=(function(){
         buy:function(id){
             var it=_ITEM_BY_ID[id]; if(!it)return false;
             if(Cosmetics.isOwned(id))return true;
+            if(it.unlockOnly)return false;
             if(typeof coins==='undefined'||coins<it.price)return false;
             coins-=it.price; data.owned[id]=true; save();
             var ce=document.getElementById('coin-hud'); if(ce)ce.textContent='\u2B50 '+coins;
@@ -76,6 +77,7 @@ var _ITEMS=[
     {id:'hat_explorer',cat:'hat',price:1500,name:'\u63A2\u9669\u5BB6\u5E3D'},
     {id:'hat_astronaut',cat:'hat',price:3000,name:'\u5B87\u822A\u5934\u76D4'},
     // halo
+    {id:'halo_journey',cat:'halo',price:0,unlockOnly:true,name:'初旅星环（旅程奖励）'},
     {id:'halo_star',cat:'halo',price:2000,name:'\u661F\u661F\u5149\u73AF'},
     {id:'halo_sakura',cat:'halo',price:2500,name:'\u6A31\u82B1\u5149\u73AF'},
     {id:'halo_cloud',cat:'halo',price:2500,name:'\u4E91\u6735\u5149\u73AF'},
@@ -149,6 +151,7 @@ function _buildCosmetic(id){
         case 'hat_explorer':{var brim=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.54,0.06,18),toon(0x8B6A40));brim.position.set(0,1.3,0);g.add(brim);var top=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.36,0.32,16),toon(0xA07A4A));top.position.set(0,1.46,0);g.add(top);var bd=new THREE.Mesh(new THREE.TorusGeometry(0.34,0.035,6,16),toon(0x5A4028));bd.position.set(0,1.36,0);bd.rotation.x=Math.PI/2;g.add(bd);return g;}
         case 'hat_astronaut':{var helm=new THREE.Mesh(new THREE.SphereGeometry(0.55,16,14),new THREE.MeshPhongMaterial({color:0xFFFFFF,shininess:80}));helm.position.set(0,1.15,0);g.add(helm);var vis=new THREE.Mesh(new THREE.SphereGeometry(0.5,16,12,Math.PI*0.2,Math.PI*0.6,Math.PI*0.35,Math.PI*0.4),new THREE.MeshPhongMaterial({color:0x224488,shininess:120}));vis.position.set(0,1.15,0.04);g.add(vis);return g;}
         // ---------------- HALO ----------------
+        case 'halo_journey':{var journeyHalo=_buildCosmetic('halo_star');journeyHalo.children.forEach(function(part,i){part.material.color.setHex(i%2?0x6FE6D0:0xFFD46C);});return journeyHalo;}
         case 'halo_star':{var ring=new THREE.Mesh(new THREE.TorusGeometry(0.4,0.04,8,24),new THREE.MeshBasicMaterial({color:0xFFE066,transparent:true,opacity:0.9}));ring.position.set(0,1.85,0);ring.rotation.x=Math.PI/2;ring.userData._spin=1;g.add(ring);for(var s3=0;s3<6;s3++){var sa=s3/6*Math.PI*2;var st=new THREE.Mesh(new THREE.OctahedronGeometry(0.07,0),new THREE.MeshBasicMaterial({color:0xFFF2A0}));st.position.set(Math.cos(sa)*0.4,1.85,Math.sin(sa)*0.4);g.add(st);}g.userData._spin=true;return g;}
         case 'halo_sakura':{var ring=new THREE.Mesh(new THREE.TorusGeometry(0.4,0.04,8,24),new THREE.MeshBasicMaterial({color:0xFFB6CE,transparent:true,opacity:0.9}));ring.position.set(0,1.85,0);ring.rotation.x=Math.PI/2;g.add(ring);for(var p2=0;p2<8;p2++){var pa=p2/8*Math.PI*2;var pet=new THREE.Mesh(new THREE.CircleGeometry(0.06,8),new THREE.MeshBasicMaterial({color:0xFF9FC0,transparent:true,opacity:0.9,side:THREE.DoubleSide}));pet.position.set(Math.cos(pa)*0.4,1.85,Math.sin(pa)*0.4);pet.rotation.x=-Math.PI/2;g.add(pet);}g.userData._spin=true;return g;}
         case 'halo_cloud':{for(var cl2=0;cl2<6;cl2++){var ca=cl2/6*Math.PI*2;var pf=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,6),new THREE.MeshBasicMaterial({color:0xFFFFFF,transparent:true,opacity:0.85}));pf.position.set(Math.cos(ca)*0.36,1.85,Math.sin(ca)*0.36);g.add(pf);}g.userData._spin=true;return g;}
@@ -170,7 +173,7 @@ function _cosBody(){ return (typeof playerEgg!=='undefined'&&playerEgg&&playerEg
 function _applyCosmetics(previewCat,previewId){
     var body=_cosBody(); if(!body)return;
     // remove old root
-    if(body.userData._cosRoot){body.remove(body.userData._cosRoot);}
+    if(body.userData._cosRoot){var oldRoot=body.userData._cosRoot;body.remove(oldRoot);var geometries=new Set(),materials=new Set();oldRoot.traverse(function(o){if(o.geometry)geometries.add(o.geometry);if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(function(m){materials.add(m);});});geometries.forEach(function(g){g.dispose();});materials.forEach(function(m){m.dispose();});}
     var root=new THREE.Group();body.userData._cosRoot=root;body.add(root);
     _cosSpinGroups=[];
     var eq=Cosmetics.equipment();
@@ -462,6 +465,7 @@ function _shopRender(){
             '<span class="shop-item-name">'+it.name+'</span>'+
             '<span class="shop-item-price '+(equipped?'equipped':(owned?'owned':''))+'">'+
             (owned?(equipped?'\u25C6 \u5DF2\u88C5\u5907':'\u25C7 \u5DF2\u62E5\u6709'):('<span class="shop-coin-gem" style="width:11px;height:11px;"></span> '+it.price))+'</span>';
+        if(it.unlockOnly&&!owned)card.querySelector('.shop-item-price').textContent='旅程挑战解锁';
         card.onclick=function(){_shopSelectItem(it.id);};
         grid.appendChild(card);
     });
@@ -484,6 +488,7 @@ function _shopRenderAction(){
     var equipped=Cosmetics.equipment()[it.cat]===_shopSel;
     if(nameEl)nameEl.textContent=it.name+(owned?'':'  \u00B7  '+it.price+' \u91D1\u5E01');
     act.style.display='inline-block';
+    if(it.unlockOnly&&!owned){if(nameEl)nameEl.textContent=it.name;act.className='buy';act.textContent='完成初次旅行获得';act.onclick=function(){if(window.DANBO_JOURNEY){_closeShop();DANBO_JOURNEY.open();}};return;}
     act.className=owned?(equipped?'unequip':'equip'):'buy';
     act.textContent=owned?(equipped?'\u5378\u4E0B':'\u88C5\u5907'):'\u8D2D\u4E70';
     act.onclick=function(){

@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <title>DANBO World</title>
+<meta name="theme-color" content="#153746">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DANBO">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/app-icon-192.png">
 <script type="importmap">
 {
   "imports": {
@@ -13,11 +18,36 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260907.2">
+<link rel="stylesheet" href="style.css?v=20260907.3">
 </head>
 <body>
 <div id="game-container">
   <div id="three-root"></div>
+  <button id="journey-task" type="button" hidden>初次旅行</button>
+  <div id="journey-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="journey-title">
+    <section class="account-card journey-card">
+      <button id="journey-close" class="account-close" type="button" aria-label="关闭旅程手册">×</button>
+      <small>MY DANBO JOURNEY</small><h2 id="journey-title">把蛋宝带回家</h2>
+      <h3 id="journey-card-name"></h3><p id="journey-objectives"></p><p id="journey-reward"></p>
+      <p id="journey-stamps" class="account-hint"></p>
+      <p id="journey-status" role="status" aria-live="polite"></p>
+      <div id="journey-conflict" hidden><p>未自动覆盖任何存档。请选择完整保留其中一份（不会合并金币）：</p><button id="journey-use-cloud" type="button">使用云端存档</button><button id="journey-use-local" type="button">用本机存档替换云端</button></div>
+      <div class="journey-actions">
+        <button id="journey-register" type="button" class="account-primary">注册并保存这只蛋宝</button>
+        <button id="journey-cloud-save" type="button" class="account-primary" hidden>立即同步 / 重试</button>
+        <button id="journey-handoff" type="button">生成手机接力卡</button>
+        <button id="journey-install" type="button">添加到主屏幕</button>
+        <button id="journey-claim" type="button" hidden>领取这份接力存档</button>
+      </div>
+      <p id="journey-message" role="status" aria-live="polite"></p>
+      <canvas id="journey-card" hidden aria-label="蛋宝纪念卡和一次性接力二维码"></canvas>
+      <div id="journey-card-actions" class="journey-actions" hidden><button id="journey-download" type="button">保存纪念卡图片</button><button id="journey-copy" type="button">复制接力链接</button></div>
+      <p class="account-hint">接力码 10 分钟有效，领取后失效。它包含人物和当前进度，不含账号登录权限。长期保存请注册；接力卡不要公开分享。</p>
+      <label class="journey-check"><input id="journey-consent" type="checkbox">允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）</label>
+      <label id="journey-preferences" class="journey-check" hidden><input id="journey-updates" type="checkbox">愿意接收游戏更新邮件（可选，随时取消）</label>
+      <button id="journey-next" type="button" hidden>展台：准备下一位游客</button>
+    </section>
+  </div>
 
   <div id="account-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="account-title">
     <section class="account-card">
@@ -29,13 +59,14 @@
         <label><span id="account-login-label">用户名或邮箱</span><input id="account-login" required maxlength="254" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
         <label id="account-email-row" hidden><span>邮箱</span><input id="account-email" type="email" maxlength="254" autocomplete="email" autocapitalize="none" spellcheck="false"></label>
         <label><span>密码</span><input id="account-password" type="password" required maxlength="128" autocomplete="current-password"></label>
-        <p id="account-registration-note" class="account-hint" hidden>用户名 3–16 字；密码 15–128 字。当前人物名字和角色将保存到账号。邮箱暂不验证，尚不支持邮件找回密码。</p>
+        <div id="account-registration-note" class="account-hint" hidden>用户名 3–16 字；密码 15–128 字。当前人物和游戏进度将保存到账号。邮箱暂不验证，尚不支持邮件找回密码。<label class="journey-check"><input id="account-updates" type="checkbox">愿意接收游戏更新邮件（可选，随时取消）</label></div>
         <button id="account-submit" class="account-primary" type="submit">登录</button>
       </form>
       <p id="account-message" class="account-error" role="status" aria-live="polite"></p>
       <button id="account-guest" class="account-guest" type="button">先以游客身份游玩 →</button>
       <button id="account-logout" class="account-guest" type="button" hidden>退出账号</button>
-      <p class="account-hint">游客人物资料保存在此浏览器；清除网站数据会丢失。注册后人物名字和角色可跨设备使用。现有游戏进度仍保存在本地。</p>
+      <p class="account-hint">游客人物和进度保存在此浏览器，清除网站数据会丢失。注册后可同步金币、探索、装扮和旅程进度；请在退出前确认“云存档已同步”。</p>
+      <label class="journey-check account-hint"><input id="account-metrics" type="checkbox">允许匿名试玩统计（可选，不含姓名、邮箱、聊天；保留 90 天）</label>
     </section>
   </div>
   <div id="character-name-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="character-name-title">
@@ -216,6 +247,7 @@
       </div>
       <div class="multiplayer-actions">
         <button id="account-open" type="button">游客 · 注册</button>
+        <button id="journey-open" type="button">旅程手册 / 带走蛋宝</button>
         <button id="multiplayer-browse" type="button">选择服务器 / 换服</button>
         <button id="multiplayer-quick" class="multiplayer-primary" type="button">快速加入公共房</button>
         <button id="multiplayer-create" type="button">创建私人房</button>
@@ -293,7 +325,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.2';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.3';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -356,6 +388,9 @@
     'js/map.js',
     'js/interior.js',
     'js/cosmetics.js',
+    'js/progress.js',
+    'js/vendor/qrcode.js',
+    'js/journey.js',
     'js/physics.js',
     'js/ai.js',
     'js/player.js',

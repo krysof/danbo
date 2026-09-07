@@ -2576,6 +2576,8 @@ function enterCity(spawnX,spawnZ){
     // Create player in city — spawn at correct height immediately
     var sx=(spawnX!==undefined)?spawnX:0;
     var sz=(spawnZ!==undefined)?spawnZ:0;
+    // First visit starts on the open south path, not fifteen metres above a fountain.
+    if(spawnX===undefined&&spawnZ===undefined&&currentCityStyle===0&&window.DANBO_PROGRESS&&!DANBO_PROGRESS.journey().rewarded){sx=0;sz=17;}
     var sy=0;
     if(currentCityStyle===5){
         if(sx===0&&sz===5){sx=50;sz=0;}
@@ -2687,6 +2689,7 @@ function _gameUpdate(){
     const dt=1/60;
     if(window.DANBO_PLUGIN_HOST&&typeof window.DANBO_PLUGIN_HOST.update==='function')window.DANBO_PLUGIN_HOST.update(dt);
     if(window.DANBO_MULTIPLAYER&&typeof window.DANBO_MULTIPLAYER.update==='function')window.DANBO_MULTIPLAYER.update(dt);
+    if(window.DANBO_JOURNEY)DANBO_JOURNEY.update();
     var _activePlugin=(window.DANBO_PLUGIN_HOST&&window.DANBO_PLUGIN_HOST.getActive)?window.DANBO_PLUGIN_HOST.getActive():null;
     // Integrated legacy games share this scene and this update loop. Only an
     // isolated plugin owns the whole frame and pauses the city/race simulation.
@@ -2728,7 +2731,7 @@ function _gameUpdate(){
     if(gameState==='city'){
         // ---- Inside a house: run isolated interior loop, skip all city updates ----
         if(window._interiorActive){
-            if(!window._worldMapOpen&&!window._multiplayerPanelOpen&&!window._accountPanelOpen&&typeof handlePlayerInput==='function')handlePlayerInput();
+            if(!window._worldMapOpen&&!window._multiplayerPanelOpen&&!window._accountPanelOpen&&!window._journeyPanelOpen&&typeof handlePlayerInput==='function')handlePlayerInput();
             if(typeof _interiorPhysics==='function')_interiorPhysics(playerEgg);
             if(typeof _interiorCheckExit==='function')_interiorCheckExit();
             if(playerEgg){_updateStunStars(playerEgg);_updatePainFace(playerEgg);}
@@ -2738,7 +2741,7 @@ function _gameUpdate(){
         if(_pipeTraveling){
             updatePipeTravel();
         } else {
-            if(!window._worldMapOpen&&!window._shopOpen&&!window._multiplayerPanelOpen&&!window._accountPanelOpen)handlePlayerInput(); // pause movement while a UI panel is open
+            if(!window._worldMapOpen&&!window._shopOpen&&!window._multiplayerPanelOpen&&!window._accountPanelOpen&&!window._journeyPanelOpen)handlePlayerInput(); // pause movement while a UI panel is open
         }
         if(playerEgg&&!_pipeTraveling) updateEggPhysics(playerEgg, true);
         if(playerEgg){_updateStunStars(playerEgg);_updatePainFace(playerEgg);}

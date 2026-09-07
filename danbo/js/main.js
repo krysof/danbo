@@ -140,7 +140,7 @@ document.getElementById('confirm-btn').addEventListener('click',async()=>{
 var _menuJoyCD=0; // cooldown to prevent rapid scrolling
 var _menuJoyConfirmCD=0;
 function _updateMenuJoy(){
-    if(window._accountPanelOpen){requestAnimationFrame(_updateMenuJoy);return;}
+    if(window._accountPanelOpen||window._journeyPanelOpen){requestAnimationFrame(_updateMenuJoy);return;}
     if(gameState!=='menu'){requestAnimationFrame(_updateMenuJoy);return;}
     // Title screen: jump or grab button = start game
     var ss=document.getElementById('start-screen');
@@ -212,7 +212,7 @@ function selectCharByIndex(idx){
     playMenuMove();
 }
 addEventListener('keydown',function(e){
-    if(window._accountPanelOpen)return;
+    if(window._accountPanelOpen||window._journeyPanelOpen)return;
     if(gameState==='menu'){
         if(e.code==='Enter'||e.code==='Space'){
             e.preventDefault();
