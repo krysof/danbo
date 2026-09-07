@@ -427,6 +427,7 @@ function updateCityNPC(egg){if(egg.heldBy)return;
         for(var ci=0;ci<allEggs.length;ci++){
             var other=allEggs[ci];
             if(other===egg||!other.alive||other.heldBy)continue;
+            if(other.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(other))continue;
             var cdx=other.mesh.position.x-egg.mesh.position.x;
             var cdz=other.mesh.position.z-egg.mesh.position.z;
             var cd=DANBO_WASM.dist2D(other.mesh.position.x,other.mesh.position.z,egg.mesh.position.x,egg.mesh.position.z);

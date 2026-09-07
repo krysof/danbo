@@ -527,6 +527,7 @@ function updateEggPhysics(egg, isCity){
 
 // ---- Egg-to-egg collision ----
 function resolveEggCollisions(eggList){
+    const protectedPlayer=window.DANBO_JOURNEY&&typeof playerEgg!=='undefined'&&DANBO_JOURNEY.protects(playerEgg)?playerEgg:null;
     for(let i=0;i<eggList.length;i++){
         const a=eggList[i];
         if(!a.alive||a.heldBy||a._piledriverLocked)continue;
@@ -539,6 +540,14 @@ function resolveEggCollisions(eggList){
             const dist=DANBO_WASM.dist3D(b.mesh.position.x,b.mesh.position.y,b.mesh.position.z,a.mesh.position.x,a.mesh.position.y,a.mesh.position.z);
             const minDist=a.radius+b.radius;
             if(dist<minDist&&dist>0.01){
+                // NPCs yield on the short introductory path; do not shove the
+                // learner off a marker or move their character before first input.
+                if(a===protectedPlayer||b===protectedPlayer){
+                    const npc=a===protectedPlayer?b:a,sign=a===protectedPlayer?1:-1;
+                    npc.mesh.position.x+=sign*dx/dist*(minDist-dist);
+                    npc.mesh.position.z+=sign*dz/dist*(minDist-dist);
+                    continue;
+                }
                 const overlap=(minDist-dist)*0.5;
                 const nx=dx/dist, nz=dz/dist, ny=dy/dist;
                 a.mesh.position.x-=nx*overlap;

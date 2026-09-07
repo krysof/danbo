@@ -59,6 +59,10 @@
     }
     function close(){if(busy)return;opened=false;lock(false);$('journey-overlay').classList.add('hidden');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
     function resetRuntime(){previous=null;entered=false;if(marker)marker.visible=false;}
+    function protects(egg){
+        if(!egg||!egg.isPlayer||gameState!=='city'||currentCityStyle!==0||P.journey().rewarded||window._interiorActive)return false;
+        var p=egg.mesh.position;return Math.abs(p.x)<=6&&p.z>=14&&p.z<=45;
+    }
     function buildMarker(){
         marker=new THREE.Group();
         var material=new THREE.MeshBasicMaterial({color:0xffd46c});
@@ -164,6 +168,6 @@
             message('接力成功！关闭手册，选择服务器即可继续。建议注册账号长期保存。');
         });});
     }
-    window.DANBO_JOURNEY={update:update,jump:jump,render:render,open:open,event:event,resetRuntime:resetRuntime,route:route};
+    window.DANBO_JOURNEY={update:update,jump:jump,render:render,open:open,event:event,resetRuntime:resetRuntime,protects:protects,route:route};
     render();
 })();

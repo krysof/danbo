@@ -2146,6 +2146,7 @@ function updateHeldEggs(){
         for(var m=0;m<allEggs.length;m++){
             var target=allEggs[m];
             if(target===npc||!target.alive||target.heldBy||target.holding)continue;
+            if(target.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(target))continue;
             var ddx=target.mesh.position.x-npc.mesh.position.x;
             var ddz=target.mesh.position.z-npc.mesh.position.z;
             var dd=DANBO_WASM.len2D(ddx,ddz);
