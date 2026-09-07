@@ -823,6 +823,10 @@ if(_introCanvas){
         if(!_introRunning)_startIntro();
         else _skipIntro();
     },{passive:true});
+    // Revealing the choices during pointerup changes the hit target before a
+    // browser's compatibility mouse/click events. Cancel that synthetic click,
+    // not the pointer handler, so a skip tap cannot also press the new Play CTA.
+    _introCanvas.addEventListener('touchend',function(e){e.preventDefault();},{passive:false});
 }
 var _introStartButton=document.getElementById('intro-start');
 if(_introStartButton)_introStartButton.addEventListener('click',_startIntro);
