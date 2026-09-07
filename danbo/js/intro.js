@@ -4,13 +4,19 @@
 // Phase 2.5-3.5s: Characters face off with bounce
 // Phase 3.5-5s: Classic egg fires beam, cockroach flies back
 // Phase 5-7s: Camera pans up skyscraper, title appears with shake
-// Phase 7s+: PRESS START blinks, start button fades in
+// Phase 7s+: animated city/title, with Play / Create account kept available.
 
 var _introCanvas=document.getElementById('intro-canvas');
 var _introCtx=_introCanvas?_introCanvas.getContext('2d'):null;
 var _introStart=0;
-var _introRunning=true;
+var _introRunning=false;
 var _introSkipped=false;
+
+// Autoplay the visuals, but never queue sounds into a suspended mobile context.
+// The existing gesture handlers in audio.js unlock sound when the player interacts.
+function _introAudio(){
+    return typeof audioCtx!=='undefined'&&audioCtx&&audioCtx.state==='running'&&sfxEnabled?audioCtx:null;
+}
 
 function _resizeIntroCanvas(){
     if(!_introCanvas)return;
@@ -344,7 +350,7 @@ function _renderIntro(now){
             _drawLightning(ctx,W*0.5,H*0.05,W*0.6,H*0.4,lAlpha*0.5,2*scale);
             if(!window._introThunderPlayed){
                 window._introThunderPlayed=true;
-                try{var _thCtx=ensureAudio();if(_thCtx&&sfxEnabled){var _tht=_thCtx.currentTime;
+                try{var _thCtx=_introAudio();if(_thCtx){var _tht=_thCtx.currentTime;
                     var _thb=_thCtx.createBuffer(1,Math.floor(_thCtx.sampleRate*0.5),_thCtx.sampleRate);
                     var _thd=_thb.getChannelData(0);
                     for(var _thi=0;_thi<_thd.length;_thi++){var _thp=_thi/_thd.length;_thd[_thi]=(Math.random()-0.5)*0.5*Math.exp(-_thp*3)*Math.sin(_thp*Math.PI*8);}
@@ -423,7 +429,7 @@ function _renderIntro(now){
         // Cat meow when stopping
         if(_catT>=0.3&&_catT<0.35&&!window._introCatMeowed){
             window._introCatMeowed=true;
-            try{var _mCtx=ensureAudio();if(_mCtx&&sfxEnabled){var _mt=_mCtx.currentTime;
+            try{var _mCtx=_introAudio();if(_mCtx){var _mt=_mCtx.currentTime;
                 // Realistic cat meow — high pitch slide down with vibrato
                 var _mo=_mCtx.createOscillator();var _mg=_mCtx.createGain();
                 _mo.type='sine';_mo.frequency.setValueAtTime(900,_mt);_mo.frequency.exponentialRampToValueAtTime(1100,_mt+0.05);_mo.frequency.exponentialRampToValueAtTime(700,_mt+0.2);_mo.frequency.exponentialRampToValueAtTime(500,_mt+0.35);
@@ -492,7 +498,7 @@ function _renderIntro(now){
             // Crouch and wind up — charge sound
             if(!window._introChargePlayed){
                 window._introChargePlayed=true;
-                try{var _chCtx=ensureAudio();if(_chCtx&&sfxEnabled){var _cht=_chCtx.currentTime;
+                try{var _chCtx=_introAudio();if(_chCtx){var _cht=_chCtx.currentTime;
                     var _cho=_chCtx.createOscillator();var _chg=_chCtx.createGain();
                     _cho.type='sine';_cho.frequency.setValueAtTime(100,_cht);_cho.frequency.exponentialRampToValueAtTime(800,_cht+0.4);
                     _chg.gain.setValueAtTime(0.08,_cht);_chg.gain.linearRampToValueAtTime(0.15,_cht+0.3);_chg.gain.exponentialRampToValueAtTime(0.001,_cht+0.5);
@@ -508,7 +514,7 @@ function _renderIntro(now){
             // Arms extend, beam fires — release sound
             if(!window._introFirePlayed){
                 window._introFirePlayed=true;
-                try{var _frCtx=ensureAudio();if(_frCtx&&sfxEnabled){var _frt=_frCtx.currentTime;
+                try{var _frCtx=_introAudio();if(_frCtx){var _frt=_frCtx.currentTime;
                     // Whoosh + bass boom
                     var _frb=_frCtx.createBuffer(1,Math.floor(_frCtx.sampleRate*0.4),_frCtx.sampleRate);
                     var _frd=_frb.getChannelData(0);
@@ -564,7 +570,7 @@ function _renderIntro(now){
             // Impact — explosion + cockroach flies back
             if(!window._introExpPlayed){
                 window._introExpPlayed=true;
-                try{var _exCtx=ensureAudio();if(_exCtx&&sfxEnabled){var _ext=_exCtx.currentTime;
+                try{var _exCtx=_introAudio();if(_exCtx){var _ext=_exCtx.currentTime;
                     var _exb=_exCtx.createBuffer(1,Math.floor(_exCtx.sampleRate*0.3),_exCtx.sampleRate);
                     var _exd=_exb.getChannelData(0);
                     for(var _exi=0;_exi<_exd.length;_exi++){var _exp2=_exi/_exd.length;_exd[_exi]=(Math.random()-0.5)*0.8*Math.exp(-_exp2*5)*Math.sin(_exp2*Math.PI*15);}
@@ -712,7 +718,7 @@ function _renderIntro(now){
         }
     }
 
-    // ======== PHASE 5: PRESS START + button (8.5s+) ========
+    // ======== PHASE 5: Animated title + entry buttons (8.5s+) ========
     if(t>8.5){
         if(!_introSkipped){_introSkipped=true;if(_introCanvas)_introCanvas.style.pointerEvents='none';}
         var btn=document.getElementById('start-actions');
@@ -722,9 +728,13 @@ function _renderIntro(now){
     if(_introRunning) requestAnimationFrame(_renderIntro);
 }
 
-// Start the intro animation
+// Called by the loader only once the game is visible, not while a loading mask
+// would consume the entire opening. A late loader callback must not reopen it.
 function _startIntro(){
+    var screen=document.getElementById('start-screen');
+    if(_introRunning||!_introCtx||!screen||!screen.classList.contains('active'))return;
     _introStart=0;
+    _introSkipped=false;
     _introRunning=true;
     _resizeIntroCanvas();
     requestAnimationFrame(_renderIntro);
@@ -732,7 +742,7 @@ function _startIntro(){
 
 // Skip intro (tap/click anywhere)
 function _skipIntro(){
-    if(_introSkipped)return;
+    if(!_introRunning||!_introStart||_introSkipped)return;
     var _now=performance.now?performance.now():Date.now();
     var _elapsed=(_now-_introStart)/1000;
     if(_elapsed<1)return; // ignore taps in first second (prevents tap-to-start from skipping)
@@ -749,75 +759,11 @@ function _skipIntro(){
     }
 }
 
+// One pointer handler for both touch and mouse: a tap advances the animation
+// once, and never chooses guest play on the player's behalf.
 if(_introCanvas){
-    _introCanvas.addEventListener('click',function(){
-        if(!_introStart)return; // intro not started yet (tap-to-start screen)
-        if(!_introSkipped){
-            _skipIntro();
-        } else {
-            var btn=document.getElementById('start-btn');
-            if(btn)btn.click();
-        }
-    });
-    _introCanvas.addEventListener('touchstart',function(e){
-        if(!_introStart)return;
-        if((Date.now()-_introStart)>500){
-            if(!_introSkipped){
-                _skipIntro(); // skips to battle end or title depending on progress
-            } else {
-                var btn=document.getElementById('start-btn');
-                if(btn)btn.click();
-            }
-        }
+    _introCanvas.addEventListener('pointerup',function(){
+        _unlockAudio();
+        _skipIntro();
     },{passive:true});
 }
-
-// The two entry buttons unlock audio themselves. Background taps can still play the intro.
-var _tapStartShown=false;
-function _showTapStart(){
-    if(_tapStartShown)return;
-    _tapStartShown=true;
-    if(!_introCtx||!_introCanvas)return;
-    _resizeIntroCanvas();
-    var ctx=_introCtx;
-    function _blinkTap(){
-        if(!_tapStartShown||_introStart||!_introRunning)return;
-        _resizeIntroCanvas();
-        var W2=_introCanvas.width,H2=_introCanvas.height;
-        var gradient=ctx.createLinearGradient(0,0,W2,H2);gradient.addColorStop(0,'#153d47');gradient.addColorStop(1,'#081e2a');ctx.fillStyle=gradient;ctx.fillRect(0,0,W2,H2);
-        ctx.fillStyle='#7be5c9';
-        ctx.font='900 '+Math.floor(Math.min(W2/6,H2/11))+'px "Segoe UI",sans-serif';
-        ctx.textAlign='center';
-        ctx.fillText('DANBO',W2/2,H2*.38);
-        ctx.fillStyle='#e2f4ef';ctx.font='500 '+Math.floor(Math.min(W2/14,H2/26))+'px "Segoe UI","PingFang SC",sans-serif';ctx.fillText(L('title'),W2/2,H2*.46);
-        requestAnimationFrame(_blinkTap);
-    }
-    _blinkTap();
-}
-function _onTapStart(){
-    if(_introStart)return; // already started
-    _unlockAudio();
-    _startIntro();
-    // Remove tap listeners
-    _introCanvas.removeEventListener('click',_onTapStart);
-    _introCanvas.removeEventListener('touchstart',_onTapStart);
-    document.removeEventListener('keydown',_onTapStartKey);
-}
-function _onTapStartKey(e){
-    if(e.target&&e.target.closest&&e.target.closest('button,input,select,textarea'))return;
-    if(e.code==='Enter'||e.code==='Space')return; // handled by the direct Play entry in main.js
-    if(_introStart&&!_introSkipped){_skipIntro();return;}
-    if(!_introStart)_onTapStart();
-}
-if(_introCanvas){
-    _introCanvas.addEventListener('click',function(){
-        if(_introStart&&!_introSkipped){_skipIntro();return;}
-        if(!_introStart)_onTapStart();
-    });
-    _introCanvas.addEventListener('touchstart',function(){
-        if(_introStart&&!_introSkipped){_skipIntro();return;}
-        _onTapStart();
-    },{passive:true});
-}
-document.addEventListener('keydown',_onTapStartKey);
-_showTapStart();
