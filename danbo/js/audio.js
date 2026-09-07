@@ -222,6 +222,7 @@ function _applyLang(){
     // Update SF2 select if visible
     if(typeof _updateSF2Select==='function'&&typeof selectedChar!=='undefined'){_updateSF2Select(selectedChar);}
     if(window.DANBO_ACCOUNT)DANBO_ACCOUNT.refreshLanguage();
+    if(typeof _introPreviewReady!=='undefined'&&_introPreviewReady)_prepareIntro();
     if(window.DANBO_JOURNEY)DANBO_JOURNEY.render();
 }
 if(langBtn){

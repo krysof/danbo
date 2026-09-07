@@ -4,16 +4,19 @@
 // Phase 2.5-3.5s: Characters face off with bounce
 // Phase 3.5-5s: Classic egg fires beam, cockroach flies back
 // Phase 5-7s: Camera pans up skyscraper, title appears with shake
-// Phase 7s+: animated city/title, with Play / Create account kept available.
+// Phase 8.5s+: animated city/title, then show Play / Create account.
 
 var _introCanvas=document.getElementById('intro-canvas');
 var _introCtx=_introCanvas?_introCanvas.getContext('2d'):null;
 var _introStart=0;
 var _introRunning=false;
 var _introSkipped=false;
+var _introCompleted=false;
+var _introStarting=false;
+var _introPreviewReady=false;
 
-// Autoplay the visuals, but never queue sounds into a suspended mobile context.
-// The existing gesture handlers in audio.js unlock sound when the player interacts.
+// Never queue effects into a suspended mobile context. Start the timeline only
+// after the separate tap-to-start gesture has unlocked audio.
 function _introAudio(){
     return typeof audioCtx!=='undefined'&&audioCtx&&audioCtx.state==='running'&&sfxEnabled?audioCtx:null;
 }
@@ -22,6 +25,7 @@ function _resizeIntroCanvas(){
     if(!_introCanvas)return;
     _introCanvas.width=_introCanvas.parentElement.offsetWidth*Math.min(devicePixelRatio,2);
     _introCanvas.height=_introCanvas.parentElement.offsetHeight*Math.min(devicePixelRatio,2);
+    if(_introPreviewReady&&!_introRunning)_drawIntroStart();
 }
 _resizeIntroCanvas();
 window.addEventListener('resize',_resizeIntroCanvas);
@@ -276,10 +280,10 @@ function _drawRain(ctx,W,H,alpha){
 }
 
 // Main intro render loop
-function _renderIntro(now){
-    if(!_introRunning||!_introCtx)return;
-    if(!_introStart)_introStart=now;
-    var t=(now-_introStart)/1000;
+function _renderIntro(now,preview){
+    if((!_introRunning&&!preview)||!_introCtx)return;
+    if(!preview&&!_introStart)_introStart=now;
+    var t=preview?9:(now-_introStart)/1000;
     var W=_introCanvas.width,H=_introCanvas.height;
     var ctx=_introCtx;
     var scale=Math.min(W,H)/600;
@@ -719,51 +723,106 @@ function _renderIntro(now){
     }
 
     // ======== PHASE 5: Animated title + entry buttons (8.5s+) ========
-    if(t>8.5){
+    if(t>8.5&&!preview){
         if(!_introSkipped){_introSkipped=true;if(_introCanvas)_introCanvas.style.pointerEvents='none';}
         var btn=document.getElementById('start-actions');
         if(btn){btn.style.opacity='1';btn.style.pointerEvents='auto';}
+        _finishIntro();
     }
 
-    if(_introRunning) requestAnimationFrame(_renderIntro);
+    if(_introRunning&&!preview) requestAnimationFrame(_renderIntro);
 }
 
-// Called by the loader only once the game is visible, not while a loading mask
-// would consume the entire opening. A late loader callback must not reopen it.
-function _startIntro(){
+function _introIsActive(){
     var screen=document.getElementById('start-screen');
-    if(_introRunning||!_introCtx||!screen||!screen.classList.contains('active'))return;
-    _introStart=0;
-    _introSkipped=false;
-    _introRunning=true;
+    return !!(screen&&screen.classList.contains('active'));
+}
+
+// Restore the original black / gold tap-to-start screen. The prompt is a native
+// button so it stays crisp, keyboard-accessible and translated on mobile too.
+function _drawIntroStart(){
+    if(!_introCtx||!_introCanvas)return;
+    var W=_introCanvas.width,H=_introCanvas.height,scale=Math.min(W,H)/600;
+    _introCtx.fillStyle='#000';_introCtx.fillRect(0,0,W,H);
+    _introCtx.fillStyle='rgba(255,215,0,0.6)';
+    _introCtx.font='bold '+Math.floor(28*scale)+'px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    _introCtx.textAlign='center';_introCtx.fillText(L('title'),W/2,H*0.35);
+    var button=document.getElementById('intro-start');
+    if(button)button.textContent=L('introStart');
+}
+
+// The loader only reveals the start screen; it must not play a silent opening.
+function _prepareIntro(){
+    if(!_introIsActive()||_introRunning||_introStarting||_introCompleted)return;
+    _introPreviewReady=true;
+    var button=document.getElementById('intro-start');
+    if(button){button.textContent=L('introStart');button.hidden=false;}
     _resizeIntroCanvas();
-    requestAnimationFrame(_renderIntro);
 }
 
-// Skip intro (tap/click anywhere)
-function _skipIntro(){
-    if(!_introRunning||!_introStart||_introSkipped)return;
-    var _now=performance.now?performance.now():Date.now();
-    var _elapsed=(_now-_introStart)/1000;
-    if(_elapsed<1)return; // ignore taps in first second (prevents tap-to-start from skipping)
-    if(_elapsed<5){
-        // Before battle ends: skip to battle end (t=5s), not past it
-        _introStart=_now-5000;
-    } else {
-        // After battle: skip to title (t=7.5s)
-        _introSkipped=true;
-        _introStart=_now-7500;
-        var btn=document.getElementById('start-actions');
-        if(btn){btn.style.opacity='1';btn.style.pointerEvents='auto';}
-        if(_introCanvas)_introCanvas.style.pointerEvents='none';
+function _finishIntro(){
+    if(_introCompleted)return;
+    _introCompleted=true;
+    if(!_introIsActive())return;
+    var ui=document.getElementById('intro-ui');if(ui)ui.hidden=false;
+    var actions=document.getElementById('start-actions');
+    if(actions){actions.style.opacity='1';actions.style.pointerEvents='auto';}
+    if(_introCanvas)_introCanvas.style.pointerEvents='none';
+}
+
+// Called synchronously from a real pointer / keyboard gesture, never the loader.
+// This only starts the intro. It never chooses guest play or registration.
+function _startIntro(){
+    if(_introCompleted||!_introIsActive()||!_introPreviewReady)return;
+    if(_introRunning||_introStarting)return;
+    _introStarting=true;
+    var button=document.getElementById('intro-start');if(button)button.hidden=true;
+    var timer=null;
+    function begin(){
+        if(!_introStarting)return;
+        _introStarting=false;
+        if(timer!==null)clearTimeout(timer);
+        if(!_introIsActive())return;
+        if(!_introCtx){_finishIntro();return;}
+        _introStart=0;
+        _introSkipped=false;
+        _introPreviewReady=false;
+        window._introThunderPlayed=false;window._introCatMeowed=false;
+        window._introChargePlayed=false;window._introFirePlayed=false;window._introExpPlayed=false;
+        _introRunning=true;
+        _introCanvas.style.pointerEvents='auto';
+        _resizeIntroCanvas();
+        requestAnimationFrame(_renderIntro);
     }
+    try{
+        _unlockAudio();
+        var ctx=typeof audioCtx!=='undefined'?audioCtx:null;
+        if(ctx&&ctx.state!=='running'&&(sfxEnabled||soundEnabled)){
+            // Safari may resolve resume asynchronously. Invoke it in the gesture,
+            // but don't run the animation clock while audio is still unlocking.
+            // Unsupported / refused audio must never block entry indefinitely.
+            timer=setTimeout(begin,1200);
+            Promise.resolve(ctx.resume()).then(begin,begin);
+        }else begin();
+    }catch(e){begin();}
 }
 
-// One pointer handler for both touch and mouse: a tap advances the animation
-// once, and never chooses guest play on the player's behalf.
+// One later canvas tap skips; the tap that started playback cannot also skip it.
+function _skipIntro(){
+    if(!_introRunning||!_introStart||_introCompleted)return;
+    if(performance.now()-_introStart<500)return;
+    _introSkipped=true;
+    _introStart=performance.now()-9000;
+    _renderIntro(0,true);
+    _finishIntro();
+}
+
+// One pointer handler avoids the old touch + synthetic click double activation.
 if(_introCanvas){
     _introCanvas.addEventListener('pointerup',function(){
-        _unlockAudio();
-        _skipIntro();
+        if(!_introRunning)_startIntro();
+        else _skipIntro();
     },{passive:true});
 }
+var _introStartButton=document.getElementById('intro-start');
+if(_introStartButton)_introStartButton.addEventListener('click',_startIntro);

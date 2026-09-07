@@ -28,6 +28,11 @@ window.DANBO_OPEN_CHARACTER_SELECT=_openCharacterSelect;
 function _handleStart(entry){
     entry=entry==='register'?'register':'play';
     if(_startTriggered)return;
+    if(typeof _introCompleted!=='undefined'&&!_introCompleted){
+        keys['Space']=false;keys['KeyF']=false;keys['KeyR']=false;keys['KeyT']=false;
+        if(_introRunning)_skipIntro();else _startIntro();
+        return; // Start / skip only reveals the entry choices, never chooses one.
+    }
     _startTriggered=true;
     _unlockAudio();
     // Stop intro animation
@@ -214,6 +219,7 @@ addEventListener('keydown',function(e){
     if(gameState==='menu'){
         if(e.code==='Enter'||e.code==='Space'){
             e.preventDefault();
+            if(e.repeat)return;
             var ss=document.getElementById('start-screen');
             if(ss&&ss.classList.contains('active')){
                 _handleStart();
@@ -360,6 +366,5 @@ if(_pfBackBtn)_pfBackBtn.addEventListener('click', function(){if(typeof _pfEndGa
 })();
 
 if(window.DANBO_ACCOUNT)DANBO_ACCOUNT.refreshLanguage();
-// No extra tap-to-start or mandatory intro before the two entry choices.
-var _entryActions=document.getElementById('start-actions');if(_entryActions){_entryActions.style.opacity='1';_entryActions.style.pointerEvents='auto';}
+// The loader reveals tap-to-start; only intro completion reveals both entries.
 animate();

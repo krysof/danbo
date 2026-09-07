@@ -18,7 +18,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260907.8">
+<link rel="stylesheet" href="style.css?v=20260907.9">
 </head>
 <body>
 <div id="game-container">
@@ -107,7 +107,8 @@
       <div id="engine-loader-text" class="engine-loader-text">Loading...</div>
       <div class="engine-loader-bar"><span id="engine-loader-fill"></span></div>
     </div>
-    <div id="intro-ui" style="position:absolute;bottom:12%;left:0;right:0;text-align:center;z-index:2;">
+    <button id="intro-start" class="intro-start" type="button" hidden>点击开始</button>
+    <div id="intro-ui" hidden style="position:absolute;bottom:12%;left:0;right:0;text-align:center;z-index:2;">
       <p class="version-text" id="intro-version"></p>
       <div class="start-actions" id="start-actions" style="opacity:0;pointer-events:none;transition:opacity 0.5s;"><button id="start-btn" class="btn btn-primary" type="button">直接玩</button><button id="start-register" class="btn start-register" type="button">注册账号</button></div>
     </div>
@@ -341,7 +342,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.8';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260907.9';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -428,7 +429,7 @@
   function hideEngineLoading(){
     var el=document.getElementById('engine-loader');
     if(el)el.classList.add('engine-loader-hidden');
-    if(typeof _startIntro==='function')_startIntro();
+    if(typeof _prepareIntro==='function')_prepareIntro();
   }
   function setStartText(text){
     var btn=document.getElementById('start-btn');
