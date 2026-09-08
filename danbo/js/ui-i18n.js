@@ -21,6 +21,7 @@
     }).join('');}
     function refresh(){
         if(!root.document||!document.querySelectorAll)return;
+        if(document.documentElement)document.documentElement.lang={zhs:'zh-CN',zht:'zh-TW',ja:'ja',en:'en'}[locale()];
         document.querySelectorAll('[data-ui-text]').forEach(function(el){el.textContent=text(el.getAttribute('data-ui-text'));});
         ['aria-label','placeholder','title'].forEach(function(attr){document.querySelectorAll('[data-ui-'+attr+']').forEach(function(el){el.setAttribute(attr,text(el.getAttribute('data-ui-'+attr)));});});
     }
