@@ -2,10 +2,10 @@
 // bearer sessions stay in this tab's sessionStorage, scoped to the server origin.
 (function(){
     'use strict';
-    var session=null,endpoint='',pending=null,mode='welcome',busy=false;
-    var namePending=null,lastFocus=null;
+    var session=null,endpoint='',pending=null,mode='welcome',busy=false,resumeRetry=false;
+    var namePending=null,continuePending=null,lastFocus=null;
     var $=function(id){return document.getElementById(id);};
-    var box=$('account-overlay'),nameBox=$('character-name-overlay');
+    var box=$('account-overlay'),nameBox=$('character-name-overlay'),continueBox=$('character-resume-overlay');
     var GUEST_KEY='danbo_guest_profile_v1';
     var copy={
         title:['你的蛋宝世界','你的蛋寶世界','あなたのダンボワールド','Your DANBO World'],
@@ -20,12 +20,22 @@
         guestAccount:['注册账号','註冊帳號','アカウント作成','Create account'],connecting:['正在进入…','正在進入…','接続中…','Joining…'],saving:['正在处理…','正在處理…','処理中…','Please wait…'],
         nameTitle:['给人物起个名字','幫人物取個名字','キャラクターに名前をつけよう','Name your DANBO'],nameLabel:['人物名字','人物名字','キャラクター名','Character name'],nameHint:['这不是登录用户名，下次会记住。','這不是登入名稱，下次會記住。','ログイン用の名前とは別です。次回も覚えています。','Separate from your login username. We will remember it.'],namePlaceholder:['2–16 字','2–16 字','2〜16 文字','2–16 characters'],
         nameSubmit:['进入游戏','進入遊戲','ゲームに入る','Enter game'],nameBack:['返回选角色','返回選角色','キャラクター選択に戻る','Back to characters'],hero:['已选角色：','已選角色：','キャラクター：','Character: '],
+        resumeTitle:['上次的人物','上次的人物','前回のキャラクター','Your last character'],resumePlay:['继续游戏','繼續遊戲','続きから遊ぶ','Continue playing'],resumeChange:['更换角色','更換角色','キャラクターを変更','Change character'],resumeStyle:['3D 外观','3D 外觀','3D スタイル','3D style'],resumeClassic:['SF 外观','SF 外觀','SF スタイル','SF style'],
         settings:['设置','設定','設定','Settings'],metrics:['允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）','允許匿名試玩統計（可選，保留 90 天；不含姓名、信箱、聊天）','匿名のプレイ統計を許可（任意・90 日保存・名前、メール、チャットは含みません）','Allow anonymous play statistics (optional, kept for 90 days; no names, email or chat)'],updates:['接收游戏更新邮件（可选，随时取消）','接收遊戲更新郵件（可選，隨時取消）','ゲーム更新メールを受け取る（任意・いつでも解除可能）','Receive game update emails (optional; cancel anytime)']
     };
     function t(key){var lang=typeof _langCode==='string'?_langCode:'zhs';return copy[key][Math.max(0,['zhs','zht','ja','en'].indexOf(lang))];}
     function text(id,key){var e=$(id);if(e)e.textContent=t(key);}
+    function savedGuest(){
+        var saved;try{saved=JSON.parse(localStorage.getItem(GUEST_KEY)||'null');}catch(_){}
+        if(!saved||typeof saved.characterName!=='string'||!Number.isInteger(saved.character)||saved.character<0||saved.character>7)return null;
+        saved.characterName=saved.characterName.normalize('NFKC').trim();
+        if(!/^[\p{L}\p{N}_ -]{2,16}$/u.test(saved.characterName))return null;
+        saved.style=saved.style==='classic'?'classic':'cinematic';
+        return saved;
+    }
+    function guestConfirmed(saved){return !!(saved&&(saved.confirmed===true||(saved.confirmed!==false&&saved.characterName!=='新旅人')));}
     function profile(){
-        var saved={};try{saved=JSON.parse(localStorage.getItem(GUEST_KEY)||'{}');}catch(_){}
+        var saved=savedGuest()||{};
         var user=session&&session.user;
         return {characterName:user&&user.characterName||saved.characterName||'新旅人',
             character:user&&typeof selectedChar==='number'?selectedChar:Number(saved.character)||0,
@@ -40,7 +50,7 @@
     }
     function configure(value){
         var next=resolveEndpoint(value);
-        if(endpoint!==next){endpoint=next;session=null;}
+        if(endpoint!==next){endpoint=next;session=null;resumeRetry=false;}
     }
     function clearSession(){session=null;try{sessionStorage.removeItem(storageKey());}catch(_){}render();}
     async function api(path,body,token){
@@ -57,8 +67,30 @@
         }catch(error){if(error.name==='AbortError')throw new Error('连接超时，请稍后再试');throw error;}
         finally{clearTimeout(timeout);}
     }
-    function rememberGuest(value){
-        try{localStorage.setItem(GUEST_KEY,JSON.stringify(value));}catch(_){throw new Error('浏览器无法保存游客资料，请允许网站存储或注册账号');}
+    function rememberGuest(value,confirmed){
+        var saved={characterName:value.characterName,character:value.character,style:value.style,confirmed:!!confirmed};
+        try{localStorage.setItem(GUEST_KEY,JSON.stringify(saved));}catch(_){throw new Error('浏览器无法保存游客资料，请允许网站存储或注册账号');}
+    }
+    function storeSession(){
+        try{sessionStorage.setItem(storageKey(),JSON.stringify({token:session.token,expiresAt:session.expiresAt,characterReady:session.characterReady}));}catch(_){}
+    }
+    function restoreCharacter(user){
+        selectedChar=user.character;
+        // The preview, selected toggle and playable model must use the same style.
+        if(typeof window._setCharacterSelectStyle==='function')window._setCharacterSelectStyle(user.style,false);
+        else window.DANBO_SELECTED_CHARACTER_STYLE=user.style;
+        if(typeof selectCharByIndex==='function')selectCharByIndex(selectedChar);
+    }
+    function canContinue(){return !!(session&&session.characterReady&&session.expiresAt>Date.now());}
+    function offerContinue(){
+        if(!canContinue())return Promise.resolve(false);
+        if(continuePending)return Promise.resolve(false);
+        restoreCharacter(session.user);render();continueBox.classList.remove('hidden');lock(true);updateViewport();$('character-resume-play').focus({preventScroll:true});
+        return new Promise(function(resolve){continuePending=resolve;});
+    }
+    function finishContinue(ok){
+        continueBox.classList.add('hidden');lock(false);
+        if(continuePending){var done=continuePending;continuePending=null;done(ok);}
     }
     function render(){
         var user=session&&session.user;
@@ -85,7 +117,11 @@
         text('character-name-title','nameTitle');text('character-name-label','nameLabel');text('character-name-hint','nameHint');text('character-name-submit','nameSubmit');text('character-name-back','nameBack');$('character-name-input').placeholder=t('namePlaceholder');
         var hero=typeof CHARACTERS!=='undefined'&&CHARACTERS[selectedChar];$('character-name-hero').textContent=t('hero')+(hero?hero.name:'DANBO');
         text('journey-settings-label','settings');text('journey-consent-label','metrics');text('journey-updates-label','updates');
-        ['account-language','character-name-language'].forEach(function(id){$(id).value=typeof _langMode==='string'?_langMode:'auto';});
+        text('character-resume-title','resumeTitle');text('character-resume-play','resumePlay');text('character-resume-change','resumeChange');
+        $('character-resume-name').textContent=user?user.characterName:'';
+        var lastHero=user&&typeof CHARACTERS!=='undefined'&&CHARACTERS[user.character];
+        $('character-resume-hero').textContent=lastHero?lastHero.name+' · '+t(user.style==='classic'?'resumeClassic':'resumeStyle'):'';
+        ['account-language','character-name-language','character-resume-language'].forEach(function(id){$(id).value=typeof _langMode==='string'?_langMode:'auto';});
     }
     function lock(open){
         window._accountPanelOpen=open;
@@ -118,13 +154,12 @@
         if(pending){pending(false);pending=null;}
     }
     async function adopt(data,reason){
-        session={token:data.token,expiresAt:data.expiresAt,user:data.user};
-        try{sessionStorage.setItem(storageKey(),JSON.stringify({token:session.token,expiresAt:session.expiresAt}));}catch(_){}
-        if(data.user.kind==='guest')rememberGuest({characterName:data.user.characterName,character:data.user.character,style:data.user.style});
+        var ready=data.user.kind==='guest'?guestConfirmed(savedGuest()):reason==='register'?canContinue():data.characterReady!==false;
+        if(reason==='handoff')ready=true;
+        session={token:data.token,expiresAt:data.expiresAt,user:data.user,characterReady:ready};storeSession();
+        if(data.user.kind==='guest')rememberGuest(data.user,ready);
         if(typeof selectedChar==='number'&&gameState!=='city'){
-            selectedChar=data.user.character;
-            window.DANBO_SELECTED_CHARACTER_STYLE=data.user.style;
-            if(typeof selectCharByIndex==='function')selectCharByIndex(selectedChar);
+            restoreCharacter(data.user);
         }
         render();
         if(window.DANBO_PROGRESS)await DANBO_PROGRESS.activate(data.user,reason||'resume',data.snapshot);
@@ -134,11 +169,23 @@
         if(session&&session.expiresAt>Date.now())return true;
         var stored;try{stored=JSON.parse(sessionStorage.getItem(storageKey())||'null');}catch(_){}
         if(!stored||stored.expiresAt<=Date.now())return false;
-        try{var data=await api('/me',undefined,stored.token);await adopt(Object.assign({},data,{token:stored.token}));return true;}
-        catch(error){if(error.status===401)clearSession();return false;}
+        try{
+            var data=await api('/me',undefined,stored.token),saved=savedGuest();
+            // A previous tab can have an older ephemeral guest session. The last
+            // confirmed browser profile wins, never the tab's stale default hero.
+            if(data.user.kind==='guest'&&guestConfirmed(saved)&&(data.user.characterName!==saved.characterName||data.user.character!==saved.character||data.user.style!==saved.style)){
+                var updated=await api('/character',{characterName:saved.characterName,character:saved.character,style:saved.style},stored.token);data.user=updated.user;
+            }
+            await adopt(Object.assign({},data,{token:stored.token,characterReady:stored.characterReady}),'resume');return true;
+        }
+        catch(error){if(error.status===401){clearSession();return false;}throw error;}
     }
     async function ensure(value,entry){
-        configure(value);var restored=await resume();
+        configure(value);var restored;
+        try{restored=await resume();resumeRetry=false;}catch(error){
+            resumeRetry=true;
+            return new Promise(function(resolve){if(pending)pending(false);pending=resolve;open('welcome');$('account-message').textContent=error.message||'连接失败，请重试';});
+        }
         if(restored&&!(entry==='register'&&session.user.kind==='guest'))return true;
         return new Promise(function(resolve){
             if(pending)pending(false);pending=resolve;open(entry==='register'?'register':'welcome');
@@ -152,6 +199,10 @@
         var old=session,oldRoom=window.DANBO_MULTIPLAYER&&DANBO_MULTIPLAYER.getRoom();
         var roomCode=oldRoom&&oldRoom.state&&oldRoom.state.code;
         try{
+            if(kind==='guest'&&resumeRetry){
+                var restored=await resume();resumeRetry=false;
+                if(restored){var retryDone=pending;pending=null;busy=false;close();if(retryDone)retryDone(true);return;}
+            }
             var current=profile(),data;
             if(kind==='guest')data=await api('/guest',current);
             else if(mode==='register')data=await api('/register',Object.assign({},current,{username:$('account-login').value,email:$('account-email').value,password:$('account-password').value,emailUpdates:false}));
@@ -164,8 +215,9 @@
         }catch(error){$('account-message').textContent=error.message||'连接失败，请重试';}
         finally{busy=false;$('account-submit').disabled=false;$('account-guest').disabled=false;$('account-create').disabled=false;render();}
     }
-    function requestCharacter(){
+    function requestCharacter(reuse){
         if(namePending)return Promise.resolve(false);
+        if(reuse===true&&canContinue()&&selectedChar===session.user.character&&window.DANBO_SELECTED_CHARACTER_STYLE===session.user.style)return Promise.resolve(true);
         var current=profile();$('character-name-input').value=current.characterName;
         $('character-name-message').textContent='';
         render();
@@ -185,12 +237,15 @@
             if(!session)throw new Error('请先选择游客或登录账号');
             var data=await api('/character',current,session.token);
             session.user=data.user;
-            if(session.user.kind==='guest')rememberGuest(current);
+            session.characterReady=true;storeSession();
+            if(session.user.kind==='guest')rememberGuest(data.user,true);
             render();finishName(true);
         }catch(error){$('character-name-message').textContent=error.message||'保存失败，请重试';}
         finally{busy=false;$('character-name-submit').disabled=false;}
     });
     $('character-name-back').addEventListener('click',function(){if(!busy)finishName(false);});
+    $('character-resume-play').addEventListener('click',function(){finishContinue(true);});
+    $('character-resume-change').addEventListener('click',function(){finishContinue(false);});
     $('account-form').addEventListener('submit',function(event){event.preventDefault();submit('account');});
     $('account-guest').addEventListener('click',function(){submit('guest');});
     $('account-create').addEventListener('click',function(){if(!busy)chooseMode('register');});
@@ -204,10 +259,10 @@
         try{if(window.DANBO_PROGRESS)await DANBO_PROGRESS.flush();await api('/logout',{},session.token);await DANBO_MULTIPLAYER.leave();clearSession();busy=false;location.reload();}
         catch(error){$('account-message').textContent=error.message;busy=false;}
     });
-    [box,nameBox].forEach(function(panel){
+    [box,nameBox,continueBox].forEach(function(panel){
         panel.addEventListener('keydown',function(event){
             event.stopPropagation(); // typing must not move characters or trigger menu shortcuts
-            if(event.code==='Escape'&&!busy){event.preventDefault();if(panel===box&&pending)chooseMode('welcome');else panel===box?close():finishName(false);}
+            if(event.code==='Escape'&&!busy){event.preventDefault();if(panel===continueBox)finishContinue(false);else if(panel===box&&pending)chooseMode('welcome');else panel===box?close():finishName(false);}
             if(event.key==='Tab'){
                 var focusable=Array.from(panel.querySelectorAll('button,input,select,summary')).filter(function(e){return !e.disabled&&e.getClientRects().length;});
                 var first=focusable[0],last=focusable[focusable.length-1];
@@ -218,16 +273,16 @@
         });
         panel.addEventListener('keyup',function(event){event.stopPropagation();});
     });
-    ['account-language','character-name-language'].forEach(function(id){$(id).addEventListener('change',function(){if(typeof _setLanguage==='function')_setLanguage(this.value);render();});});
+    ['account-language','character-name-language','character-resume-language'].forEach(function(id){$(id).addEventListener('change',function(){if(typeof _setLanguage==='function')_setLanguage(this.value);render();});});
     function updateViewport(){
         var v=window.visualViewport,h=v?v.height:window.innerHeight,top=v?v.offsetTop:0;
         if(!h)return;
         if(document.documentElement&&document.documentElement.classList.contains('danbo-ios-embedded'))h-=72;
-        [box,nameBox].forEach(function(panel){panel.style.height=h+'px';panel.style.top=top+'px';panel.style.bottom='auto';panel.style.setProperty('--account-viewport-height',h+'px');});
+        [box,nameBox,continueBox].forEach(function(panel){panel.style.height=h+'px';panel.style.top=top+'px';panel.style.bottom='auto';panel.style.setProperty('--account-viewport-height',h+'px');});
     }
     window.addEventListener('resize',updateViewport);
     if(window.visualViewport){window.visualViewport.addEventListener('resize',updateViewport);window.visualViewport.addEventListener('scroll',updateViewport);}
-    window.DANBO_ACCOUNT={ensure:ensure,open:open,requestCharacter:requestCharacter,
+    window.DANBO_ACCOUNT={ensure:ensure,open:open,requestCharacter:requestCharacter,offerContinue:offerContinue,
         request:function(path,body){if(!endpoint)configure(DANBO_MULTIPLAYER.getEndpoint());return api(path,body,session&&session.token);},
         acceptHandoff:async function(data){var old=session;await adopt(data,'handoff');if(old)api('/logout',{},old.token).catch(function(){});},
         getUser:function(){return session&&session.user;},

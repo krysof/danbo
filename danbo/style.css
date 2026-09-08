@@ -405,3 +405,4 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 .coop-steps{padding-left:1.4em;font-size:13px;line-height:1.6}.coop-steps li+li{margin-top:6px}#coop-title:focus-visible{outline:2px solid #ffd886;outline-offset:3px}#coop-card{scroll-margin:12px}#journey-task{white-space:pre-line}
 /* Keep dismissal available after the task scrolls directly to the rules. */
 #journey-close{position:sticky;top:0;right:0;float:right;z-index:2;width:36px;height:36px;border-radius:10px;background:#153746}#coop-title{padding-right:30px}
+.character-resume-card h2{font-size:21px;color:#9bc7c5}.character-resume-card #character-resume-name{font-size:clamp(24px,6vw,34px);font-weight:800;overflow-wrap:anywhere;margin:20px 0 5px}.character-resume-card #character-resume-hero{margin:0 0 24px}.character-resume-card button{min-height:48px}

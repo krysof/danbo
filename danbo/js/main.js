@@ -23,6 +23,7 @@ function _openCharacterSelect(){
     if(_touchVisible)_showMenuTouch();
     _menuJoyConfirmCD=30;
     playMenuConfirm();
+    if(window.DANBO_ACCOUNT&&DANBO_ACCOUNT.offerContinue)DANBO_ACCOUNT.offerContinue().then(function(ok){if(ok)_confirmCharacter(true);});
 }
 window.DANBO_OPEN_CHARACTER_SELECT=_openCharacterSelect;
 function _handleStart(entry){
@@ -115,12 +116,12 @@ if('ontouchstart' in window){
 }
 
 var _selectConfirmed=false;
-document.getElementById('confirm-btn').addEventListener('click',async()=>{
+async function _confirmCharacter(reuse){
     if(_selectConfirmed)return;
     _selectConfirmed=true;
     if(window.DANBO_ACCOUNT){
         try{
-            if(!await DANBO_ACCOUNT.ensure(DANBO_MULTIPLAYER.getEndpoint())||!await DANBO_ACCOUNT.requestCharacter()){
+            if(!await DANBO_ACCOUNT.ensure(DANBO_MULTIPLAYER.getEndpoint())||!await DANBO_ACCOUNT.requestCharacter(reuse===true)){
                 _selectConfirmed=false;return;
             }
         }catch(_error){_selectConfirmed=false;return;}
@@ -141,7 +142,8 @@ document.getElementById('confirm-btn').addEventListener('click',async()=>{
     if(_classicSelect)_startPlaneAnim(_selCh.mapX,_selCh.mapY,0,0,_enterSelectedCharacter);
     else if(typeof window._startSelect3DTransition==='function')window._startSelect3DTransition(_enterSelectedCharacter);
     else _startPlaneAnim(_selCh.mapX,_selCh.mapY,0,0,_enterSelectedCharacter);
-});
+}
+document.getElementById('confirm-btn').addEventListener('click',function(){_confirmCharacter(false);});
 
 // ---- Mobile menu navigation via joystick ----
 var _menuJoyCD=0; // cooldown to prevent rapid scrolling
