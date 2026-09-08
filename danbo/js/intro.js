@@ -712,10 +712,8 @@ function _renderIntro(now,preview){
             ctx.font='italic '+Math.floor(12*scale)+'px "Segoe UI","PingFang SC",sans-serif';
             ctx.fillText(L('slogan'),W/2,H*0.35+70*scale);
 
-            // Version
-            ctx.fillStyle='rgba(255,255,255,0.4)';
-            ctx.font=Math.floor(11*scale)+'px "Segoe UI",sans-serif';
-            ctx.fillText(L('version'),W/2,H*0.35+95*scale);
+            // Version/author is rendered once by #intro-version in the native UI.
+            // Do not duplicate that credit on the animated canvas.
 
             ctx.globalAlpha=1;
             ctx.restore();
