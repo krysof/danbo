@@ -20,7 +20,7 @@
         guestAccount:['注册账号','註冊帳號','アカウント作成','Create account'],connecting:['正在进入…','正在進入…','接続中…','Joining…'],saving:['正在处理…','正在處理…','処理中…','Please wait…'],
         nameTitle:['给人物起个名字','幫人物取個名字','キャラクターに名前をつけよう','Name your DANBO'],nameLabel:['人物名字','人物名字','キャラクター名','Character name'],nameHint:['这不是登录用户名，下次会记住。','這不是登入名稱，下次會記住。','ログイン用の名前とは別です。次回も覚えています。','Separate from your login username. We will remember it.'],namePlaceholder:['2–16 字','2–16 字','2〜16 文字','2–16 characters'],
         nameSubmit:['进入游戏','進入遊戲','ゲームに入る','Enter game'],nameBack:['返回选角色','返回選角色','キャラクター選択に戻る','Back to characters'],hero:['已选角色：','已選角色：','キャラクター：','Character: '],
-        resumeTitle:['上次的人物','上次的人物','前回のキャラクター','Your last character'],resumePlay:['继续游戏','繼續遊戲','続きから遊ぶ','Continue playing'],resumeChange:['更换角色','更換角色','キャラクターを変更','Change character'],resumeStyle:['3D 外观','3D 外觀','3D スタイル','3D style'],resumeClassic:['SF 外观','SF 外觀','SF スタイル','SF style'],
+        resumeTitle:['上次的人物','上次的人物','前回のキャラクター','Your last character'],resumePlay:['继续游戏','繼續遊戲','続きから遊ぶ','Continue playing'],resumeChange:['更换角色','更換角色','キャラクターを変更','Change character'],
         settings:['设置','設定','設定','Settings'],metrics:['允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）','允許匿名試玩統計（可選，保留 90 天；不含姓名、信箱、聊天）','匿名のプレイ統計を許可（任意・90 日保存・名前、メール、チャットは含みません）','Allow anonymous play statistics (optional, kept for 90 days; no names, email or chat)'],updates:['接收游戏更新邮件（可选，随时取消）','接收遊戲更新郵件（可選，隨時取消）','ゲーム更新メールを受け取る（任意・いつでも解除可能）','Receive game update emails (optional; cancel anytime)']
     };
     function t(key){var lang=typeof _langCode==='string'?_langCode:'zhs';return copy[key][Math.max(0,['zhs','zht','ja','en'].indexOf(lang))];}
@@ -120,7 +120,7 @@
         text('character-resume-title','resumeTitle');text('character-resume-play','resumePlay');text('character-resume-change','resumeChange');
         $('character-resume-name').textContent=user?user.characterName:'';
         var lastHero=user&&typeof CHARACTERS!=='undefined'&&CHARACTERS[user.character];
-        $('character-resume-hero').textContent=lastHero?lastHero.name+' · '+t(user.style==='classic'?'resumeClassic':'resumeStyle'):'';
+        $('character-resume-hero').textContent=lastHero?lastHero.name:'';
         ['account-language','character-name-language','character-resume-language'].forEach(function(id){$(id).value=typeof _langMode==='string'?_langMode:'auto';});
     }
     function lock(open){
