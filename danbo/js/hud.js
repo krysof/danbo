@@ -656,7 +656,7 @@ function _updateEggTag(egg){
     var spr=egg._tagSprite;spr.visible=true;
     var name=_eggDisplayName(egg);
     var levelLine='';
-    if(egg.isPlayer&&typeof Explorer!=='undefined'){var lv=Explorer.levelInfo();levelLine='Lv'+lv.lv+' '+lv.name;}
+    if(egg.isPlayer&&typeof Explorer!=='undefined'){var lv=Explorer.levelInfo();levelLine='Lv'+lv.lv+' '+UI_T(lv.name);}
     var key=name+'|'+levelLine;
     if(key!==egg._tagKey){_drawEggTag(spr,name,levelLine);egg._tagKey=key;}
     var p=egg.mesh.position;spr.position.set(p.x,p.y+3.75,p.z);

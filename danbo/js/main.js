@@ -2,6 +2,8 @@
 // ============================================================
 //  INIT
 // ============================================================
+// Apply authored static UI copy at boot, including saved and automatic locale.
+if(window.DANBO_UI_I18N)DANBO_UI_I18N.refresh();
 buildCity();
 buildPortals();
 buildCityCoins();

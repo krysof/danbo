@@ -224,6 +224,13 @@ function _applyLang(){
     if(window.DANBO_ACCOUNT)DANBO_ACCOUNT.refreshLanguage();
     if(typeof _introPreviewReady!=='undefined'&&_introPreviewReady)_prepareIntro();
     if(window.DANBO_JOURNEY)DANBO_JOURNEY.render();
+    if(window.DANBO_UI_I18N)DANBO_UI_I18N.refresh();
+    if(window.DANBO_MULTIPLAYER&&DANBO_MULTIPLAYER.refreshLanguage)DANBO_MULTIPLAYER.refreshLanguage();
+    if(typeof Explorer!=='undefined'&&gameState==='city'){
+        if(typeof _updateChestHud==='function')_updateChestHud();
+        if(typeof _updatePlayerTag==='function')_updatePlayerTag(true);
+    }
+    if(window._shopOpen&&typeof _shopRender==='function')_shopRender();
 }
 if(langBtn){
     langBtn.textContent=_getLangBtnText();

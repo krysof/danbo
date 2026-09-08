@@ -695,7 +695,7 @@
             loadPluginRuntime(pluginId,finishStart,function(e){
             if(seq!==loadSeq)return;
             console.error('[PluginHost] lazy load failed',e);
-            mount.innerHTML='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(32,8,8,.75);color:#fff;font:900 18px system-ui,Segoe UI,sans-serif;">进入失败，请重试</div>';
+            mount.innerHTML=UI_HTML('<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(32,8,8,.75);color:#fff;font:900 18px system-ui,Segoe UI,sans-serif;">进入失败，请重试</div>');
             setTimeout(function(){stop({status:'error',reason:'load failed'});},900);
             });
         }

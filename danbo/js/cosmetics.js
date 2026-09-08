@@ -234,7 +234,7 @@ var _SHOP_CAT_VISUAL={
     glasses:{glyph:'\u25C9',label:'\u773C\u955C',color:'#5487A9',soft:'#D8EFFF'},
     hat:{glyph:'\u25B2',label:'\u5E3D\u5B50',color:'#B57948',soft:'#F5D6AD'},
     halo:{glyph:'\u25CC',label:'\u5149\u73AF',color:'#DAA62D',soft:'#FFF0B4'},
-    back:{glyph:'\u7FBD',label:'\u80CC\u9970',color:'#7D79B8',soft:'#E6E2FF'},
+    back:{glyph:'\uD83E\uDEB6',label:'\u80CC\u9970',color:'#7D79B8',soft:'#E6E2FF'},
     footprint:{glyph:'\u2737',label:'\u811A\u5370',color:'#5A9E88',soft:'#D8F2E9'}
 };
 function _coinsNow(){return (typeof coins!=='undefined')?coins:0;}
@@ -283,7 +283,7 @@ function _shopEnsureStyles(){
       'background:linear-gradient(180deg,rgba(255,251,239,.96),rgba(238,223,197,.94));box-shadow:0 8px 18px rgba(75,49,29,.18),inset 0 1px 0 #fff;}'+
     '#shop-cats{display:flex;gap:7px;padding:11px 11px 9px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;background:linear-gradient(180deg,#E5C898,#C99D65);'+
       'border-bottom:1px solid rgba(102,57,29,.35);box-shadow:inset 0 2px 2px rgba(255,255,255,.42),inset 0 -4px 5px rgba(100,55,25,.13);}'+
-    '.shop-cat{height:38px;min-width:70px;padding:0 11px;display:flex;align-items:center;justify-content:center;gap:5px;border:1px solid rgba(109,63,31,.34);border-radius:12px;cursor:pointer;color:#6D4027;'+
+    '.shop-cat{flex:0 0 auto;height:38px;min-width:70px;padding:0 11px;display:flex;align-items:center;justify-content:center;gap:5px;border:1px solid rgba(109,63,31,.34);border-radius:12px;cursor:pointer;color:#6D4027;'+
       'background:linear-gradient(180deg,#FFF9E9,#EFD9B5);box-shadow:0 3px 5px rgba(83,50,27,.19),inset 0 2px 1px #fff;white-space:nowrap;font-size:12px;font-weight:900;transition:transform .16s,box-shadow .16s;}'+
     '.shop-cat:hover{transform:translateY(-2px);box-shadow:0 5px 8px rgba(83,50,27,.25),inset 0 2px 1px #fff}.shop-cat.active{color:#FFF9E8;border-color:#F7D694;'+
       'background:linear-gradient(180deg,#C95E4D,#8F332C);box-shadow:0 5px 9px rgba(85,29,24,.3),inset 0 2px 2px rgba(255,255,255,.22),inset 0 -3px 4px rgba(70,17,14,.25);transform:translateY(-1px);}'+
@@ -405,7 +405,7 @@ function _shopSetPreview(id){
         }
     }
     var label=document.querySelector('.shop-preview-label');
-    if(label)label.textContent=id?(_ITEM_BY_ID[id].name+' \u00B7 \u5B9E\u65F6\u8BD5\u7A7F'):'\u9009\u62E9\u5546\u54C1 \u00B7 3D \u5B9E\u65F6\u8BD5\u7A7F';
+    if(label)label.textContent=id?(UI_T(_ITEM_BY_ID[id].name)+UI_T(' \u00B7 \u5B9E\u65F6\u8BD5\u7A7F')):UI_T('\u9009\u62E9\u5546\u54C1 \u00B7 3D \u5B9E\u65F6\u8BD5\u7A7F');
 }
 function _shopDisposePreview(){
     if(!_shopPreview)return;
@@ -422,14 +422,14 @@ function _openShop(){
     var card=document.createElement('div');card.id='shop-card';
     card.innerHTML=
         '<div class="shop-header">'+
-          '<div class="shop-brand"><div class="shop-brand-mark">\u2726</div><div><div class="shop-title">'+_shopLocalizedName()+'</div><div class="shop-subtitle">DANBO BOUTIQUE \u00B7 \u539F\u521B\u5916\u89C2\u6536\u85CF</div></div></div>'+
-          '<div class="shop-head-actions"><div id="shop-coins"><span class="shop-coin-gem"></span><span>'+_coinsNow()+'</span></div><button id="shop-close" type="button" aria-label="\u5173\u95ED">\u00D7</button></div>'+
+          '<div class="shop-brand"><div class="shop-brand-mark">\u2726</div><div><div class="shop-title">'+_shopLocalizedName()+UI_HTML('</div><div class="shop-subtitle">DANBO BOUTIQUE \u00B7 \u539F\u521B\u5916\u89C2\u6536\u85CF</div></div></div>')+
+          '<div class="shop-head-actions"><div id="shop-coins"><span class="shop-coin-gem"></span><span>'+_coinsNow()+UI_HTML('</span></div><button id="shop-close" type="button" aria-label="\u5173\u95ED">\u00D7</button></div>')+
         '</div>'+
         '<div class="shop-main">'+
-          '<div class="shop-preview"><canvas id="shop-preview-canvas"></canvas><div class="shop-preview-label">\u9009\u62E9\u5546\u54C1 \u00B7 3D \u5B9E\u65F6\u8BD5\u7A7F</div></div>'+
+          UI_HTML('<div class="shop-preview"><canvas id="shop-preview-canvas"></canvas><div class="shop-preview-label">\u9009\u62E9\u5546\u54C1 \u00B7 3D \u5B9E\u65F6\u8BD5\u7A7F</div></div>')+
           '<div class="shop-catalog"><div id="shop-cats"></div><div id="shop-items"></div></div>'+
         '</div>'+
-        '<div id="shop-foot" class="shop-foot"><div id="shop-selname">\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\uFF0C\u5728\u5C55\u53F0\u4E0A\u5B9E\u65F6\u8BD5\u7A7F</div><button id="shop-action" style="display:none;"></button></div>';
+        UI_HTML('<div id="shop-foot" class="shop-foot"><div id="shop-selname">\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\uFF0C\u5728\u5C55\u53F0\u4E0A\u5B9E\u65F6\u8BD5\u7A7F</div><button id="shop-action" style="display:none;"></button></div>');
     ov.appendChild(card);document.body.appendChild(ov);
     document.getElementById('shop-close').onclick=_closeShop;
     ov.addEventListener('click',function(e){if(e.target===ov)_closeShop();});
@@ -450,7 +450,7 @@ function _shopRender(){
     _CATS.forEach(function(c){
         var meta=_SHOP_CAT_VISUAL[c.id]||{glyph:'\u2726'};
         var b=document.createElement('button');b.type='button';b.className='shop-cat'+(c.id===_shopCat?' active':'');
-        b.innerHTML='<span class="shop-cat-glyph">'+meta.glyph+'</span><span>'+c.name+'</span>';
+        b.innerHTML='<span class="shop-cat-glyph">'+meta.glyph+'</span><span>'+UI_T(c.name)+'</span>';
         b.onclick=function(){_shopCat=c.id;_shopSel=null;_shopSetPreview(null);_shopRender();};
         catBox.appendChild(b);
     });
@@ -464,10 +464,10 @@ function _shopRender(){
         card.className='shop-item-card'+(selected?' selected':'')+(equipped?' equipped':'');
         card.style.setProperty('--shop-accent',meta.color);card.style.setProperty('--shop-soft',meta.soft);
         card.innerHTML='<span class="shop-item-visual">'+meta.glyph+'</span>'+
-            '<span class="shop-item-name">'+it.name+'</span>'+
+            '<span class="shop-item-name">'+UI_T(it.name)+'</span>'+
             '<span class="shop-item-price '+(equipped?'equipped':(owned?'owned':''))+'">'+
-            (owned?(equipped?'\u25C6 \u5DF2\u88C5\u5907':'\u25C7 \u5DF2\u62E5\u6709'):('<span class="shop-coin-gem" style="width:11px;height:11px;"></span> '+it.price))+'</span>';
-        if(it.unlockOnly&&!owned)card.querySelector('.shop-item-price').textContent=it.id==='back_bond'?'协作挑战解锁':'旅程挑战解锁';
+            (owned?(equipped?UI_T('\u25C6 \u5DF2\u88C5\u5907'):UI_T('\u25C7 \u5DF2\u62E5\u6709')):('<span class="shop-coin-gem" style="width:11px;height:11px;"></span> '+it.price))+'</span>';
+        if(it.unlockOnly&&!owned)card.querySelector('.shop-item-price').textContent=it.id==='back_bond'?UI_T('协作挑战解锁'):UI_T('旅程挑战解锁');
         card.onclick=function(){_shopSelectItem(it.id);};
         grid.appendChild(card);
     });
@@ -484,19 +484,19 @@ function _shopRenderAction(){
     var nameEl=document.getElementById('shop-selname');
     var act=document.getElementById('shop-action');
     if(!act)return;
-    if(!_shopSel){if(nameEl)nameEl.textContent='\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\uFF0C\u5728\u5C55\u53F0\u4E0A\u5B9E\u65F6\u8BD5\u7A7F';act.style.display='none';return;}
+    if(!_shopSel){if(nameEl)nameEl.textContent=UI_T('\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\uFF0C\u5728\u5C55\u53F0\u4E0A\u5B9E\u65F6\u8BD5\u7A7F');act.style.display='none';return;}
     var it=_ITEM_BY_ID[_shopSel];
     var owned=Cosmetics.isOwned(_shopSel);
     var equipped=Cosmetics.equipment()[it.cat]===_shopSel;
-    if(nameEl)nameEl.textContent=it.name+(owned?'':'  \u00B7  '+it.price+' \u91D1\u5E01');
+    if(nameEl)nameEl.textContent=UI_T(it.name)+(owned?'':'  \u00B7  '+it.price+UI_T(' \u91D1\u5E01'));
     act.style.display='inline-block';
-    if(it.unlockOnly&&!owned){if(nameEl)nameEl.textContent=it.name;act.className='buy';act.textContent=it.id==='back_bond'?'完成星光协奏获得':'完成初次旅行获得';act.onclick=function(){if(window.DANBO_JOURNEY){_closeShop();DANBO_JOURNEY.open();}};return;}
+    if(it.unlockOnly&&!owned){if(nameEl)nameEl.textContent=UI_T(it.name);act.className='buy';act.textContent=it.id==='back_bond'?UI_T('完成星光协奏获得'):UI_T('完成初次旅行获得');act.onclick=function(){if(window.DANBO_JOURNEY){_closeShop();DANBO_JOURNEY.open();}};return;}
     act.className=owned?(equipped?'unequip':'equip'):'buy';
-    act.textContent=owned?(equipped?'\u5378\u4E0B':'\u88C5\u5907'):'\u8D2D\u4E70';
+    act.textContent=owned?(equipped?UI_T('\u5378\u4E0B'):UI_T('\u88C5\u5907')):UI_T('\u8D2D\u4E70');
     act.onclick=function(){
         if(!owned){
-            if(Cosmetics.buy(_shopSel)){Cosmetics.equip(it.cat,_shopSel);_toast('\u8D2D\u4E70\u6210\u529F\uFF01','#7FC9A0');}
-            else{_toast('\u91D1\u5E01\u4E0D\u8DB3\uFF01','#E0506A');}
+            if(Cosmetics.buy(_shopSel)){Cosmetics.equip(it.cat,_shopSel);_toast(UI_T('\u8D2D\u4E70\u6210\u529F\uFF01'),'#7FC9A0');}
+            else{_toast(UI_T('\u91D1\u5E01\u4E0D\u8DB3\uFF01'),'#E0506A');}
         } else if(equipped){Cosmetics.unequip(it.cat);}
         else {Cosmetics.equip(it.cat,_shopSel);}
         _shopRender();
@@ -762,8 +762,8 @@ function _maybeAutoShopConfirm(mode){
     var key='hidden:'+type+':-97';
     if(typeof _portalDismissed!=='undefined'&&_portalDismissed===key)return false;
     showPortalConfirm({
-        name:isDoor?'\uD83C\uDFEA '+_shopLocalizedName():'\uD83C\uDFEA \u9009\u8D2D',
-        desc:isDoor?_shopLocalizedEnterDesc():'\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F',
+        name:isDoor?'\uD83C\uDFEA '+_shopLocalizedName():UI_T('\uD83C\uDFEA \u9009\u8D2D'),
+        desc:isDoor?_shopLocalizedEnterDesc():UI_T('\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F'),
         raceIndex:-1,
         _hiddenType:type,
         _targetStyle:-97
@@ -825,11 +825,11 @@ function _showShopPrompt(show,mode){
                 'background:rgba(255,255,255,0.92);border:2px solid #FFB6CE;color:#C2477A;font:bold 16px system-ui,sans-serif;box-shadow:0 3px 12px rgba(0,0,0,0.25);cursor:pointer;';
             document.body.appendChild(el);}
         if(mode==='keeper'){
-            el.textContent='\uD83C\uDFEA \u8D70\u8FD1\u8001\u677F\uFF0C\u70B9\u51FB\u786E\u8BA4\u9009\u8D2D';
+            el.textContent=UI_T('\uD83C\uDFEA \u8D70\u8FD1\u8001\u677F\uFF0C\u70B9\u51FB\u786E\u8BA4\u9009\u8D2D');
             el.onclick=function(){if(typeof _portalDismissed!=='undefined')_portalDismissed=null;if(typeof showPortalConfirm==='function')showPortalConfirm({name:'\uD83C\uDFEA \u9009\u8D2D',desc:'\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F',raceIndex:-1,_hiddenType:'shopKeeper',_targetStyle:-97});else _openShop();};
         }
         else {
-            el.textContent='\uD83C\uDFEA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4';
+            el.textContent=UI_T('\uD83C\uDFEA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4');
             el.onclick=function(){if(typeof _portalDismissed!=='undefined')_portalDismissed=null;if(typeof showPortalConfirm==='function')showPortalConfirm({name:'\uD83C\uDFEA '+_shopLocalizedName(),desc:_shopLocalizedEnterDesc(),raceIndex:-1,_hiddenType:'shopHouse',_targetStyle:-97});else _enterShopHouse();};
         }
         el.style.display='block';

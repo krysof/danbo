@@ -29,7 +29,22 @@
         cooldown:['本轮正在结算，稍后再加入。','結果を処理中です。少し待ってから参加してください。','This round is settling. Please try again shortly.'],
         rewardUnavailable:['奖励暂未到账，请保持登录后重试协作；当前进度不会扣除。','報酬を保存できませんでした。ログインしたまま再挑戦してください。進行状況は減りません。','Reward delivery failed. Stay logged in and retry the duet; no progress was deducted.']
     };
-    function t(key,values){var lang=typeof _langCode==='string'?_langCode:'zhs',s=(copy[key]||copy.disconnected)[lang==='ja'?1:lang==='en'?2:0];if(values)Object.keys(values).forEach(function(k){s=s.replace('{'+k+'}',values[k]);});return s;}
+    var traditional={
+        title:'星光協奏 · 多人協作',intro:'雙人站位挑戰 · 希望之城噴泉南側',
+        stepJoin:'兩位玩家都點「加入協作」（城市夥伴不參與）。',stepStand:'一人站 A 環，一人站 B 環，同時停留 3.5 秒。',
+        stepFinish:'跟隨光環完成 3 段；限時 3 分鐘，失敗不扣獎勵。',invitation:'星光協奏 · 雙人站位挑戰\n點此查看玩法 / 邀請朋友',
+        reward:'參與成功點亮，可永久解鎖「羈絆羽翼」。遊客也能參加。',join:'加入協作',leave:'退出協作',share:'邀請朋友來同服',
+        disconnected:'請先進入伺服器；暫時無人時可以先自由探索。',old:'此伺服器尚未支援協作，請更新伺服器。',
+        returnToHope:'請在希望之城室外站穩、脫離抓取後加入；室內和小遊戲中不能參加。',waiting:'等待夥伴 · 已準備 {n} 人',
+        active:'第 {stage}/3 段 · 雙環 {mask}/2 · 共鳴 {hold}/3.5 秒 · 剩餘 {time} 秒',go:'前往 {pad} 環 · {distance} 公尺',
+        waitPartner:'星光協奏 · 等待另一位玩家加入\n點此邀請朋友或退出',stage:'星光協奏 {stage}/3 · 剩餘 {time} 秒',
+        stay:'已到 {pad} 環 · 等隊友站上另一環',hold:'站穩別動 · 共鳴 {hold}/3.5 秒',land:'在 {pad} 環內落地站穩',
+        complete:'本輪協作成功！稍後可再加入。',failed:'本輪逾時，沒有扣除獎勵。稍後可重新加入。',
+        earned:'協作成功！羈絆羽翼已解鎖；已有背飾不會被替換。',cooldown:'本輪正在結算，稍後再加入。',
+        rewardUnavailable:'獎勵暫未到帳，請保持登入後重試協作；目前進度不會扣除。'
+    };
+    Object.keys(copy).forEach(function(key){copy[key].splice(1,0,traditional[key]);});
+    function t(key,values){var lang=typeof _langCode==='string'?_langCode:'zhs',s=(copy[key]||copy.disconnected)[lang==='zht'?1:lang==='ja'?2:lang==='en'?3:0];if(values)Object.keys(values).forEach(function(k){s=s.replace('{'+k+'}',values[k]);});return s;}
     function state(){var room=DANBO_MULTIPLAYER.getRoom();return room&&DANBO_MULTIPLAYER.isConnected()?{room:room,s:room.state,p:room.state&&room.state.players&&room.state.players.get(room.sessionId)}:null;}
     function inWorld(){return gameState==='city'&&currentCityStyle===0&&!window._interiorActive&&!window._pipeTraveling&&!window._pipeCityBuilding&&!window._danboPluginTransition&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive());}
     function joined(){var info=state();return !!(info&&info.p&&info.p.coopJoined);}
@@ -63,13 +78,13 @@
         var info=state(),s=info&&info.s,p=info&&info.p,joined=!!(p&&p.coopJoined);
         $('coop-title').textContent=t('title');$('coop-intro').textContent=t('intro');$('coop-reward').textContent=t('reward');
         $('coop-step-join').textContent=t('stepJoin');$('coop-step-stand').textContent=t('stepStand');$('coop-step-finish').textContent=t('stepFinish');
-        $('coop-status').textContent=statusText(info);$('coop-note').textContent=note;
+        $('coop-status').textContent=statusText(info);$('coop-note').textContent=note?t(note):'';
         $('coop-join').textContent=t('join');$('coop-leave').textContent=t('leave');$('coop-share').textContent=t('share');
         $('coop-join').hidden=joined;$('coop-leave').hidden=!joined;
         $('coop-join').disabled=!info||!s||typeof s.coopPhase!=='string'||s.coopPhase==='complete'||s.coopPhase==='failed';
         $('coop-share').disabled=!info;
     }
-    function error(code){note=t(copy[code]?code:'disconnected');render();}
+    function error(code){note=copy[code]?code:'disconnected';render();}
     function label(text){var canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;var c=canvas.getContext('2d');c.fillStyle='#123442';c.beginPath();c.arc(64,64,56,0,Math.PI*2);c.fill();c.fillStyle='#fff5ce';c.textAlign='center';c.textBaseline='middle';c.font='bold 78px sans-serif';c.fillText(text,64,68);var texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthWrite:false}));}
     function build(){
         markers=new THREE.Group();markers.name='danbo-coop-pads';
@@ -87,7 +102,7 @@
         if(p&&p.coopWon&&typeof Cosmetics!=='undefined'&&!Cosmetics.isOwned('back_bond')){
             Cosmetics.data().owned.back_bond=true;
             if(!Cosmetics.equipment().back)Cosmetics.equip('back','back_bond');else Cosmetics.save();
-            DANBO_PROGRESS.capture();DANBO_PROGRESS.flush();note=t('earned');rewardNoteUntil=Date.now()+12000;
+            DANBO_PROGRESS.capture();DANBO_PROGRESS.flush();note='earned';rewardNoteUntil=Date.now()+12000;
             if(window.DANBO_JOURNEY)DANBO_JOURNEY.event('coop');
         }
         var visible=!!(s&&p&&p.coopJoined&&(s.coopPhase==='idle'||s.coopPhase==='active')&&inWorld());

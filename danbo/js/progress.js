@@ -14,7 +14,7 @@
     if(!read('danbo_legacy_backup_v1'))write('danbo_legacy_backup_v1',snapshot());
     function replace(target,source){Object.keys(target).forEach(function(k){delete target[k];});Object.keys(source).forEach(function(k){if(k!=='__proto__'&&k!=='constructor'&&k!=='prototype')target[k]=source[k];});}
     function apply(value){
-        if(!value||value.version!==1||!value.explorer||!value.shop||!value.journey)throw new Error('存档格式不兼容；原数据未删除');
+        if(!value||value.version!==1||!value.explorer||!value.shop||!value.journey)throw new Error(UI_T('存档格式不兼容；原数据未删除'));
         var v=clone(value);
         replace(Explorer.data(),v.explorer);replace(Cosmetics.data(),v.shop);coins=v.shop.coins||0;journey=v.journey;
         // Existing cities may already be built behind character selection.
@@ -38,6 +38,11 @@
         items.forEach(function(id){if(id==='back_bond')Cosmetics.data().owned[id]=true;});
     }
     function setStatus(text){status=text;if(window.DANBO_JOURNEY)DANBO_JOURNEY.render();}
+    function localizedStatus(){
+        var prefixes=['云存档暂不可用，本机进度保留。','云同步失败，本机进度保留。'];
+        for(var i=0;i<prefixes.length;i++)if(status.indexOf(prefixes[i])===0)return UI_T(prefixes[i])+status.slice(prefixes[i].length);
+        return UI_T(status);
+    }
     async function activate(next,reason,incoming){
         if(busy)await busy;
         capture();var carried=snapshot();
@@ -96,7 +101,7 @@
         // Explicit user decision only. Keep a recoverable local backup even then.
         write(key+':backup',record);
         if(which==='cloud'){
-            if(!remote.snapshot)throw new Error('云端还没有存档');
+            if(!remote.snapshot)throw new Error(UI_T('云端还没有存档'));
             record={revision:remote.revision,dirty:false,snapshot:remote.snapshot};apply(record.snapshot);unlock(remote.unlocks);
         }else record.revision=remote.revision;
         blocked=false;capture();return flush();
@@ -109,7 +114,7 @@
     }
     function importGuest(value){return activate(DANBO_ACCOUNT.getUser(),'handoff',value);}
     function resetGuest(){
-        if(!user||user.kind!=='guest')throw new Error('展台重置只能用于游客，请先退出账号');
+        if(!user||user.kind!=='guest')throw new Error(UI_T('展台重置只能用于游客，请先退出账号'));
         write(key+':backup',record);record={revision:0,dirty:false,snapshot:fresh()};apply(record.snapshot);capture();
         localStorage.removeItem('danbo_guest_profile_v1');
     }
@@ -119,5 +124,5 @@
     document.addEventListener('visibilitychange',function(){if(document.hidden){capture();flush();}});
     window.addEventListener('pagehide',capture);
     window.DANBO_PROGRESS={activate:activate,capture:capture,flush:flush,retry:retry,resolve:resolve,importGuest:importGuest,resetGuest:resetGuest,
-        snapshot:snapshot,fresh:fresh,journey:function(){return journey;},getStatus:function(){return status;},hasConflict:function(){return blocked;}};
+        snapshot:snapshot,fresh:fresh,journey:function(){return journey;},getStatus:localizedStatus,hasConflict:function(){return blocked;}};
 })();

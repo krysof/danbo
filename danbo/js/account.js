@@ -44,8 +44,8 @@
     function storageKey(){return 'danbo_account_session_v1:'+endpoint;}
     function resolveEndpoint(value){
         var url=new URL(value.replace(/^ws:/,'http:').replace(/^wss:/,'https:'));
-        if(url.protocol!=='https:'&&!(url.protocol==='http:'&&/^(localhost|127\.0\.0\.1)$/.test(url.hostname)))throw new Error('账号连接必须使用 HTTPS');
-        if(url.username||url.password)throw new Error('服务器地址不能包含凭证');
+        if(url.protocol!=='https:'&&!(url.protocol==='http:'&&/^(localhost|127\.0\.0\.1)$/.test(url.hostname)))throw new Error(UI_T('账号连接必须使用 HTTPS'));
+        if(url.username||url.password)throw new Error(UI_T('服务器地址不能包含凭证'));
         return url.origin;
     }
     function configure(value){
@@ -54,7 +54,7 @@
     }
     function clearSession(){session=null;try{sessionStorage.removeItem(storageKey());}catch(_){}render();}
     async function api(path,body,token){
-        if(!endpoint)throw new Error('请先配置服务器地址');
+        if(!endpoint)throw new Error(UI_T('请先配置服务器地址'));
         var controller=new AbortController(),timeout=setTimeout(function(){controller.abort();},15000);
         try{
             var headers={'Content-Type':'application/json'};
@@ -62,14 +62,14 @@
             var response=await fetch(endpoint+'/api/account'+path,{method:body===undefined?'GET':'POST',headers:headers,
                 body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal,cache:'no-store',credentials:'omit'});
             var data={};try{data=await response.json();}catch(_){}
-            if(!response.ok||data.ok!==true){var error=new Error(data.error||'账号服务暂时不可用');error.status=response.status;throw error;}
+            if(!response.ok||data.ok!==true){var error=new Error(UI_T(data.error||'账号服务暂时不可用'));error.status=response.status;throw error;}
             return data;
-        }catch(error){if(error.name==='AbortError')throw new Error('连接超时，请稍后再试');throw error;}
+        }catch(error){if(error.name==='AbortError')throw new Error(UI_T('连接超时，请稍后再试'));throw error;}
         finally{clearTimeout(timeout);}
     }
     function rememberGuest(value,confirmed){
         var saved={characterName:value.characterName,character:value.character,style:value.style,confirmed:!!confirmed};
-        try{localStorage.setItem(GUEST_KEY,JSON.stringify(saved));}catch(_){throw new Error('浏览器无法保存游客资料，请允许网站存储或注册账号');}
+        try{localStorage.setItem(GUEST_KEY,JSON.stringify(saved));}catch(_){throw new Error(UI_T('浏览器无法保存游客资料，请允许网站存储或注册账号'));}
     }
     function storeSession(){
         try{sessionStorage.setItem(storageKey(),JSON.stringify({token:session.token,expiresAt:session.expiresAt,characterReady:session.characterReady}));}catch(_){}
@@ -184,7 +184,7 @@
         configure(value);var restored;
         try{restored=await resume();resumeRetry=false;}catch(error){
             resumeRetry=true;
-            return new Promise(function(resolve){if(pending)pending(false);pending=resolve;open('welcome');$('account-message').textContent=error.message||'连接失败，请重试';});
+            return new Promise(function(resolve){if(pending)pending(false);pending=resolve;open('welcome');$('account-message').textContent=UI_T(error.message||'连接失败，请重试');});
         }
         if(restored&&!(entry==='register'&&session.user.kind==='guest'))return true;
         return new Promise(function(resolve){
@@ -212,7 +212,7 @@
             var done=pending;pending=null;busy=false;close();if(done)done(true);
             if(gameState==='city'&&kind!=='guest'&&mode==='login'){await DANBO_MULTIPLAYER.leave();location.reload();return;}
             if(roomCode)await DANBO_MULTIPLAYER.connect(roomCode); // promotion keeps current city/position
-        }catch(error){$('account-message').textContent=error.message||'连接失败，请重试';}
+        }catch(error){$('account-message').textContent=UI_T(error.message||'连接失败，请重试');}
         finally{busy=false;$('account-submit').disabled=false;$('account-guest').disabled=false;$('account-create').disabled=false;render();}
     }
     function requestCharacter(reuse){
@@ -234,13 +234,13 @@
         event.preventDefault();if(busy)return;busy=true;$('character-name-submit').disabled=true;
         try{
             var current=profile();current.characterName=$('character-name-input').value.trim();
-            if(!session)throw new Error('请先选择游客或登录账号');
+            if(!session)throw new Error(UI_T('请先选择游客或登录账号'));
             var data=await api('/character',current,session.token);
             session.user=data.user;
             session.characterReady=true;storeSession();
             if(session.user.kind==='guest')rememberGuest(data.user,true);
             render();finishName(true);
-        }catch(error){$('character-name-message').textContent=error.message||'保存失败，请重试';}
+        }catch(error){$('character-name-message').textContent=UI_T(error.message||'保存失败，请重试');}
         finally{busy=false;$('character-name-submit').disabled=false;}
     });
     $('character-name-back').addEventListener('click',function(){if(!busy)finishName(false);});

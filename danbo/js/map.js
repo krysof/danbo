@@ -352,11 +352,11 @@ function _toggleWorldMapLegacy(){
         'background:linear-gradient(160deg,#FFF3FA,#EAF6FF);border:4px solid #FFB6CE;box-shadow:0 12px 50px rgba(0,0,0,0.4);'+
         'font-family:system-ui,Segoe UI,sans-serif;';
     var curName=(typeof CITY_STYLES!=='undefined'&&CITY_STYLES[currentCityStyle])?CITY_STYLES[currentCityStyle].name:'';
-    var head='<div style="text-align:center;font-size:20px;font-weight:800;color:#E66AA0;margin:2px 0 8px;">\uD83D\uDDFA\uFE0F \u4E16\u754C\u5730\u56FE</div>'+
-        '<div style="text-align:center;font-size:13px;color:#6a6a80;margin-bottom:8px;">\u5F53\u524D\u4F4D\u4E8E\uFF1A<b style="color:#E66AA0;">'+curName+'</b></div>';
+    var head=UI_HTML('<div style="text-align:center;font-size:20px;font-weight:800;color:#E66AA0;margin:2px 0 8px;">\uD83D\uDDFA\uFE0F \u4E16\u754C\u5730\u56FE</div>')+
+        UI_HTML('<div style="text-align:center;font-size:13px;color:#6a6a80;margin-bottom:8px;">\u5F53\u524D\u4F4D\u4E8E\uFF1A<b style="color:#E66AA0;">')+curName+'</b></div>';
     var cvSize=sz-28;
     panel.innerHTML=head+'<canvas id="worldmap-canvas" width="'+cvSize+'" height="'+cvSize+'" style="width:100%;display:block;"></canvas>'+
-        '<div style="text-align:center;margin-top:6px;font-size:12px;color:#8a8aa0;">M \u952E \u6216 \u70B9\u51FB\u5173\u95ED \u00B7 \u672A\u5230\u8FBE\u57CE\u5E02\u663E\u793A ???</div>';
+        UI_HTML('<div style="text-align:center;margin-top:6px;font-size:12px;color:#8a8aa0;">M \u952E \u6216 \u70B9\u51FB\u5173\u95ED \u00B7 \u672A\u5230\u8FBE\u57CE\u5E02\u663E\u793A ???</div>');
     ov.appendChild(panel);document.body.appendChild(ov);
     ov.addEventListener('click',function(e){if(e.target===ov)_closeWorldMap();});
     _drawWorldMap(cvSize);

@@ -202,7 +202,7 @@
         '.rr-countdown{position:absolute;left:calc(50% - 46px);top:43%;transform:translate(-50%,-50%);display:none;pointer-events:none;font-size:clamp(56px,16vw,126px);font-weight:1000;color:#fff6a0;text-shadow:0 7px 0 #c6512d,0 0 28px rgba(255,232,88,.8),0 18px 40px rgba(0,0,0,.45);letter-spacing:.04em;}'+
         '.rr-touch{position:absolute;inset:0;display:none;pointer-events:none;}'+
         '.rr-steer-pad{position:absolute;left:24px;bottom:calc(92px + env(safe-area-inset-bottom));width:98px;height:98px;border-radius:50%;border:3px solid rgba(255,255,255,.38);background:radial-gradient(circle,rgba(255,255,255,.24),rgba(255,255,255,.08));box-shadow:0 7px 18px rgba(0,0,0,.26),inset 0 0 0 2px rgba(255,255,255,.13);pointer-events:auto;touch-action:none;}'+
-        '.rr-steer-pad:before{content:"方向";position:absolute;left:0;right:0;top:-22px;text-align:center;color:rgba(255,255,255,.82);font-size:12px;font-weight:1000;text-shadow:0 2px 3px #000;}'+
+        '.rr-steer-pad:before{content:attr(data-steer-label);position:absolute;left:0;right:0;top:-22px;text-align:center;color:rgba(255,255,255,.82);font-size:12px;font-weight:1000;text-shadow:0 2px 3px #000;}'+
         '.rr-steer-knob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.72);box-shadow:0 5px 16px rgba(0,0,0,.35),inset 0 0 0 4px rgba(255,255,255,.42);color:#2c4762;font-size:18px;font-weight:1000;display:flex;align-items:center;justify-content:center;}'+
         '.rr-pedal{position:absolute;bottom:calc(82px + env(safe-area-inset-bottom));width:92px;height:44px;border-radius:14px 14px 22px 22px;border:2px solid rgba(255,255,255,.42);color:#fff;font-size:15px;font-weight:1000;pointer-events:auto;text-shadow:0 2px 3px #000;transform:skewX(-8deg);box-shadow:0 7px 14px rgba(0,0,0,.36),inset 0 5px 0 rgba(255,255,255,.18),inset 0 -5px 0 rgba(0,0,0,.18);}'+
         '.rr-pedal:after{content:"";position:absolute;left:12px;right:12px;top:9px;bottom:9px;border-radius:10px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.32) 0 4px,transparent 4px 12px);opacity:.65;pointer-events:none;}'+
@@ -211,7 +211,7 @@
         '.rr-pedal.rr-pressed{filter:brightness(1.24);transform:skewX(-8deg) translateY(5px) scale(.98);box-shadow:0 4px 10px rgba(0,0,0,.42),0 0 22px rgba(255,232,120,.45),inset 0 4px 0 rgba(255,255,255,.16),inset 0 -3px 0 rgba(0,0,0,.24);}'+
         '.rr-list{margin:12px 0;text-align:left;background:rgba(255,255,255,.08);border-radius:18px;padding:12px 16px;line-height:1.8;}'+
         '@media (max-width:760px){.rr-title{font-size:28px}.rr-panel{padding:18px}.rr-touch{display:block}.rr-menu-btn{padding:12px;font-size:16px}.rr-side{width:84px}.rr-top-track{right:84px}.rr-countdown,.rr-stage-banner,.rr-start-rank{left:calc(50% - 42px)}.rr-meter{height:102px;width:18px}.rr-steer-pad{left:30px;bottom:calc(88px + env(safe-area-inset-bottom));width:88px;height:88px}.rr-steer-knob{width:40px;height:40px;margin:-20px 0 0 -20px}.rr-pedal{bottom:calc(92px + env(safe-area-inset-bottom));width:86px;height:42px}.rr-throttle{right:98px}.rr-brake{right:224px}}'+
-        '</style><canvas></canvas><div class="rr-hud"><div class="rr-top-track"><b>START</b><i><em data-progress-line></em></i><b>CHECK</b></div><div class="rr-side"><div class="rr-hi">HI<br>10000</div><div class="rr-label">RANK</div><div class="rr-value" data-rank>40</div><div class="rr-label">TIME</div><div class="rr-value yellow" data-time>0′00</div><div class="rr-label">CARS</div><div class="rr-value" data-cars>0</div><div class="rr-km" data-km>000Km</div><div class="rr-meter-wrap"><div class="rr-meter-col"><div class="rr-meter rpm"><i data-rpm></i></div><span>RPM</span></div><div class="rr-meter-col"><div class="rr-meter fuel"><i data-fuel></i></div><span>FUEL</span></div></div><button class="rr-top-exit" data-action="quit-run">退出</button></div></div><div class="rr-start-rank"><span>RANK</span><b data-start-rank>40</b></div><div class="rr-panel"></div><div class="rr-stage-banner"></div><div class="rr-countdown"></div><div class="rr-toast"></div><div class="rr-touch"><div class="rr-steer-pad" data-steer-pad><div class="rr-steer-knob">↔</div></div><button class="rr-pedal rr-brake" data-touch="brake">刹车</button><button class="rr-pedal rr-throttle" data-touch="boost">油门</button></div>';
+        UI_HTML('</style><canvas></canvas><div class="rr-hud"><div class="rr-top-track"><b>START</b><i><em data-progress-line></em></i><b>CHECK</b></div><div class="rr-side"><div class="rr-hi">HI<br>10000</div><div class="rr-label">RANK</div><div class="rr-value" data-rank>40</div><div class="rr-label">TIME</div><div class="rr-value yellow" data-time>0′00</div><div class="rr-label">CARS</div><div class="rr-value" data-cars>0</div><div class="rr-km" data-km>000Km</div><div class="rr-meter-wrap"><div class="rr-meter-col"><div class="rr-meter rpm"><i data-rpm></i></div><span>RPM</span></div><div class="rr-meter-col"><div class="rr-meter fuel"><i data-fuel></i></div><span>FUEL</span></div></div><button class="rr-top-exit" data-action="quit-run">退出</button></div></div><div class="rr-start-rank"><span>RANK</span><b data-start-rank>40</b></div><div class="rr-panel"></div><div class="rr-stage-banner"></div><div class="rr-countdown"></div><div class="rr-toast"></div><div class="rr-touch"><div class="rr-steer-pad" data-steer-pad data-steer-label="方向"><div class="rr-steer-knob">↔</div></div><button class="rr-pedal rr-brake" data-touch="brake">刹车</button><button class="rr-pedal rr-throttle" data-touch="boost">油门</button></div>');
     };
 
     DanboRocketRoad.prototype.init3D=function(){
@@ -418,7 +418,7 @@
         };
         this.onKeyUp=function(e){self.keys[e.code||e.key]=false;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyD','KeyW','KeyS'].indexOf(e.code||e.key)>=0){e.preventDefault();e.stopImmediatePropagation();}};
         window.addEventListener('keydown',this.onKeyDown,true);window.addEventListener('keyup',this.onKeyUp,true);
-        this.onClick=function(e){var b=e.target&&e.target.closest?e.target.closest('[data-action]'):null;if(!b||b.disabled)return;var a=b.getAttribute('data-action');if(a==='single')self.showStages();else if(a==='stage')self.startGame(Number(b.getAttribute('data-stage')||0));else if(a==='next-stage')self.startGame(Math.min(STAGE_COUNT-1,(self.stageId||0)+1));else if(a==='multi')self.showToast('多人模式已预留，等服务器房间接入后开放');else if(a==='scores')self.showScores();else if(a==='exit')self.exit();else if(a==='title')self.showTitle();else if(a==='retry')self.startGame(self.stageId||0);else if(a==='quit-run')self.finish(false,'quit');};
+        this.onClick=function(e){var b=e.target&&e.target.closest?e.target.closest('[data-action]'):null;if(!b||b.disabled)return;var a=b.getAttribute('data-action');if(a==='single')self.showStages();else if(a==='stage')self.startGame(Number(b.getAttribute('data-stage')||0));else if(a==='next-stage')self.startGame(Math.min(STAGE_COUNT-1,(self.stageId||0)+1));else if(a==='multi')self.showToast(UI_T('多人模式已预留，等服务器房间接入后开放'));else if(a==='scores')self.showScores();else if(a==='exit')self.exit();else if(a==='title')self.showTitle();else if(a==='retry')self.startGame(self.stageId||0);else if(a==='quit-run')self.finish(false,'quit');};
         this.root.addEventListener('click',this.onClick);
         function resetSteer(){self.touch.steer=0;if(self.steerKnob)self.steerKnob.style.transform='translateX(0px)';}
         function steerFromEvent(e){
@@ -448,40 +448,40 @@
     DanboRocketRoad.prototype.showTitle=function(){
         this.stopMusic();this.state='title';this.hud.style.display='none';this.touchLayer.style.display='none';this.panel.style.display='block';this.countdownEl.style.display='none';this.stageEl.style.display='none';if(this.startRankEl)this.startRankEl.style.display='none';
         var mode=(api()&&api().mode)||'js-fallback';
-        this.panel.innerHTML='<h1 class="rr-title">🚗 蛋宝火箭公路</h1><div class="rr-sub">3D画面 · 2D街机公路 · 单关挑战</div>'+
-            '<button class="rr-menu-btn rr-selected" data-action="single">单人游戏</button>'+
-            '<button class="rr-menu-btn" data-action="multi">多人游戏 <span style="font-size:12px;opacity:.7">开发中</span></button>'+
-            '<button class="rr-menu-btn" data-action="scores">高分榜</button>'+
-            '<button class="rr-menu-btn" data-action="exit">退出</button>'+
-            '<div class="rr-small">全视频识别为 6 个独立场景关卡；每次只跑 1 关，通关才解锁下一关。<br>规则模块：'+esc(mode)+' · build '+BUILD+'</div>';
+        this.panel.innerHTML=UI_HTML('<h1 class="rr-title">🚗 蛋宝火箭公路</h1><div class="rr-sub">街机公路 · 单关挑战</div>')+
+            UI_HTML('<button class="rr-menu-btn rr-selected" data-action="single">单人游戏</button>')+
+            UI_HTML('<button class="rr-menu-btn" data-action="multi">多人游戏 <span style="font-size:12px;opacity:.7">开发中</span></button>')+
+            UI_HTML('<button class="rr-menu-btn" data-action="scores">高分榜</button>')+
+            UI_HTML('<button class="rr-menu-btn" data-action="exit">退出</button>')+
+            UI_HTML('<div class="rr-small">6 个独立关卡；每次挑战 1 关，通关解锁下一关。')+'</div>';
     };
 
     DanboRocketRoad.prototype.showStages=function(){
         this.stopMusic();this.state='stageSelect';this.hud.style.display='none';this.touchLayer.style.display='none';this.panel.style.display='block';this.countdownEl.style.display='none';this.stageEl.style.display='none';if(this.startRankEl)this.startRankEl.style.display='none';
-        var unlocked=this.getUnlockedStage(), html='<h1 class="rr-title">🏁 选择关卡</h1><div class="rr-sub">通关上一关后，下一场景才会开放</div>';
+        var unlocked=this.getUnlockedStage(), html=UI_HTML('<h1 class="rr-title">🏁 选择关卡</h1><div class="rr-sub">通关上一关后，下一场景才会开放</div>');
         for(var i=0;i<STAGE_COUNT;i++){
             var locked=i>unlocked, st=STAGES[i];
-            html+='<button class="rr-menu-btn" '+(locked?'disabled ':'')+'data-action="stage" data-stage="'+i+'">'+(locked?'🔒 ':'')+(i+1)+'. '+esc(st.name.replace(/^STAGE \d+ · /,''))+(locked?'':' <span style="font-size:12px;opacity:.72">可挑战</span>')+'</button>';
+            html+='<button class="rr-menu-btn" '+(locked?'disabled ':'')+'data-action="stage" data-stage="'+i+'">'+(locked?'🔒 ':'')+(i+1)+'. '+esc(UI_T(st.name).replace(/^STAGE \d+ · /,''))+(locked?'':UI_HTML(' <span style="font-size:12px;opacity:.72">可挑战</span>'))+'</button>';
         }
-        html+='<button class="rr-menu-btn" data-action="title">返回标题</button><div class="rr-small">使用方向控制转向、加速和减速；触屏设备可直接点按画面按钮。</div>';
+        html+=UI_HTML('<button class="rr-menu-btn" data-action="title">返回标题</button><div class="rr-small">使用方向控制转向、加速和减速；触屏设备可直接点按画面按钮。</div>');
         this.panel.innerHTML=html;
     };
 
     DanboRocketRoad.prototype.startGame=function(stageId){
         stageId=clamp(stageId|0,0,STAGE_COUNT-1);
-        if(stageId>this.getUnlockedStage()){this.showToast('先通关前一关才能挑战这里');this.showStages();return;}
+        if(stageId>this.getUnlockedStage()){this.showToast(UI_T('先通关前一关才能挑战这里'));this.showStages();return;}
         this.stageId=stageId;this.rebuildScenery();
         this.state='countdown';this.panel.style.display='none';this.hud.style.display='flex';this.touchLayer.style.display=(('ontouchstart' in window)||(navigator.maxTouchPoints>0))?'block':'none';
         this.R=rules();this.progress=0;this.fuel=this.R.maxFuel();this.speed=0;this.score=0;this.pickups=0;this.crashes=0;this.carX=0;this.carVx=0;this.spin=0;this.spinDir=1;this.elapsed=0;this.netAcc=0;this.hitEvents={};this.throttleSfxT=0;this.brakeSfxT=0;this.touch={steer:0};if(this.steerKnob)this.steerKnob.style.transform='translateX(0px)';
-        this.countdown=3.15;this.countdownText='';this.countdownEl.textContent='3';this.countdownEl.style.display='block';this.stageEl.textContent=(STAGES[this.stageId]||STAGES[0]).name;this.stageEl.style.display='block';if(this.startRankEl)this.startRankEl.style.display='block';this.startMusic();
+        this.countdown=3.15;this.countdownText='';this.countdownEl.textContent='3';this.countdownEl.style.display='block';this.stageEl.textContent=UI_T((STAGES[this.stageId]||STAGES[0]).name);this.stageEl.style.display='block';if(this.startRankEl)this.startRankEl.style.display='block';this.startMusic();
         for(var k in this.objects){if(this.objects[k]&&this.objects[k].mesh)this.objects[k].mesh.visible=false;}
         if(this.ctx.net)this.ctx.net.send('minigame.startIntent',{pluginId:this.ctx.pluginId,characterId:this.ch.id,mode:'single',stage:this.stageId,seed:BUILD});
     };
 
     DanboRocketRoad.prototype.showScores=function(){
         this.stopMusic();this.state='scores';this.hud.style.display='none';this.touchLayer.style.display='none';this.panel.style.display='block';this.countdownEl.style.display='none';this.stageEl.style.display='none';if(this.startRankEl)this.startRankEl.style.display='none';
-        var scores=this.getScores();var rows=scores.length?scores.map(function(s,i){var st=STAGES[s.stage||0]||STAGES[0];return '<div><b>#'+(i+1)+'</b> '+esc(s.name||'Danbo')+' — '+esc(s.score)+' 分 <span style="opacity:.75">'+esc((s.stageName||st.name).replace(/^STAGE \d+ · /,''))+'</span> <span style="opacity:.55">'+esc(s.date||'')+'</span></div>';}).join(''):'<div style="text-align:center;opacity:.75">还没有记录，先跑一局吧。</div>';
-        this.panel.innerHTML='<h1 class="rr-title">🏆 高分榜</h1><div class="rr-list">'+rows+'</div><button class="rr-menu-btn" data-action="title">返回标题</button>';
+        var scores=this.getScores();var rows=scores.length?scores.map(function(s,i){var st=STAGES[s.stage||0]||STAGES[0];return '<div><b>#'+(i+1)+'</b> '+esc(s.name||'Danbo')+' — '+esc(s.score)+UI_HTML(' 分 <span style="opacity:.75">')+esc(UI_T(st.name).replace(/^STAGE \d+ · /,''))+'</span> <span style="opacity:.55">'+esc(s.date||'')+'</span></div>';}).join(''):UI_HTML('<div style="text-align:center;opacity:.75">还没有记录，先跑一局吧。</div>');
+        this.panel.innerHTML=UI_HTML('<h1 class="rr-title">🏆 高分榜</h1><div class="rr-list">')+rows+UI_HTML('</div><button class="rr-menu-btn" data-action="title">返回标题</button>');
     };
 
     DanboRocketRoad.prototype.finish=function(win,reason){
@@ -489,11 +489,11 @@
         var finalScore=this.R.score(this.progress,this.fuel,this.pickups,this.crashes,win?1:0);this.score=finalScore;this.saveScore(finalScore);
         if(win)this.unlockStage(this.stageId||0);
         if(this.ctx.net)this.ctx.net.send('minigame.finishIntent',{pluginId:this.ctx.pluginId,stage:this.stageId||0,score:finalScore,finished:!!win,reason:reason||'',time:this.elapsed,crashes:this.crashes,pickups:this.pickups});
-        var nextOk=win&&(this.stageId||0)<STAGE_COUNT-1, stageName=(STAGES[this.stageId]||STAGES[0]).name;
-        this.panel.innerHTML='<h1 class="rr-title">'+(win?'🏁 '+esc(stageName)+' 通关！':'💥 挑战结束')+'</h1>'+
-            '<div class="rr-list"><div>关卡：<b>'+esc(stageName)+'</b></div><div>分数：<b>'+finalScore+'</b></div><div>距离：'+Math.floor(clamp(this.progress/this.R.levelLength()*100,0,100))+'%</div><div>补油：'+this.pickups+' 次</div><div>碰撞：'+this.crashes+' 次</div><div>用时：'+this.elapsed.toFixed(1)+' 秒</div>'+(nextOk?'<div>已解锁：<b>'+esc(STAGES[(this.stageId||0)+1].name)+'</b></div>':'')+'</div>'+
-            (nextOk?'<button class="rr-menu-btn" data-action="next-stage">挑战下一关</button>':'')+
-            '<button class="rr-menu-btn" data-action="retry">再来一次</button><button class="rr-menu-btn" data-action="single">选择关卡</button><button class="rr-menu-btn" data-action="scores">高分榜</button><button class="rr-menu-btn" data-action="title">返回标题</button><button class="rr-menu-btn" data-action="exit">退出</button>';
+        var nextOk=win&&(this.stageId||0)<STAGE_COUNT-1, stageName=UI_T((STAGES[this.stageId]||STAGES[0]).name);
+        this.panel.innerHTML='<h1 class="rr-title">'+(win?'🏁 '+esc(stageName)+UI_T(' 通关！'):UI_T('💥 挑战结束'))+'</h1>'+
+            UI_HTML('<div class="rr-list"><div>关卡：<b>')+esc(stageName)+UI_HTML('</b></div><div>分数：<b>')+finalScore+UI_HTML('</b></div><div>距离：')+Math.floor(clamp(this.progress/this.R.levelLength()*100,0,100))+UI_HTML('%</div><div>补油：')+this.pickups+UI_HTML(' 次</div><div>碰撞：')+this.crashes+UI_HTML(' 次</div><div>用时：')+this.elapsed.toFixed(1)+UI_HTML(' 秒</div>')+(nextOk?UI_HTML('<div>已解锁：<b>')+esc(UI_T(STAGES[(this.stageId||0)+1].name))+'</b></div>':'')+'</div>'+
+            (nextOk?UI_HTML('<button class="rr-menu-btn" data-action="next-stage">挑战下一关</button>'):'')+
+            UI_HTML('<button class="rr-menu-btn" data-action="retry">再来一次</button><button class="rr-menu-btn" data-action="single">选择关卡</button><button class="rr-menu-btn" data-action="scores">高分榜</button><button class="rr-menu-btn" data-action="title">返回标题</button><button class="rr-menu-btn" data-action="exit">退出</button>');
     };
 
     DanboRocketRoad.prototype.getUnlockedStage=function(){
@@ -609,7 +609,7 @@
         if(this.R.finishReached(this.progress))this.finish(true,'finish');else if(this.fuel<=0.01)this.finish(false,'fuel');
     };
 
-    DanboRocketRoad.prototype.crash=function(duration,dir,fuelLoss){this.spin=Math.max(this.spin,duration||1);this.spinDir=dir||1;this.crashes++;this.fuel=clamp(this.fuel-(fuelLoss||6),0,this.R.maxFuel());this.carVx+=this.spinDir*8;this.showToast('打滑！反打方向稳住！');};
+    DanboRocketRoad.prototype.crash=function(duration,dir,fuelLoss){this.spin=Math.max(this.spin,duration||1);this.spinDir=dir||1;this.crashes++;this.fuel=clamp(this.fuel-(fuelLoss||6),0,this.R.maxFuel());this.carVx+=this.spinDir*8;this.showToast(UI_T('打滑！反打方向稳住！'));};
 
     DanboRocketRoad.prototype.checkCollisions=function(){
         var count=this.R.eventCount();
@@ -619,7 +619,7 @@
             var px=driveCenterAt(this.progress||0,this.stageId||0)+(this.carX||0);
             if(this.R.collide(px,0,x,rel,type)){
                 this.hitEvents[i]=true;
-                if(type===5){this.pickups++;this.fuel=clamp(this.fuel+(ev[5]||20),0,this.R.maxFuel());this.showToast('补油 +'+Math.floor(ev[5]||20));if(this.objects[i])this.objects[i].mesh.visible=false;}
+                if(type===5){this.pickups++;this.fuel=clamp(this.fuel+(ev[5]||20),0,this.R.maxFuel());this.showToast(UI_T('补油 +')+Math.floor(ev[5]||20));if(this.objects[i])this.objects[i].mesh.visible=false;}
                 else if(type===6){this.crash(0.95,(this.carX<x?-1:1),2.5);}
                 else this.crash(type===4?1.3:1.05,(this.carX<x?-1:1),type===4?8:5.5);
             }

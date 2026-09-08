@@ -689,7 +689,7 @@ function _updateChestHud(){
     }
     var lv=Explorer.levelInfo();
     var co=Explorer.cityCount('city'+currentCityStyle);
-    var l1='\uD83E\uDDED Lv'+lv.lv+' '+lv.name+'   \u2728 '+Explorer.points()+' EXP';
+    var l1='\uD83E\uDDED Lv'+lv.lv+' '+UI_T(lv.name)+'   \u2728 '+Explorer.points()+' EXP';
     var l2='\uD83E\uDDF0 '+co+'/'+CHEST_CITY_TOTAL;
     if(currentCityStyle<=4)l2+='   \u2601\uFE0F '+Explorer.cityCount('cloud')+'/'+CHEST_CLOUD_TOTAL;
     el.innerHTML=l1+'<br>'+l2;
@@ -711,18 +711,18 @@ function _floatToast(text,color,topFrom,topTo,life,hold){
     }
 }
 function _showExpGain(n){ _floatToast('+'+n+' \u2728 EXP','#9FE8FF','18%','12%',850); }
-function _showDailyBonus(){ _floatToast('\u2728 \u4ECA\u65E5\u63A2\u7D22\u5956\u52B1\uFF01\u53CC\u500D\u79EF\u5206','#FFE066','26%','21%',1400); }
-function _showHiddenArea(label){ _floatToast('\uD83D\uDD0D \u53D1\u73B0\u9690\u85CF\u533A\u57DF\uFF1A'+label+'  +5 \u2728','#C8FFB0','23%','18%',1800); }
+function _showDailyBonus(){ _floatToast(UI_T('\u2728 \u4ECA\u65E5\u63A2\u7D22\u5956\u52B1\uFF01\u53CC\u500D\u79EF\u5206'),'#FFE066','26%','21%',1400); }
+function _showHiddenArea(label){ _floatToast(UI_T('\uD83D\uDD0D \u53D1\u73B0\u9690\u85CF\u533A\u57DF\uFF1A')+UI_T(label)+'  +5 \u2728','#C8FFB0','23%','18%',1800); }
 function _showChestReward(amount,tier){
     var col=tier==='legendary'?'#FFD23F':(tier==='rare'?'#7FD0FF':'#FFE066');
-    var label=tier==='legendary'?'\uD83D\uDC51 \u4F20\u8BF4\u5B9D\u7BB1':(tier==='rare'?'\uD83D\uDC8E \u7A00\u6709\u5B9D\u7BB1':'\uD83E\uDDF0');
+    var label=tier==='legendary'?UI_T('\uD83D\uDC51 \u4F20\u8BF4\u5B9D\u7BB1'):(tier==='rare'?UI_T('\uD83D\uDC8E \u7A00\u6709\u5B9D\u7BB1'):'\uD83E\uDDF0');
     // Chest rewards alone get a 3 s reading hold, followed by a 1 s fade/upward drift.
     _floatToast(label+'  +'+amount+' \u2B50',col,'58%','49%',1000,3000);
 }
 function _showLevelUp(lv){
     var w=document.createElement('div');
-    w.innerHTML='<div style="font-size:14px;opacity:.85;">\u63A2\u7D22\u7B49\u7EA7\u63D0\u5347</div>'+
-        '<div style="font-size:24px;font-weight:800;color:#FFD86B;margin-top:4px;">Lv'+lv.lv+'  '+lv.name+'</div>';
+    w.innerHTML=UI_HTML('<div style="font-size:14px;opacity:.85;">\u63A2\u7D22\u7B49\u7EA7\u63D0\u5347</div>')+
+        '<div style="font-size:24px;font-weight:800;color:#FFD86B;margin-top:4px;">Lv'+lv.lv+'  '+UI_T(lv.name)+'</div>';
     w.style.cssText='position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:121;padding:16px 28px;border-radius:14px;'+
         'background:linear-gradient(160deg,rgba(20,30,50,.96),rgba(40,30,64,.96));border:2px solid #7FD0FF;'+
         'box-shadow:0 8px 36px rgba(0,0,0,.6),0 0 22px rgba(127,208,255,.5);color:#fff;text-align:center;'+
@@ -753,13 +753,13 @@ function _openLeaderboard(){
     p.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:130;min-width:300px;max-width:86vw;'+
         'padding:18px 22px;border-radius:16px;background:linear-gradient(160deg,rgba(18,22,38,0.97),rgba(40,30,60,0.97));'+
         'border:2px solid #FFD86B;box-shadow:0 10px 44px rgba(0,0,0,0.6);color:#fff;font-family:system-ui,Segoe UI,sans-serif;';
-    var h='<div style="font-size:20px;font-weight:800;color:#FFD86B;text-align:center;margin-bottom:10px;">\uD83C\uDFC6 \u63A2\u7D22\u6392\u884C\u699C</div>';
+    var h=UI_HTML('<div style="font-size:20px;font-weight:800;color:#FFD86B;text-align:center;margin-bottom:10px;">\uD83C\uDFC6 \u63A2\u7D22\u6392\u884C\u699C</div>');
     h+='<table style="width:100%;border-collapse:collapse;font-size:15px;">';
-    h+='<tr style="opacity:.7;"><td style="padding:4px 6px;">#</td><td>\u6635\u79F0</td><td>\u7B49\u7EA7</td><td style="text-align:right;">\u79EF\u5206</td></tr>';
-    h+='<tr style="background:rgba(255,216,107,0.12);"><td style="padding:6px;">1</td><td>'+name+'</td><td>Lv'+lv.lv+' '+lv.name+'</td><td style="text-align:right;font-weight:700;">'+Explorer.points()+'</td></tr>';
+    h+=UI_HTML('<tr style="opacity:.7;"><td style="padding:4px 6px;">#</td><td>\u6635\u79F0</td><td>\u7B49\u7EA7</td><td style="text-align:right;">\u79EF\u5206</td></tr>');
+    h+='<tr style="background:rgba(255,216,107,0.12);"><td style="padding:6px;">1</td><td>'+name+'</td><td>Lv'+lv.lv+' '+UI_T(lv.name)+'</td><td style="text-align:right;font-weight:700;">'+Explorer.points()+'</td></tr>';
     h+='</table>';
-    h+='<div style="font-size:12px;opacity:.7;margin-top:12px;line-height:1.5;">\u5355\u673A\u6A21\u5F0F\u4EC5\u663E\u793A\u672C\u5730\u73A9\u5BB6\u3002\u8DE8\u73A9\u5BB6\u5B9E\u65F6\u6392\u884C\u699C\u9700\u8054\u7F51\u670D\u52A1\u5668\u3002</div>';
-    h+='<div id="lb-close" style="margin-top:14px;text-align:center;color:#9FE8FF;cursor:pointer;">\u5173\u95ED</div>';
+    h+=UI_HTML("<div style=\"font-size:12px;opacity:.7;margin-top:12px;line-height:1.5;\">此处仅显示本机玩家的探索记录。</div>");
+    h+=UI_HTML('<div id="lb-close" style="margin-top:14px;text-align:center;color:#9FE8FF;cursor:pointer;">\u5173\u95ED</div>');
     p.innerHTML=h;document.body.appendChild(p);
     document.getElementById('lb-close').onclick=function(){if(p.parentNode)p.parentNode.removeChild(p);};
 }
@@ -794,13 +794,13 @@ var REWARD_NAMES={
     achievement_winter_visitor:'\u51AC\u65E5\u8BBF\u5BA2', achievement_to_the_moon:'\u767B\u4E0A\u6708\u7403', achievement_above_the_sky:'\u4E91\u7AEF\u4E4B\u4E0A',
     achievement_world_explorer:'\u4E16\u754C\u63A2\u7D22\u8005'
 };
-function _rn(id){return REWARD_NAMES[id]||id;}
+function _rn(id){return UI_T(REWARD_NAMES[id]||id);}
 function _areaDisplayName(area){
-    if(area==='all')return '\uD83C\uDF08 \u5168\u5730\u56FE\u63A2\u7D22\u5B8C\u6210\uFF01';
-    if(area==='cloud')return '\u2601\uFE0F 云栖蛋境 \u63A2\u7D22 100%\uFF01';
+    if(area==='all')return UI_T('\uD83C\uDF08 \u5168\u5730\u56FE\u63A2\u7D22\u5B8C\u6210\uFF01');
+    if(area==='cloud')return UI_T('\u2601\uFE0F 云栖蛋境 \u63A2\u7D22 100%\uFF01');
     var idx=parseInt(area.replace('city',''),10);
     var nm=(typeof CITY_STYLES!=='undefined'&&CITY_STYLES[idx])?CITY_STYLES[idx].name:area;
-    return nm+' \u63A2\u7D22 100%\uFF01';
+    return nm+UI_T(' \u63A2\u7D22 100%\uFF01');
 }
 function _checkAreaCompletion(area){
     if(REWARDS[area]){
@@ -818,13 +818,13 @@ function _showRewardBanner(area,def){
         'border:2px solid #FFD86B;box-shadow:0 8px 40px rgba(0,0,0,0.6),0 0 26px rgba(255,216,107,0.45);color:#fff;'+
         'font-family:system-ui,Segoe UI,sans-serif;text-align:center;opacity:0;transition:opacity 0.4s ease,top 0.4s ease;pointer-events:none;';
     var h='<div style="font-size:22px;font-weight:800;color:#FFD86B;margin-bottom:6px;">'+_areaDisplayName(area)+'</div>';
-    h+='<div style="font-size:13px;opacity:0.82;margin-bottom:10px;">\u63A2\u7D22\u5956\u52B1\u5DF2\u53D1\u653E</div>';
+    h+=UI_HTML('<div style="font-size:13px;opacity:0.82;margin-bottom:10px;">\u63A2\u7D22\u5956\u52B1\u5DF2\u53D1\u653E</div>');
     h+='<div style="font-size:16px;line-height:1.7;text-align:left;display:inline-block;">';
-    if(def.title)h+='\uD83C\uDFC5 \u79F0\u53F7\uFF1A'+_rn(def.title)+'<br>';
-    (def.cosmetics||[]).forEach(function(c){h+='\uD83C\uDF80 \u88C5\u626E\uFF1A'+_rn(c)+'<br>';});
-    if(def.points)h+='\u2728 +'+def.points+' \u63A2\u7D22\u79EF\u5206<br>';
-    if(def.coins)h+='\u2B50 '+def.coins+' \u91D1\u5E01<br>';
-    if(def.achievement)h+='\uD83C\uDFC6 \u6210\u5C31\uFF1A'+_rn(def.achievement)+'<br>';
+    if(def.title)h+=UI_T('\uD83C\uDFC5 \u79F0\u53F7\uFF1A')+_rn(def.title)+'<br>';
+    (def.cosmetics||[]).forEach(function(c){h+=UI_T('\uD83C\uDF80 \u88C5\u626E\uFF1A')+_rn(c)+'<br>';});
+    if(def.points)h+='\u2728 +'+def.points+UI_HTML(' \u63A2\u7D22\u79EF\u5206<br>');
+    if(def.coins)h+='\u2B50 '+def.coins+UI_HTML(' \u91D1\u5E01<br>');
+    if(def.achievement)h+=UI_T('\uD83C\uDFC6 \u6210\u5C31\uFF1A')+_rn(def.achievement)+'<br>';
     h+='</div>';
     wrap.innerHTML=h;
     document.body.appendChild(wrap);
@@ -1212,7 +1212,7 @@ function _cancelPipeTravel(error){
     _setCityTransferStatus(null);
     if(window.DANBO_TRANSFER_PERF){DANBO_TRANSFER_PERF.stage='failed';DANBO_TRANSFER_PERF.error=String(error&&error.message||error);}
     console.warn('City transfer cancelled:',error);
-    if(typeof _floatToast==='function')_floatToast(_langCode==='en'?'Transfer failed. Please try again.':'传送失败，请重试','#FFD28A','32%','26%',3500);
+    if(typeof _floatToast==='function')_floatToast(_langCode==='en'?'Transfer failed. Please try again.':UI_T('传送失败，请重试'),'#FFD28A','32%','26%',3500);
 }
 function _beginPipeCityBuild(){
     _pipeCityBuilding=true;_prevCityStyle=_pipeOriginStyle;
@@ -2134,7 +2134,7 @@ function _triggerBabylonEvent(){
     // Cloud Egg and its Moon pipe exist only above the five original ground
     // cities. Sakura, Snow and Moon must not raise a destination-less tower.
     if(currentCityStyle<0||currentCityStyle>4)return;
-    if(typeof Explorer!=='undefined')Explorer.discoverHidden('babel_tower','\u5DF4\u522B\u5854');
+    if(typeof Explorer!=='undefined')Explorer.discoverHidden('babel_tower',UI_T('\u5DF4\u522B\u5854'));
     _babylonTriggered=true;
     _earthquakeTimer=180; // 3 seconds at 60fps
     _earthquakeIntensity=0.5;

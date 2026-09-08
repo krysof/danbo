@@ -2,7 +2,8 @@
 //  蛋宝杂货铺 — Cosmetic Shop (SYSTEM PLUGIN)
 // ------------------------------------------------------------
 //  Migrated from js/cosmetics.js into a self-contained system plugin.
-//  This plugin touches NO game globals. All core interaction is via ctx.api:
+//  Gameplay interaction is via ctx.api; authored text uses the shared UI_T /
+//  UI_HTML localization utility (no access to player data or engine state):
 //    - coins:    ctx.api.economy   (getCoins/spendCoins/setCoins)
 //    - player:   ctx.api.player    (getBody/getState/attach)
 //    - rewards:  ctx.api.progress.isRewardOwned
@@ -266,7 +267,7 @@
               '<div id="shop-items" style="flex:1;padding:10px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;align-content:start;"></div>'+
             '</div>'+
             '<div id="shop-foot" style="padding:10px 16px;background:#F5EAD6;border-top:1px solid #E0CBA6;display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
-              '<div id="shop-selname" style="color:#7A3B1E;font-size:14px;">\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\u8BD5\u7A7F</div>'+
+              UI_HTML('<div id="shop-selname" style="color:#7A3B1E;font-size:14px;">\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\u8BD5\u7A7F</div>')+
               '<button id="shop-action" style="display:none;"></button>'+
             '</div>';
         ov.appendChild(card);document.body.appendChild(ov);
@@ -285,7 +286,7 @@
         var catBox=document.getElementById('shop-cats');if(!catBox)return;
         catBox.innerHTML='';
         _CATS.forEach(function(c){
-            var b=document.createElement('div');b.textContent=c.name;
+            var b=document.createElement('div');b.textContent=UI_T(c.name);
             b.style.cssText='padding:8px 4px;margin-bottom:4px;text-align:center;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;'+
                 (c.id===_shopCat?'background:#CC4A48;color:#fff;':'background:#fff;color:#7A3B1E;');
             b.onclick=function(){_shopCat=c.id;_shopSel=null;_shopRender();};
@@ -298,8 +299,8 @@
             var equipped=Cosmetics.equipment()[it.cat]===it.id;
             var card=document.createElement('div');
             card.style.cssText='background:#fff;border-radius:14px;padding:8px;border:2px solid '+(it.id===_shopSel?'#CC4A48':(equipped?'#7FD0A0':'#E2D2B4'))+';cursor:pointer;text-align:center;';
-            card.innerHTML='<div style="font-size:13px;font-weight:700;color:#5A4028;margin-bottom:4px;">'+it.name+'</div>'+
-                '<div style="font-size:12px;color:'+(owned?'#7FB07F':'#B8860B')+';">'+(owned?(equipped?'\u5DF2\u88C5\u5907':'\u5DF2\u62E5\u6709'):('\u2B50 '+it.price))+'</div>';
+            card.innerHTML='<div style="font-size:13px;font-weight:700;color:#5A4028;margin-bottom:4px;">'+UI_T(it.name)+'</div>'+
+                '<div style="font-size:12px;color:'+(owned?'#7FB07F':'#B8860B')+';">'+(owned?(equipped?UI_T('\u5DF2\u88C5\u5907'):UI_T('\u5DF2\u62E5\u6709')):('\u2B50 '+it.price))+'</div>';
             card.onclick=function(){_shopSelectItem(it.id);};
             grid.appendChild(card);
         });
@@ -315,19 +316,19 @@
         var nameEl=document.getElementById('shop-selname');
         var act=document.getElementById('shop-action');
         if(!act)return;
-        if(!_shopSel){if(nameEl)nameEl.textContent='\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\u8BD5\u7A7F';act.style.display='none';return;}
+        if(!_shopSel){if(nameEl)nameEl.textContent=UI_T('\u9009\u62E9\u4E00\u4EF6\u5546\u54C1\u8BD5\u7A7F');act.style.display='none';return;}
         var it=_ITEM_BY_ID[_shopSel];
         var owned=Cosmetics.isOwned(_shopSel);
         var equipped=Cosmetics.equipment()[it.cat]===_shopSel;
-        if(nameEl)nameEl.textContent=it.name+(owned?'':'  \u2B50 '+it.price);
+        if(nameEl)nameEl.textContent=UI_T(it.name)+(owned?'':'  \u2B50 '+it.price);
         act.style.display='inline-block';
         act.style.cssText='display:inline-block;padding:8px 22px;border:none;border-radius:16px;font-size:15px;font-weight:800;cursor:pointer;color:#fff;'+
             (owned?(equipped?'background:#B0B0C0;':'background:#7FC9A0;'):'background:#CC4A48;');
-        act.textContent=owned?(equipped?'\u5378\u4E0B':'\u88C5\u5907'):'\u8D2D\u4E70';
+        act.textContent=owned?(equipped?UI_T('\u5378\u4E0B'):UI_T('\u88C5\u5907')):UI_T('\u8D2D\u4E70');
         act.onclick=function(){
             if(!owned){
-                if(Cosmetics.buy(_shopSel)){Cosmetics.equip(it.cat,_shopSel);api.ui.toast('\u8D2D\u4E70\u6210\u529F\uFF01','#7FC9A0');}
-                else{api.ui.toast('\u91D1\u5E01\u4E0D\u8DB3\uFF01','#E0506A');}
+                if(Cosmetics.buy(_shopSel)){Cosmetics.equip(it.cat,_shopSel);api.ui.toast(UI_T('\u8D2D\u4E70\u6210\u529F\uFF01'),'#7FC9A0');}
+                else{api.ui.toast(UI_T('\u91D1\u5E01\u4E0D\u8DB3\uFF01'),'#E0506A');}
             } else if(equipped){Cosmetics.unequip(it.cat);}
             else {Cosmetics.equip(it.cat,_shopSel);}
             _shopRender();
@@ -429,11 +430,11 @@
                     'background:rgba(255,255,255,0.92);border:2px solid #CC4A48;color:#7A3B1E;font:bold 16px system-ui,sans-serif;box-shadow:0 3px 12px rgba(0,0,0,0.25);cursor:pointer;';
                 document.body.appendChild(el);}
             if(mode==='keeper'){
-                el.textContent='\uD83C\uDFEA \u8D70\u8FD1\u8001\u677F\uFF0C\u70B9\u51FB\u786E\u8BA4\u9009\u8D2D';
+                el.textContent=UI_T('\uD83C\uDFEA \u8D70\u8FD1\u8001\u677F\uFF0C\u70B9\u51FB\u786E\u8BA4\u9009\u8D2D');
                 el.onclick=function(){api.portal.clearDismissed();api.portal.confirm({name:'\uD83C\uDFEA \u9009\u8D2D',desc:'\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F',raceIndex:-1,_hiddenType:'shopKeeper',_targetStyle:-97});};
             }
             else {
-                el.textContent='\uD83C\uDFEA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4';
+                el.textContent=UI_T('\uD83C\uDFEA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4');
                 el.onclick=function(){api.portal.clearDismissed();api.portal.confirm({name:'\uD83C\uDFEA '+_shopText(_SHOP_NAME),desc:_shopText(_SHOP_ENTER_DESC),raceIndex:-1,_hiddenType:'shopHouse',_targetStyle:-97});};
             }
             el.style.display='block';

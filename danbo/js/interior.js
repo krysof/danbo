@@ -103,7 +103,7 @@ function _showDoorPrompt(show){
         if(_interiorMaybeAutoConfirm()){if(el)el.style.display='none';return;}
         if(!el){
             el=document.createElement('div');el.id='door-prompt';
-            el.textContent='\uD83D\uDEAA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4';
+            el.textContent=UI_T('\uD83D\uDEAA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4');
             el.style.cssText='position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:58;'+
                 'padding:8px 18px;border-radius:18px;background:rgba(255,255,255,0.9);border:2px solid #FFB6CE;'+
                 'color:#C2477A;font:bold 16px system-ui,Segoe UI,sans-serif;box-shadow:0 3px 12px rgba(0,0,0,0.25);cursor:pointer;';
@@ -113,7 +113,7 @@ function _showDoorPrompt(show){
             el.addEventListener('touchend',function(ev){ev.preventDefault();_interiorOpenDoorConfirm();},{passive:false});
             document.body.appendChild(el);
         }
-        el.textContent='\uD83D\uDEAA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4';
+        el.textContent=UI_T('\uD83D\uDEAA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4');
         el.style.display='block';
     } else {
         if(typeof _portalDismissed!=='undefined'&&_portalDismissed==='hidden:houseDoor:-98')_portalDismissed=null;
@@ -179,8 +179,8 @@ function _showInteriorHud(show){
         var shop=window._interiorShop;
         var shopName=typeof L==='function'?L('shopName'):'Danbo General Store';
         var html=shop
-            ?'<div style="font-weight:800;color:#C2477A;">\uD83C\uDFEA '+shopName+'</div><div style="font-size:12px;opacity:0.8;">\u8D70\u5230\u8001\u677F\u9762\u524D\u786E\u8BA4\u9009\u8D2D \u00B7 \u8D70\u5230\u95E8\u53E3\u79BB\u5F00</div>'
-            :'<div style="font-weight:800;color:#C2477A;">\uD83C\uDFE0 \u623F\u5C4B\u5185\u90E8</div><div style="font-size:12px;opacity:0.8;">\u5185\u5BB9\u5F00\u53D1\u4E2D \u00B7 \u8D70\u5230\u95E8\u53E3\u79BB\u5F00</div>';
+            ?'<div style="font-weight:800;color:#C2477A;">\uD83C\uDFEA '+shopName+UI_HTML('</div><div style="font-size:12px;opacity:0.8;">\u8D70\u5230\u8001\u677F\u9762\u524D\u786E\u8BA4\u9009\u8D2D \u00B7 \u8D70\u5230\u95E8\u53E3\u79BB\u5F00</div>')
+            :UI_HTML('<div style="font-weight:800;color:#C2477A;">\uD83C\uDFE0 \u623F\u5C4B\u5185\u90E8</div><div style="font-size:12px;opacity:0.8;">\u5185\u5BB9\u5F00\u53D1\u4E2D \u00B7 \u8D70\u5230\u95E8\u53E3\u79BB\u5F00</div>');
         if(!el){
             el=document.createElement('div');el.id='interior-hud';
             el.style.cssText='position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:58;text-align:center;'+

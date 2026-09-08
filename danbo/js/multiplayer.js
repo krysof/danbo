@@ -16,7 +16,7 @@
     var serverEntries=[],selectedServerCode=requestedRoomCode(),serverRefreshSerial=0;
     var serverChosen=new URLSearchParams(location.search).has('room');
     var lastAppearance='',lastAppearanceAt=0,appearanceBudgetAt=0,appearanceIds=new Set();
-    var selectedCapacity=0;
+    var selectedCapacity=0,lastServerPing=0;
     var companionBudgetAt=0,companionIds=new Set();
     function eachActor(fn){
         if(window.DANBO_COMPANIONS)DANBO_COMPANIONS.each(room&&room.state,fn);
@@ -75,9 +75,10 @@
         return normalizeEndpoint(query||saved||declared);
     }
     function isPublicCode(code){return /^PUBLIC(?:[234])?$/.test(code);}
+    function displayServerName(entry){return /^DANBO [1-4] 服$/.test(entry.name)?UI_T('服务器 {n}',{n:entry.code==='PUBLIC'?'1':entry.code.slice(-1)}):entry.name;}
     function serverLabel(code){
         var entry=serverEntries.find(function(item){return item.code===code;});
-        return entry?entry.name:isPublicCode(code)?'DANBO '+(code==='PUBLIC'?'1':code.slice(-1))+' 服':code;
+        return entry?displayServerName(entry):isPublicCode(code)?UI_T('服务器 {n}',{n:code==='PUBLIC'?'1':code.slice(-1)}):code;
     }
     async function fetchServerEntries(endpoint){
         var controller=typeof AbortController!=='undefined'?new AbortController():null;
@@ -85,9 +86,9 @@
         try{
             var url=endpoint.replace(/^ws:/i,'http:').replace(/^wss:/i,'https:')+'/servers';
             var response=await fetch(url,{cache:'no-store',signal:controller?controller.signal:undefined});
-            if(response.status===404)throw new Error('服务器版本较旧，请先升级服务器');
+            if(response.status===404)throw new Error(UI_T('服务器版本较旧，请先升级服务器'));
             var data=response.ok?await response.json():{};
-            if(!response.ok||data.ok!==true||!Array.isArray(data.servers))throw new Error('无法获取服务器列表');
+            if(!response.ok||data.ok!==true||!Array.isArray(data.servers))throw new Error(UI_T('无法获取服务器列表'));
             return data.servers.filter(function(item){
                 return item&&isPublicCode(item.code)&&typeof item.name==='string'&&
                     typeof item.roomId==='string'&&Number.isInteger(item.capacity)&&item.capacity>0;
@@ -107,6 +108,7 @@
         });
     }
     function renderServerList(ping){
+        lastServerPing=ping;
         if(!ui.serverList)return;
         ui.serverList.textContent='';
         var address='';
@@ -119,10 +121,10 @@
             button.dataset.code=entry.code;button.setAttribute('role','option');
             // Only this fixed template uses innerHTML; all server-supplied text
             // is assigned with textContent (names and endpoints are untrusted).
-            button.innerHTML='<span class="server-state-dot" aria-hidden="true"></span><span class="server-main-copy"><strong></strong><small></small></span><span class="server-region">公共分区</span><span class="server-metric"><b></b><small>在线 / 容量</small></span><span class="server-metric server-ping"><b></b><small>延迟</small></span><span class="server-state-text"></span>';
-            button.querySelector('strong').textContent=entry.name;
+            button.innerHTML=UI_HTML('<span class="server-state-dot" aria-hidden="true"></span><span class="server-main-copy"><strong></strong><small></small></span><span class="server-region">公共分区</span><span class="server-metric"><b></b><small>在线 / 容量</small></span><span class="server-metric server-ping"><b></b><small>延迟</small></span><span class="server-state-text"></span>');
+            button.querySelector('strong').textContent=displayServerName(entry);
             button.querySelector('.server-main-copy small').textContent=address;
-            if(recommended&&entry.code===recommended.code)button.querySelector('.server-region').textContent='推荐同服';
+            if(recommended&&entry.code===recommended.code)button.querySelector('.server-region').textContent=UI_T('推荐同服');
             var metrics=button.querySelectorAll('.server-metric b');
             metrics[0].textContent=entry.players+' / '+entry.capacity;
             if(window.DANBO_COMPANIONS&&Number.isInteger(entry.bots)&&entry.bots>0){
@@ -131,7 +133,7 @@
                 button.title=DANBO_COMPANIONS.detail(entry.players,entry.bots,entry.capacity);
             }
             metrics[1].textContent=ping+'ms';
-            button.querySelector('.server-state-text').textContent=entry.status==='full'?'已满（含预留席位）':entry.status==='online'?'可进入':'离线';
+            button.querySelector('.server-state-text').textContent=entry.status==='full'?UI_T('已满（含预留席位）'):entry.status==='online'?UI_T('可进入'):UI_T('离线');
             button.addEventListener('click',function(){serverChosen=true;selectServer(entry.code);});
             ui.serverList.appendChild(button);
         });
@@ -145,21 +147,21 @@
         if(ui.serverRefresh)ui.serverRefresh.disabled=true;
         if(ui.serverEnter)ui.serverEnter.disabled=true;
         ui.serverList.setAttribute('aria-busy','true');
-        if(ui.serverSummary)ui.serverSummary.textContent='正在获取服务器状态…';
+        if(ui.serverSummary)ui.serverSummary.textContent=UI_T('正在获取服务器状态…');
         var started=performance.now();
         try{
-            if(!endpoint)throw new Error('没有可用的服务器地址');
+            if(!endpoint)throw new Error(UI_T('没有可用的服务器地址'));
             var entries=await fetchServerEntries(endpoint);
             if(serial!==serverRefreshSerial)return false;
             serverEntries=entries;
             renderServerList(Math.max(1,Math.round(performance.now()-started)));
             var available=entries.filter(function(entry){return entry.status==='online';}).length;
-            if(ui.serverSummary)ui.serverSummary.textContent=entries.length+' 个公共分区 · '+available+' 个可进入 · 不同分区互不相通';
+            if(ui.serverSummary)ui.serverSummary.textContent=UI_T('{total} 个公共分区 · {available} 个可进入 · 不同分区互不相通',{total:entries.length,available:available});
             return true;
         }catch(error){
             if(serial!==serverRefreshSerial)return false;
             serverEntries=[];selectedServerReady=false;ui.serverList.textContent='';
-            if(ui.serverSummary)ui.serverSummary.textContent=error.name==='AbortError'?'服务器响应超时，请刷新重试':String(error.message||'服务器暂时不可用，请刷新重试');
+            if(ui.serverSummary)ui.serverSummary.textContent=error.name==='AbortError'?UI_T('服务器响应超时，请刷新重试'):String(error.message||UI_T('服务器暂时不可用，请刷新重试'));
             return false;
         }finally{
             if(serial===serverRefreshSerial){ui.serverList.setAttribute('aria-busy','false');if(ui.serverRefresh)ui.serverRefresh.disabled=false;}
@@ -230,18 +232,18 @@
     }
     function setStatus(next,text){
         status=next;statusText=text||next;
-        if(ui.badge){ui.badge.className='multiplayer-status '+next;ui.badge.textContent=statusText;}
+        if(ui.badge){ui.badge.className='multiplayer-status '+next;ui.badge.textContent=UI_T(statusText);}
         updateButton();
     }
     function updateButton(){
         if(!ui.button)return;
-        var text='服务器',online=false,title='';
+        var text=UI_T('服务器'),online=false,title='';
         if(room&&status==='online'){
             var count=room.state&&room.state.players?room.state.players.size:1;
             var capacity=Number(room.state&&room.state.capacity)||selectedCapacity;
             var code=normalizeCode(room.state&&room.state.code);
-            text=(isPublicCode(code)?(code==='PUBLIC'?'1':code.slice(-1))+' 服 ':'在线 ')+count+'/'+(capacity||'--');online=true;
-            if(ui.capacity)ui.capacity.textContent=capacity?'最多 '+capacity+' 人':'读取容量中…';
+            text=(isPublicCode(code)?UI_T('服务器 {n}',{n:code==='PUBLIC'?'1':code.slice(-1)})+' ':UI_T('在线 '))+count+'/'+(capacity||'--');online=true;
+            if(ui.capacity)ui.capacity.textContent=capacity?UI_T('最多 {n} 人',{n:capacity}):UI_T('读取容量中…');
             title=serverLabel(normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value));
             if(window.DANBO_COMPANIONS){
                 var totals=DANBO_COMPANIONS.count(room.state);
@@ -252,7 +254,7 @@
                 }
             }
         }else if(status==='joining'||status==='reconnecting'){
-            text='连接中';
+            text=UI_T('连接中');
         }
         var signature=text+'|'+online+'|'+title;
         if(signature===buttonSignature)return;
@@ -262,9 +264,9 @@
         ui.button.title=title;
     }
     function messageForError(error){
-        var text=String(error&&error.message||error||'连接失败');
-        if(/full|seat|locked|4212|4213/i.test(text))return '所选服务器已满或席位被预留，请选择其他服务器';
-        if(/fetch|network|websocket|connect|failed/i.test(text))return '无法连接联机服务器';
+        var text=String(error&&error.message||error||UI_T('连接失败'));
+        if(/full|seat|locked|4212|4213/i.test(text))return UI_T('所选服务器已满或席位被预留，请选择其他服务器');
+        if(/fetch|network|websocket|connect|failed/i.test(text))return UI_T('无法连接联机服务器');
         return text.slice(0,80);
     }
     function showSummary(text,isError){
@@ -282,9 +284,9 @@
             script.async=true;
             script.onload=function(){
                 if(window.Colyseus&&window.Colyseus.ColyseusSDK)resolve(window.Colyseus);
-                else reject(new Error('联机组件加载失败'));
+                else reject(new Error(UI_T('联机组件加载失败')));
             };
-            script.onerror=function(){reject(new Error('联机组件加载失败'));};
+            script.onerror=function(){reject(new Error(UI_T('联机组件加载失败')));};
             document.head.appendChild(script);
         }).catch(function(error){sdkPromise=null;throw error;});
         return sdkPromise;
@@ -438,20 +440,20 @@
         var signature=(typeof _langCode==='undefined'?'':_langCode)+'|'+list.map(function(p){return p.id+':'+p.name+':'+p.city+':'+p.connected+':'+p.companion;}).join('|');
         if(signature===playerListSignature)return;playerListSignature=signature;
         ui.list.textContent='';
-        if(!list.length){var empty=document.createElement('li');empty.textContent='尚未加入房间';ui.list.appendChild(empty);return;}
+        if(!list.length){var empty=document.createElement('li');empty.textContent=UI_T('尚未加入房间');ui.list.appendChild(empty);return;}
         list.forEach(function(item){
             var li=document.createElement('li'),dot=document.createElement('i'),name=document.createElement('span'),city=document.createElement('small');
             dot.className=item.connected===false?'away':'';
-            name.textContent=(room&&item.id===room.sessionId?'你 · ':'')+(item.name||'Player');
-            var cityName=I18N&&I18N.cityNames&&I18N.cityNames[_langCode]?I18N.cityNames[_langCode][item.city]:('城市 '+item.city);
-            city.textContent=cityName||('城市 '+item.city);
+            name.textContent=(room&&item.id===room.sessionId?UI_T('你 · '):'')+(item.name||'Player');
+            var cityName=I18N&&I18N.cityNames&&I18N.cityNames[_langCode]?I18N.cityNames[_langCode][item.city]:(UI_T('城市 ')+item.city);
+            city.textContent=cityName||(UI_T('城市 ')+item.city);
             if(item.companion&&window.DANBO_COMPANIONS)city.textContent=DANBO_COMPANIONS.words().bots+' · '+city.textContent;
             li.appendChild(dot);li.appendChild(name);li.appendChild(city);ui.list.appendChild(li);
         });
     }
     function cleanupRoom(){
         room=null;lastSentCity=-1;lastSendAt=0;sequence=0;playerListSignature='';buttonSignature='';companionIds.clear();companionBudgetAt=0;removeAllRemotes();
-        setStatus('offline','未连接');showSummary('尚未连接联机房间。',false);refreshPlayerList([]);
+        setStatus('offline','未连接');showSummary(UI_T('尚未连接联机房间。'),false);refreshPlayerList([]);
         if(ui.leave)ui.leave.disabled=true;if(ui.share)ui.share.disabled=true;
     }
     async function leaveRoom(){
@@ -462,12 +464,12 @@
     async function connectRoom(code){
         if(joining)return false;
         var endpoint=normalizeEndpoint(ui.endpoint&&ui.endpoint.value||configuredEndpoint());
-        if(!endpoint){openPanel();setStatus('error','需要服务器');showSummary('尚未配置联机服务器地址。请在“高级设置”中填写 WSS 地址。',true);return false;}
+        if(!endpoint){openPanel();setStatus('error','需要服务器');showSummary(UI_T('尚未配置联机服务器地址。请在“高级设置”中填写 WSS 地址。'),true);return false;}
         code=normalizeCode(code);
         if(window.DANBO_ACCOUNT&&!await DANBO_ACCOUNT.ensure(endpoint))return false;
         var name=currentName();
-        if(gameState!=='city'||!playerEgg){openPanel();showSummary('请先选好角色并进入城市，再加入房间。',true);return false;}
-        joining=true;setStatus('joining','连接中…');showSummary('正在进入房间 '+code+'…',false);
+        if(gameState!=='city'||!playerEgg){openPanel();showSummary(UI_T('请先选好角色并进入城市，再加入房间。'),true);return false;}
+        joining=true;setStatus('joining','连接中…');showSummary(UI_T('正在进入房间 ')+code+'…',false);
         if(ui.quick)ui.quick.disabled=true;if(ui.create)ui.create.disabled=true;if(ui.join)ui.join.disabled=true;
         try{
             if(room)await leaveRoom();
@@ -482,7 +484,7 @@
                 // use joinOrCreate for a full public shard.
                 var entries=await fetchServerEntries(endpoint);
                 var target=entries.find(function(entry){return entry.code===code;});
-                if(!target||!target.roomId)throw new Error('所选服务器不可用，请刷新列表');
+                if(!target||!target.roomId)throw new Error(UI_T('所选服务器不可用，请刷新列表'));
                 if(target.status!=='online'||target.available<=0)throw new Error('Server full');
                 selectedCapacity=target.capacity;
                 room=await client.joinById(target.roomId,options);
@@ -491,14 +493,14 @@
             room.reconnection.enabled=true;room.reconnection.maxRetries=8;room.reconnection.minDelay=350;room.reconnection.maxDelay=3500;
             room.onMessage('chat',receiveChat);
             room.onMessage('coop-error',function(message){if(window.DANBO_COOP)DANBO_COOP.error(message&&message.code);});
-            room.onDrop(function(){setStatus('reconnecting','重连中…');showSummary('网络中断，正在保留席位并自动重连。',false);});
-            room.onReconnect(function(){setStatus('online','已重连');showSummary('已恢复房间 '+code+'。',false);});
+            room.onDrop(function(){setStatus('reconnecting','重连中…');showSummary(UI_T('网络中断，正在保留席位并自动重连。'),false);});
+            room.onReconnect(function(){setStatus('online','已重连');showSummary(UI_T('已恢复房间 ')+code+'。',false);});
             room.onError(function(_code,error){showSummary(messageForError(error),true);});
             var joinedRoom=room;
             room.onLeave(function(code){if(!manualLeave&&room===joinedRoom){cleanupRoom();if(code===4001&&window.DANBO_ACCOUNT){DANBO_ACCOUNT.invalidate();DANBO_ACCOUNT.open('login');}}});
             saveSettings(endpoint,name);
             if(ui.endpoint)ui.endpoint.value=endpoint;if(ui.name)ui.name.value=name;if(ui.code)ui.code.value=code;
-            setStatus('online','房间 '+code);showSummary('已加入 '+code+'，同一城市的玩家会显示在场景中。',false);
+            setStatus('online',UI_T('房间 ')+code);showSummary(UI_T('已加入 ')+code+UI_T('，同一城市的玩家会显示在场景中。'),false);
             if(ui.leave)ui.leave.disabled=false;if(ui.share)ui.share.disabled=false;
             lastSentCity=-1;lastAppearance='';lastAppearanceAt=0;appearanceBudgetAt=0;sendLocalState(true);refreshPlayerList();
             return true;
@@ -553,7 +555,7 @@
         if(endpoint&&!window.DANBO_MULTIPLAYER_URL)url.searchParams.set('net',endpoint);
         var text=url.toString();
         if(navigator.share){navigator.share({title:'DANBO 联机房',text:'来我的 DANBO 房间一起玩',url:text}).catch(function(){});}
-        else if(navigator.clipboard){navigator.clipboard.writeText(text).then(function(){showSummary('邀请链接已复制。',false);});}
+        else if(navigator.clipboard){navigator.clipboard.writeText(text).then(function(){showSummary(UI_T('邀请链接已复制。'),false);});}
         else{showSummary(text,false);}
     }
     function update(dt){
@@ -595,10 +597,18 @@
     window.DANBO_MULTIPLAYER={
         open:openPanel,close:closePanel,connect:connectRoom,leave:leaveRoom,update:update,sendChat:sendChat,
         share:shareRoom,
+        refreshLanguage:function(){
+            setStatus(status,statusText);playerListSignature='';refreshPlayerList();
+            if(serverEntries.length){
+                renderServerList(lastServerPing);
+                if(ui.serverSummary)ui.serverSummary.textContent=UI_T('{total} 个公共分区 · {available} 个可进入 · 不同分区互不相通',{total:serverEntries.length,available:serverEntries.filter(function(e){return e.status==='online'&&e.available>0;}).length});
+            }
+            if(ui.summary)ui.summary.textContent=room&&room.state?UI_T('房间 ')+room.state.code:UI_T('尚未连接联机房间。');
+        },
         coop:function(action){if(!room||status!=='online')return false;sendLocalState(true);room.send('coop',{action:action});return true;},
         isConnected:function(){return !!room&&status==='online';},
         getRoom:function(){return room;},
         getEndpoint:function(){return normalizeEndpoint(ui.endpoint&&ui.endpoint.value||configuredEndpoint());},
-        getStatus:function(){return{status:status,text:statusText,roomCode:room&&room.state?room.state.code:null,remoteCount:remotes.size,population:window.DANBO_COMPANIONS?DANBO_COMPANIONS.count(room&&room.state):null};}
+        getStatus:function(){return{status:status,text:UI_T(statusText),roomCode:room&&room.state?room.state.code:null,remoteCount:remotes.size,population:window.DANBO_COMPANIONS?DANBO_COMPANIONS.count(room&&room.state):null};}
     };
 })();
