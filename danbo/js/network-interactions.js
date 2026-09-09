@@ -109,7 +109,7 @@
             p.vx=p.vy=p.vz=0;p.onGround=false;
             if(typeof _jumpCharge!=='undefined')_jumpCharge=0;
             if(typeof _jumpCharging!=='undefined')_jumpCharging=false;
-        }else collide(r,p);
+        }
         // Anchor carried visuals to the interpolated carrier rather than letting
         // two independent smoothing curves visibly pull the pair apart.
         each(r,function(a,id){if(id===r.sessionId||!a.heldBy)return;var visual=remote(id),h=carryPosition(r,a.heldBy);
@@ -119,17 +119,18 @@
         else if(pendingUntil>now)hint('抓取中…');
         else hint(noticeUntil>now?notice:'');
     }
-    function collide(r,p){
-        if(!interactive()||p._networkHeldBy||performance.now()<(p._networkThrowLock||0))return;
+    function resolveBodies(){
+        var r=room(),p=player();
+        if(!ready(r)||!p||gameState!=='city'||root._interiorActive||root._pipeTraveling||root._pipeCityBuilding||root._danboPluginTransition||root.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())return;
+        var locals=typeof cityNPCs!=='undefined'?cityNPCs:typeof allEggs!=='undefined'?allEggs:[];
         each(r,function(a,id){
-            if(id===r.sessionId||!a.interactive||a.connected===false||a.heldBy||Number(a.city)!==Number(currentCityStyle))return;
+            if(id===r.sessionId||a.connected===false||a.heldBy||Number(a.city)!==Number(currentCityStyle))return;
             var v=remote(id);if(!v)return;var mesh=v.root||v.mesh;if(!mesh.visible)return;
-            var dx=mesh.position.x-p.mesh.position.x,dz=mesh.position.z-p.mesh.position.z,dy=mesh.position.y-p.mesh.position.y;
-            var distance=Math.hypot(dx,dz),radius=(p.radius||.55)+.55;
-            if(Math.abs(dy)>1.05||distance>=radius)return;
-            var nx,nz;if(distance<.001){nx=r.sessionId<id?1:-1;nz=0;}else{nx=dx/distance;nz=dz/distance;}
-            var overlap=Math.min(.24,radius-distance);p.mesh.position.x-=nx*overlap;p.mesh.position.z-=nz*overlap;
-            var closing=(p.vx||0)*nx+(p.vz||0)*nz;if(closing>0){p.vx-=nx*closing;p.vz-=nz*closing;}
+            // Remote positions are read-only. Only local simulation yields;
+            // adding proxies to allEggs would incorrectly grant local PvP authority.
+            var body={mesh:mesh,radius:v.egg&&v.egg.radius||.55,vx:0,vz:0};
+            resolveEggBodyContact(p,body,1,0,r.sessionId<id?1:-1);
+            for(var i=0;i<locals.length;i++)if(locals[i]!==p)resolveEggBodyContact(locals[i],body,1,0);
         });
     }
     function input(keys){
@@ -210,5 +211,5 @@
         }else if(v.hitFire){v.root.remove(v.hitFire);disposeTransientObject3D(v.hitFire);v.hitFire=null;if(body&&typeof _safeSetEmissive==='function')_safeSetEmissive(body,0);}
         v.wasHurt=!!hurt;
     }
-    root.DANBO_INTERACTIONS={update:update,input:input,heldInput:heldInput,interactive:interactive,combatReady:combatReady,snapshot:snapshot,attack:attack,event:event,reset:reset,result:result,animateRemote:animateRemote,disposeRemote:disposeRemote};
+    root.DANBO_INTERACTIONS={update:update,resolveBodies:resolveBodies,input:input,heldInput:heldInput,interactive:interactive,combatReady:combatReady,snapshot:snapshot,attack:attack,event:event,reset:reset,result:result,animateRemote:animateRemote,disposeRemote:disposeRemote};
 })(window);

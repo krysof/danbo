@@ -603,8 +603,9 @@ function _decorateDefaultBuilding(b,bMeshes,col,st,i){
     awn.position.set(b.x,2.35,b.z+b.d/2+0.46);awn.rotation.x=-0.12;add(awn);
     if(i%2===0){
         var sNames=[L('title'),'SHOP','CAFE','HOTEL','STAR','TOY'];
-        var tex=_cityCanvasSign(sNames[i%sNames.length],awningColor,'#FFFFFF');
-        var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
+        var sign=DANBO_WORLD_LABELS.create('sign');
+        DANBO_WORLD_LABELS.setText(sign,sNames[i%sNames.length]);
+        if(i%sNames.length===0)sign.userData.refreshSceneText=(function(anchor){return function(){DANBO_WORLD_LABELS.setText(anchor,L('title'));};})(sign);
         sign.position.set(b.x,Math.min(b.h-1.5,4.2),b.z+b.d/2+0.20);
         sign.scale.set(3.2,1.0,1);cityGroup.add(sign);bMeshes.push(sign);
     }

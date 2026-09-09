@@ -37,44 +37,12 @@ function _danboPortalLocale(value){
 
 function _danboMakePortalSign(group,text,color,pos,scale){
     if(!group||typeof THREE==='undefined')return null;
-    var canvas=document.createElement('canvas');canvas.width=512;canvas.height=112;
-    var ctx=canvas.getContext('2d');
+    var sign=DANBO_WORLD_LABELS.create('portal',group);
     var accent='#'+('000000'+((color||0xFFD700)&0xffffff).toString(16)).slice(-6);
-    function roundedRect(x,y,w,h,r){
-        ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-        ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-        ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-        ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
-    }
-    function draw(label){
-    ctx.clearRect(0,0,512,112);text=label;
-    ctx.shadowColor='rgba(5,10,24,.58)';ctx.shadowBlur=18;ctx.shadowOffsetY=7;
-    var bg=ctx.createLinearGradient(0,14,0,98);
-    bg.addColorStop(0,'rgba(31,42,65,.94)');bg.addColorStop(1,'rgba(11,18,34,.92)');
-    roundedRect(14,12,484,86,25);ctx.fillStyle=bg;ctx.fill();
-    ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.lineWidth=4;ctx.strokeStyle=accent;ctx.stroke();
-    var shine=ctx.createLinearGradient(38,0,474,0);
-    shine.addColorStop(0,'rgba(255,255,255,0)');shine.addColorStop(.5,'rgba(255,255,255,.24)');shine.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=shine;roundedRect(42,22,428,4,2);ctx.fill();
-    ctx.fillStyle='#F8FBFF';
-    ctx.textAlign='center';
-    var fs=31;ctx.font='800 '+fs+'px sans-serif';
-    while(ctx.measureText(text||'').width>438&&fs>15){fs-=2;ctx.font='800 '+fs+'px sans-serif';}
-    ctx.shadowColor='rgba(0,0,0,.72)';ctx.shadowBlur=5;ctx.fillText(text||'',256,69);
-    ctx.shadowBlur=0;ctx.fillStyle=accent;roundedRect(206,82,100,5,3);ctx.fill();
-    if(tex)tex.needsUpdate=true;
-    }
-    draw(text);
-    var tex=new THREE.CanvasTexture(canvas);
-    if(THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
-    var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
-    scale=scale||{x:5.4,y:1.18,z:1};pos=pos||{x:0,y:5.55,z:0};
-    sign.scale.set(scale.x||5.4,scale.y||1.18,scale.z||1);
-    sign.position.set(pos.x||0,pos.y||5.55,pos.z||0);
-    sign.material.depthWrite=false;
-    sign.userData.setPortalText=draw;
-    group.add(sign);
-    return sign;
+    sign._worldLabel.element.style.borderColor=accent;
+    pos=pos||{x:0,y:5.55,z:0};sign.position.set(pos.x||0,pos.y===undefined?5.55:pos.y,pos.z||0);
+    sign.userData.setPortalText=function(label){DANBO_WORLD_LABELS.setText(sign,label);};
+    sign.userData.setPortalText(text);group.add(sign);return sign;
 }
 
 function _danboPortalTheme(index,fallback){
@@ -364,7 +332,10 @@ function buildPortals() {
     if(currentCityStyle===5) return; // No race portals on moon
     // Clear old portals
     for(var _opi=portals.length-1;_opi>=0;_opi--){
-        if(portals[_opi].mesh)cityGroup.remove(portals[_opi].mesh);
+        if(portals[_opi].mesh){
+            portals[_opi].mesh.traverse(function(o){if(o._worldLabel)DANBO_WORLD_LABELS.dispose(o);});
+            cityGroup.remove(portals[_opi].mesh);
+        }
     }
     portals.length=0;
     RACES.forEach((race,i)=>{
@@ -843,7 +814,7 @@ function _showRewardBanner(area,def){
 
 // ---- Warp Pipes (Mario 3D World style transparent tubes) ----
 function buildWarpPipes(){
-    warpPipeMeshes.forEach(function(wp){cityGroup.remove(wp.group);});
+    warpPipeMeshes.forEach(function(wp){wp.group.traverse(function(o){if(o._worldLabel)DANBO_WORLD_LABELS.dispose(o);});cityGroup.remove(wp.group);});
     warpPipeMeshes=[];
     // No ground warp pipes on moon (only reachable from cloud world)
     if(currentCityStyle===5)return;
@@ -891,18 +862,7 @@ function buildWarpPipes(){
         // Beacon light on top
         var beacon=new THREE.Mesh(new THREE.SphereGeometry(0.8,8,6),new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:0.7}));
         beacon.position.y=9;g.add(beacon);
-        // Label sign
-        var canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
-        var ctx2=canvas.getContext('2d');
-        ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,512,128);
-        ctx2.fillStyle='#fff';ctx2.font='bold 44px sans-serif';ctx2.textAlign='center';
-        ctx2.fillText(tst.name,256,82,488);
-        var tex=new THREE.CanvasTexture(canvas);
-        tex.colorSpace=THREE.SRGBColorSpace;
-        var signMat=new THREE.SpriteMaterial({map:tex,transparent:true});
-        var sign=new THREE.Sprite(signMat);
-        sign.scale.set(5,1.2,1);sign.position.y=10.5;
-        g.add(sign);
+        var sign=_danboMakePortalSign(g,tst.name,pColor,{x:0,y:10.5,z:0});
         var _pipeY=currentCityStyle===7?3:0;
         g.position.set(pos.x,_pipeY,pos.z);
         cityGroup.add(g);
@@ -913,7 +873,9 @@ function buildWarpPipes(){
 function _refreshWarpPipeLabels(){
     var pipes=warpPipeMeshes.concat(typeof _cloudWorldPipes!=='undefined'?_cloudWorldPipes:[]);
     for(var i=0;i<pipes.length;i++){
-        var wp=pipes[i],tex=wp.sign&&wp.sign.material.map;
+        var wp=pipes[i];
+        if(wp.sign&&wp.sign.userData.setPortalText&&CITY_STYLES[wp.targetStyle]){wp.sign.userData.setPortalText(CITY_STYLES[wp.targetStyle].name);continue;}
+        var tex=wp.sign&&wp.sign.material&&wp.sign.material.map;
         if(!tex||!CITY_STYLES[wp.targetStyle])continue;
         var w=tex.image.width,h=tex.image.height,ctx=tex.image.getContext('2d');ctx.clearRect(0,0,w,h);
         ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,w,h);
@@ -984,6 +946,7 @@ function _disposeCityGroupResources(){
         window._danboCinematicCoinCache,window._danboReflectionEnvironment,window._danboHDRIBackground
     ].forEach(function(value){protectValue(value,seen,0);});
 
+    cityGroup.traverse(function(o){if(o._worldLabel)DANBO_WORLD_LABELS.dispose(o);});
     collectObject(cityGroup,cityGeometry,cityMaterial,cityTexture,cityBatches);
     cityBatches.forEach(function(batch){if(batch&&batch.dispose)batch.dispose();});
     cityGeometry.forEach(function(geometry){if(!keepGeometry.has(geometry)&&geometry.dispose)geometry.dispose();});
@@ -1958,17 +1921,8 @@ function _buildCloudWorldMoonPipe(px,py,pz,options){
         sp.position.set(Math.cos(a)*1.5,0.5+si*0.6,Math.sin(a)*1.5);
         g.add(sp);
     }
-    // Label
-    var canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
-    var ctx2=canvas.getContext('2d');
-    ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,512,128);
-    ctx2.fillStyle='#fff';ctx2.font='bold 44px sans-serif';ctx2.textAlign='center';
     var moonName=CITY_STYLES[5]?CITY_STYLES[5].name:'Moon';
-    ctx2.fillText(moonName,256,82,488);
-    var tex=new THREE.CanvasTexture(canvas);
-    var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
-    sign.scale.set(4,1,1);sign.position.y=10;
-    g.add(sign);
+    var sign=_danboMakePortalSign(g,moonName,pColor,{x:0,y:10,z:0});
     var pipeScale=Math.max(0.25,Math.min(10,Number(options.scale)||1));
     var pipeRotation=Number(options.rotationY)||0;
     g.position.set(px,py,pz);g.rotation.y=pipeRotation*Math.PI/180;g.scale.setScalar(pipeScale);
@@ -2063,17 +2017,9 @@ function _buildBabylonTower(){
         arrow.position.set(0,4+ai*8,0);
         g.add(arrow);
     }
-    // Label sign
-    var canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
-    var ctx2=canvas.getContext('2d');
-    ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,256,64);
-    ctx2.fillStyle='#FFD700';ctx2.font='bold 22px sans-serif';ctx2.textAlign='center';
     var towerLabel={zhs:'\u5DF4\u522B\u5854 \u2191 云栖蛋境',zht:'\u5DF4\u5225\u5854 \u2191 雲棲蛋境',ja:'\u30D0\u30D9\u30EB\u306E\u5854 \u2191 \u30AF\u30E9\u30A6\u30C9\u30A8\u30C3\u30B0',en:'Babel \u2191 Cloud Egg'};
-    ctx2.fillText(towerLabel[_langCode]||towerLabel.en,128,42);
-    var tex=new THREE.CanvasTexture(canvas);
-    var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
-    sign.scale.set(5,1.2,1);sign.position.set(0,topY+6,0);
-    g.add(sign);
+    var sign=_danboMakePortalSign(g,towerLabel[_langCode]||towerLabel.en,0xFFD700,{x:0,y:topY+6,z:0});
+    sign.userData.refreshSceneText=function(){sign.userData.setPortalText(towerLabel[_langCode]||towerLabel.en);};
     // Doors on all 4 faces (N/S/E/W) to avoid being blocked
     var doorDirs=[{dx:0,dz:1},{dx:0,dz:-1},{dx:1,dz:0},{dx:-1,dz:0}];
     for(var di=0;di<4;di++){

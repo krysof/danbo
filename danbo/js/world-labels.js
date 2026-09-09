@@ -5,6 +5,20 @@
     var layer=document.getElementById('world-label-layer');
     var entries=new Set(),candidates=[],placed=[],visibleCount=0,lastWidth=0,lastHeight=0,world=new THREE.Vector3(),projected=new THREE.Vector3(),eye=new THREE.Vector3();
     var MAX_VISIBLE=32;
+    var frame=0,ray=new THREE.Ray(),box=new THREE.Box3(),hit=new THREE.Vector3();
+    function occluded(point,distance){
+        if(typeof cityColliders==='undefined')return false;
+        ray.origin.copy(eye);ray.direction.copy(point).sub(eye).normalize();
+        for(var i=0;i<cityColliders.length;i++){
+            var c=cityColliders[i];if(c._bridge||!(c.hw>0&&c.hd>0&&c.h>.5))continue;
+            box.min.set(c.x-c.hw,c.y||0,c.z-c.hd);box.max.set(c.x+c.hw,c.h,c.z+c.hd);
+            // A shop sign belongs to its own facade. Do not hide it inside the
+            // slightly padded physics bounds of that building.
+            if(box.containsPoint(point)||box.containsPoint(eye))continue;
+            if(ray.intersectBox(box,hit)&&eye.distanceToSquared(hit)<distance-.01)return true;
+        }
+        return false;
+    }
     function create(kind,owner){
         var anchor=new THREE.Object3D();
         var element=document.createElement('div');element.className='world-label world-label-'+kind;element.hidden=true;
@@ -17,7 +31,7 @@
     function setText(anchor,name,line){
         var e=anchor&&anchor._worldLabel;if(!e)return;
         // Player-supplied text is never interpreted as HTML.
-        e.primary.textContent=String(name||'').slice(0,e.kind==='chat'?80:32);
+        e.primary.textContent=String(name||'').slice(0,e.kind==='name'?32:80);
         e.secondary.textContent=String(line||'').slice(0,80);e.secondary.hidden=!line;e.dirty=true;
     }
     function dispose(anchor){
@@ -30,6 +44,7 @@
     }
     function hide(){layer.hidden=true;visibleCount=0;}
     function update(){
+        frame++;
         var plugin=window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive&&DANBO_PLUGIN_HOST.getActive();
         if((gameState!=='city'&&gameState!=='racing'&&gameState!=='raceIntro')||window._accountPanelOpen||window._journeyPanelOpen||window._multiplayerPanelOpen||window._danboPluginTransition||(plugin&&!plugin.integratedScene)){hide();return;}
         layer.hidden=false;
@@ -45,12 +60,19 @@
             if(!e.local&&e.distance>45*45)return;
             projected.copy(world).project(camera);
             if(projected.z<-1||projected.z>1||Math.abs(projected.x)>1||Math.abs(projected.y)>1)return;
+            if(e.kind==='portal'||e.kind==='sign'){
+                // Sparse AABB visibility checks, not a raycast through thousands
+                // of meshes or a second high-resolution WebGL render.
+                if(e.occlusionFrame===undefined||frame-e.occlusionFrame>=6||resized){e.occlusionFrame=frame;e.occluded=occluded(world,e.distance);}
+                if(e.occluded)return;
+            }
             e.x=Math.round((projected.x*.5+.5)*width);e.y=Math.round((-.5*projected.y+.5)*height);
             candidates.push(e);
         });
         // Keep the local player's tag and nearby conversations readable without
         // turning a full room into dozens of overlapping DOM updates.
-        candidates.sort(function(a,b){return Number(b.local)-Number(a.local)||(a.kind==='chat'?0:1)-(b.kind==='chat'?0:1)||a.distance-b.distance;});
+        var priority={chat:0,portal:1,name:2,sign:3};
+        candidates.sort(function(a,b){return Number(b.local)-Number(a.local)||priority[a.kind]-priority[b.kind]||a.distance-b.distance;});
         placed.length=0;visibleCount=0;
         var bounds=layer.getBoundingClientRect?layer.getBoundingClientRect():{left:0,top:0};
         ['city-hud','journey-task','minimap-wrap','map-btn','lb-btn'].forEach(function(id){

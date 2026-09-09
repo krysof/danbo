@@ -2744,6 +2744,9 @@ function _gameUpdate(){
     if(_inCity&&typeof _updateMiniMap==='function')_updateMiniMap();
 
     if(gameState==='city'){
+        if(playerEgg&&(window._accountPanelOpen||window._multiplayerPanelOpen||window._worldMapOpen||window._shopOpen||window._portalConfirmOpen||playerEgg.heldBy||playerEgg._networkHeldBy)){
+            playerEgg._punchBuffer=playerEgg._kickBuffer=0;playerEgg._queuedAttackR=playerEgg._queuedAttackT=false;
+        }
         // ---- Inside a house: run isolated interior loop, skip all city updates ----
         if(window._interiorActive){
             if(!window._worldMapOpen&&!window._multiplayerPanelOpen&&!window._accountPanelOpen&&!window._journeyPanelOpen&&typeof handlePlayerInput==='function')handlePlayerInput();
@@ -2837,6 +2840,7 @@ function _gameUpdate(){
         updateCity();
         const cityEggList = [playerEgg, ...cityNPCs].filter(e=>e&&e.alive);
         resolveEggCollisions(cityEggList);
+        if(window.DANBO_INTERACTIONS&&DANBO_INTERACTIONS.resolveBodies)DANBO_INTERACTIONS.resolveBodies();
         checkThrownEggImpact(cityEggList);
         updateHeldEggs();
         for(var _nci=0;_nci<allEggs.length;_nci++){if(!allEggs[_nci].isPlayer)_npcRandomChat(allEggs[_nci]);}

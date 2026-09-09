@@ -23,6 +23,8 @@ function _addStunDamage(egg,amount){
 // physics dash/roll pose overwrites the new hit velocity on the very next frame.
 function _interruptHurtAction(egg){
     if(!egg||!egg.mesh)return;
+    egg._punchBuffer=egg._kickBuffer=0;egg._ffReady=egg._bfReady=egg._hadouReady=egg._tatsuReady=egg._piledriverReady=false;egg._ffSeq=egg._bfSeq=egg._pdSeq=0;
+    egg._queuedAttackR=egg._queuedAttackT=false;
     if(egg.holding){var held=egg.holding;held.heldBy=null;egg.holding=null;_removeEggStruggleBar(held);egg.grabCD=20;}
     if(egg.holdingProp){egg.holdingProp.grabbed=false;egg.holdingProp=null;egg.grabCD=20;}
     if(egg.holdingObs){egg.holdingObs._grabbed=false;egg.holdingObs=null;egg.grabCD=20;}
@@ -52,6 +54,136 @@ function _applyBasicMeleeHit(target,kind,dx,dz,heavy,aerial){
         target.throwTimer=data.throwTimer;target._throwTotal=data.throwTimer;target._bounces=data.bounces;
     }else{target.squash=kick?.75:.78;target._hitStun=kick?15:12;}
     _addStunDamage(target,aerial?data.aerialStunDmg:data.stunDmg);
+}
+// Track directions BEFORE consuming attacks: same-frame direction + button
+// must work on keyboard, touch and a standard gamepad alike.
+function _updateCombatCommands(playerEgg,keys,joyVec,joyActive,tps){
+    var _ct=playerEgg.mesh.userData._charType||'egg';
+    var _rPress=keys.KeyR&&!playerEgg._rWasDown||playerEgg._queuedAttackR;
+    var _tPress=keys.KeyT&&!playerEgg._tWasDown||playerEgg._queuedAttackT;
+    playerEgg._queuedAttackR=playerEgg._queuedAttackT=false;
+    playerEgg._punchBuffer=Math.max(0,(playerEgg._punchBuffer||0)-1);
+    playerEgg._kickBuffer=Math.max(0,(playerEgg._kickBuffer||0)-1);
+    if(_rPress)playerEgg._punchBuffer=12;
+    if(_tPress)playerEgg._kickBuffer=12;
+    // ---- Special move input trackers ----
+    // Detect horizontal direction presses (keyboard + joystick)
+    var _joyL=joyActive&&joyVec.x<-0.3;
+    var _joyR=joyActive&&joyVec.x>0.3;
+    var _joyD=joyActive&&joyVec.y>0.3;
+    var _hLeft=(keys['KeyA']||keys['ArrowLeft']||_joyL);
+    var _hRight=(keys['KeyD']||keys['ArrowRight']||_joyR);
+    var _hDown=(keys['KeyS']||keys['ArrowDown']||_joyD);
+    var _hLeftPress=_hLeft&&!playerEgg._prevHLeft;
+    var _hRightPress=_hRight&&!playerEgg._prevHRight;
+    var _hDownPress=_hDown&&!playerEgg._prevHDown;
+    var _joyU=joyActive&&joyVec.y<-0.3;
+    var _hUp=(keys['KeyW']||keys['ArrowUp']||_joyU);
+    var _hUpPress=_hUp&&!playerEgg._prevHUp;
+    // ---- Shoryuken detection removed — now uses bfR ----
+    // Determine "forward" and "back" based on facing direction
+    var _faceY=playerEgg.mesh.rotation.y;
+    var _faceSinY=Math.sin(_faceY),_faceCosY=Math.cos(_faceY);
+    var _inputX=(_hLeft?-1:0)+(_hRight?1:0);
+    var _inputZ=(_hDown?1:0)+(_hUp?-1:0);
+    var _inputDot=_inputX*_faceSinY+_inputZ*_faceCosY;
+    // ---- Back-Forward detection: opposite directions (absolute) ----
+    if(!playerEgg._bfSeq)playerEgg._bfSeq=0;
+    if(!playerEgg._bfTimer)playerEgg._bfTimer=0;
+    playerEgg._bfTimer--;
+    // Detect any direction press (absolute, not relative to facing)
+    var _anyDX=(keys.KeyA||keys.ArrowLeft?-1:0)+(keys.KeyD||keys.ArrowRight?1:0)+(joyActive?joyVec.x:0);
+    var _anyDZ=(keys.KeyW||keys.ArrowUp?-1:0)+(keys.KeyS||keys.ArrowDown?1:0)+(joyActive?joyVec.y:0);
+    var _anyDL=Math.hypot(_anyDX,_anyDZ),_dpPressed=_anyDL>.3;
+    if(_anyDL<.18)playerEgg._prevDA=false;
+    if(_anyDL>.0001){_anyDX/=_anyDL;_anyDZ/=_anyDL;}
+    // A deliberate reversal counts without centering the stick first. Keep a
+    // latched direction so diagonal sweeps work, but tiny stick jitter does not.
+    var _reversed=_anyDX*(playerEgg._dirLatchX||0)+_anyDZ*(playerEgg._dirLatchZ||0)<-.25;
+    var _newDP=_dpPressed&&(!playerEgg._prevDA||_reversed);
+    if(_newDP){playerEgg._dirLatchX=_anyDX;playerEgg._dirLatchZ=_anyDZ;}
+    if(_dpPressed)playerEgg._prevDA=true;
+    if(_newDP&&playerEgg._bfSeq===0){
+        playerEgg._bfSeq=1;playerEgg._bfTimer=48;
+        playerEgg._bfDX=_anyDX;playerEgg._bfDZ=_anyDZ;
+    } else if(_newDP&&playerEgg._bfSeq===1){
+        var _bfD2=_anyDX*(playerEgg._bfDX||0)+_anyDZ*(playerEgg._bfDZ||0);
+        if(_bfD2<-.25){playerEgg._bfSeq=2;playerEgg._bfTimer=48;playerEgg._bfReady=true;playerEgg._bfMoveAngle=Math.atan2(_anyDX,_anyDZ);}
+        else{playerEgg._bfSeq=1;playerEgg._bfTimer=48;playerEgg._bfDX=_anyDX;playerEgg._bfDZ=_anyDZ;}
+    }
+    if(playerEgg._bfTimer<=0){playerEgg._bfSeq=0;playerEgg._bfReady=false;}
+    // Forward/back press for other uses
+    var _inputBack=(_inputDot<-0.3);
+    var _inputFwd=(_inputDot>0.3);
+    var _inputBackPress=_inputBack&&!playerEgg._prevBfBack;
+    var _inputFwdPress=_inputFwd&&!playerEgg._prevBfFwd;
+    playerEgg._prevBfBack=_inputBack;playerEgg._prevBfFwd=_inputFwd;
+    // ---- Forward-Forward detection: same direction pressed twice ----
+    if(!playerEgg._ffSeq)playerEgg._ffSeq=0;
+    if(!playerEgg._ffTimer)playerEgg._ffTimer=0;
+    playerEgg._ffTimer--;
+    if(_newDP&&playerEgg._ffSeq===0&&!playerEgg._bfReady){
+        playerEgg._ffSeq=1;playerEgg._ffTimer=48;
+        playerEgg._ffDX=_anyDX;playerEgg._ffDZ=_anyDZ;
+    } else if(_newDP&&playerEgg._ffSeq===1&&!playerEgg._bfReady){
+        var _ffDot=_anyDX*(playerEgg._ffDX||0)+_anyDZ*(playerEgg._ffDZ||0);
+        if(_ffDot>.35){
+            playerEgg._ffSeq=2;playerEgg._ffTimer=48;playerEgg._ffReady=true;playerEgg._ffMoveAngle=Math.atan2(_anyDX,_anyDZ);
+        } else {
+            playerEgg._ffSeq=1;playerEgg._ffTimer=48;
+            playerEgg._ffDX=_anyDX;playerEgg._ffDZ=_anyDZ;
+        }
+    }
+    if(playerEgg._ffTimer<=0){playerEgg._ffSeq=0;playerEgg._ffReady=false;}
+    // ---- Unified move direction: used by all directional specials ----
+    // bf moves use second press direction, ff moves use second press direction
+    if(tps){
+        // TPS: all skills fire in character's facing direction
+        playerEgg._moveDir=playerEgg.mesh.rotation.y;
+    } else if(playerEgg._bfReady&&playerEgg._bfMoveAngle!==undefined)playerEgg._moveDir=playerEgg._bfMoveAngle;
+    else if(playerEgg._ffReady&&playerEgg._ffMoveAngle!==undefined)playerEgg._moveDir=playerEgg._ffMoveAngle;
+    else playerEgg._moveDir=playerEgg.mesh.rotation.y;
+    // ---- Tatsumaki (旋风腿): 後+前+T (back-forward-kick) ----
+    playerEgg._tatsuReady=playerEgg._bfReady;
+    // ---- Hadouken (波動拳): 前前+R (forward-forward-punch) ----
+    playerEgg._hadouReady=playerEgg._ffReady;
+    playerEgg._prevHLeft=_hLeft;playerEgg._prevHRight=_hRight;playerEgg._prevHDown=_hDown;playerEgg._prevHUp=_hUp;
+    // ---- Simple command inputs for charge characters (no actual charging needed) ----
+    // Sonic Boom / 気功拳: use →→+R (forward-forward, same as hadouken)
+    playerEgg._chargeForwardReady=playerEgg._ffReady;
+    // Somersault / Spinning Bird: use ←→+T (same as tatsumaki = bf)
+    playerEgg._chargeUpReady=playerEgg._bfReady;
+    // ---- Rapid press detection (Chun-Li/Honda/Blanka) ----
+    if(!playerEgg._rapidR)playerEgg._rapidR=0;
+    if(!playerEgg._rapidT)playerEgg._rapidT=0;
+    if(!playerEgg._rapidRTimer)playerEgg._rapidRTimer=0;
+    if(!playerEgg._rapidTTimer)playerEgg._rapidTTimer=0;
+    if(_rPress){playerEgg._rapidR++;playerEgg._rapidRTimer=72;}
+    if(_tPress){playerEgg._rapidT++;playerEgg._rapidTTimer=72;}
+    playerEgg._rapidRTimer--;playerEgg._rapidTTimer--;
+    if(playerEgg._rapidRTimer<=0)playerEgg._rapidR=0;
+    if(playerEgg._rapidTTimer<=0)playerEgg._rapidT=0;
+    // Rapid R ready (3+ presses in 60 frames) — 森林蛋/水晶蛋 rapid punch
+    playerEgg._rapidRReady=(playerEgg._rapidR>=3);
+    // Rapid T ready (3+ presses in 60 frames) — 星愿蛋 rapid kick
+    playerEgg._rapidTReady=(playerEgg._rapidT>=3);
+    // ---- Dhalsim passive: extended attack range ----
+    playerEgg._extendedRange=(_ct==='cockroach')?MOVE_PARAMS.cockroach.extendedRange:1.0;
+    // ---- Zangief Double Lariat: R+T held together ----
+    playerEgg._lariatReady=(keys['KeyR']&&keys['KeyT']&&_hasMove(_ct,'RT'));
+    // ---- Piledriver input sequence tracker (Zangief only: forward-back-forward+F) ----
+    if(_ct==='bear'){
+        playerEgg._pdTimer=Math.max(0,(playerEgg._pdTimer||0)-1);
+        if(!playerEgg._pdTimer){playerEgg._pdSeq=0;playerEgg._piledriverReady=false;}
+        if(_newDP){
+            var opposite=_anyDX*(playerEgg._pdDX||0)+_anyDZ*(playerEgg._pdDZ||0)<-.25;
+            playerEgg._pdSeq=opposite?(playerEgg._pdSeq||0)+1:1;
+            playerEgg._pdDX=_anyDX;playerEgg._pdDZ=_anyDZ;playerEgg._pdTimer=48;
+            playerEgg._piledriverReady=playerEgg._pdSeq>=3;
+        }
+    }else playerEgg._piledriverReady=false;
+    playerEgg._pdPrevLeft=!!(keys['KeyA']||keys['ArrowLeft']);
+    playerEgg._pdPrevRight=!!(keys['KeyD']||keys['ArrowRight']);
 }
 function handlePlayerInput(){
     try{
@@ -365,6 +497,7 @@ function handlePlayerInput(){
     var _throwChargeMax=60; // 1 second max charge
     var _holdingSomething=playerEgg.holding||playerEgg.holdingProp||playerEgg.holdingObs;
     // Normal state check — block all new moves during any special move
+    _updateCombatCommands(playerEgg,keys,joyVec,joyActive,_tpsCamMode);
     var _inSpecialMove=!!(playerEgg._tatsuActive||playerEgg._shoryuActive||playerEgg._piledriverTarget||playerEgg._bodySlam||_spinDashing||playerEgg._blankaSpinTimer||playerEgg._blankaSpinFalling||playerEgg._guileSomersault||playerEgg._yogaFlame);
     // Track F press (blocked during special moves)
     if(keys['KeyF']&&!playerEgg._fWasDown&&playerEgg.grabCD<=0&&!_inSpecialMove){
@@ -596,7 +729,7 @@ function handlePlayerInput(){
     // Zangief Double Lariat — R+T held together (checked before normal R press)
     var _ct=playerEgg.mesh.userData._charType||'egg';
     if(playerEgg._lariatReady&&playerEgg._attackCD<=0&&!playerEgg.holding&&!playerEgg._tatsuActive){
-        playerEgg._comboCount=0;playerEgg._attackCD=40;playerEgg._lariatReady=false;
+        playerEgg._comboCount=0;playerEgg._attackCD=40;playerEgg._lariatReady=false;playerEgg._punchBuffer=playerEgg._kickBuffer=0;
         MoveSpin_execute(playerEgg,playerEgg.mesh.rotation.y,{duration:MOVE_PARAMS.bear.lariat.duration,isLariat:true});
         playerEgg._atkAnim=62;playerEgg.squash=0.9;
         // Show both arms extended at eye level
@@ -606,7 +739,8 @@ function handlePlayerInput(){
         _shoutMove(playerEgg,MOVE_PARAMS.bear.lariat.shout);
     }
     // Punch (R) — character-specific special moves on command input
-    if(keys['KeyR']&&!playerEgg._rWasDown&&playerEgg._attackCD<=0&&!playerEgg.holding){
+    if(playerEgg._punchBuffer>0&&playerEgg._attackCD<=0&&!playerEgg.holding){
+        playerEgg._punchBuffer=0;
         var _isHadou=playerEgg._hadouReady&&!window._playerHadouken;
         var _alwaysR=_findMove(_ct,'alwaysR');
         var _ffR=_findMove(_ct,'ffR');
@@ -737,7 +871,7 @@ function handlePlayerInput(){
         } else {
         // Normal punch combo
         if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(playerEgg,'punch');
-        playerEgg._comboCount++;playerEgg._comboTimer=(_ct==='cockroach')?MOVE_PARAMS.cockroach.comboTimerPunch:25;playerEgg._attackCD=(_ct==='cockroach')?MOVE_PARAMS.cockroach.punchCD:8;
+        playerEgg._comboCount++;playerEgg._comboTimer=(_ct==='cockroach')?Math.max(40,MOVE_PARAMS.cockroach.comboTimerPunch):40;playerEgg._attackCD=(_ct==='cockroach')?MOVE_PARAMS.cockroach.punchCD:8;
         var _punchArm=(playerEgg._comboCount%2===1)?playerEgg.mesh.userData.rightArm:playerEgg.mesh.userData.leftArm;
         var _pArmZ=(_ct==='cockroach')?3.0:0.9;
         var _pArmS=(_ct==='cockroach')?new THREE.Vector3(1.0,1.0,4.0):new THREE.Vector3(1.3,1.3,1.3);
@@ -788,7 +922,8 @@ function handlePlayerInput(){
         }
     }
     // Kick (T) — character-specific kick specials
-    if(keys['KeyT']&&!playerEgg._tWasDown&&playerEgg._attackCD<=0&&!playerEgg.holding){
+    if(playerEgg._kickBuffer>0&&playerEgg._attackCD<=0&&!playerEgg.holding){
+        playerEgg._kickBuffer=0;
         var _isTatsu=playerEgg._tatsuReady;
         var _alwaysT=_findMove(_ct,'alwaysT');
         var _bfT=_findMove(_ct,'bfT');
@@ -858,7 +993,7 @@ function handlePlayerInput(){
         } else {
         // Normal kick
         if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(playerEgg,'kick');
-        playerEgg._comboCount++;playerEgg._comboTimer=(_ct==='cockroach')?MOVE_PARAMS.cockroach.comboTimerKick:25;playerEgg._attackCD=(_ct==='cockroach')?MOVE_PARAMS.cockroach.kickCD:12;
+        playerEgg._comboCount++;playerEgg._comboTimer=(_ct==='cockroach')?Math.max(40,MOVE_PARAMS.cockroach.comboTimerKick):40;playerEgg._attackCD=(_ct==='cockroach')?MOVE_PARAMS.cockroach.kickCD:12;
         var _kickLeg=(playerEgg._comboCount%2===1)?playerEgg.mesh.userData.rightLeg:playerEgg.mesh.userData.leftLeg;
         var _kLegZ=(_ct==='cockroach')?2.5:0.7;
         if(_kickLeg){_kickLeg.visible=true;_kickLeg.position.z=_kLegZ;_kickLeg.rotation.x=-Math.PI/2.5;if(_ct==='cockroach')_kickLeg.scale.set(1,1,3.5);}
@@ -1294,120 +1429,6 @@ function handlePlayerInput(){
             var _hdBody=playerEgg.mesh.userData.body;if(_hdBody)_hdBody.rotation.x=0;
         }
     }
-    // ---- Special move input trackers ----
-    // Detect horizontal direction presses (keyboard + joystick)
-    var _joyL=joyActive&&joyVec.x<-0.3;
-    var _joyR=joyActive&&joyVec.x>0.3;
-    var _joyD=joyActive&&joyVec.y>0.3;
-    var _hLeft=(keys['KeyA']||keys['ArrowLeft']||_joyL);
-    var _hRight=(keys['KeyD']||keys['ArrowRight']||_joyR);
-    var _hDown=(keys['KeyS']||keys['ArrowDown']||_joyD);
-    var _hLeftPress=_hLeft&&!playerEgg._prevHLeft;
-    var _hRightPress=_hRight&&!playerEgg._prevHRight;
-    var _hDownPress=_hDown&&!playerEgg._prevHDown;
-    var _joyU=joyActive&&joyVec.y<-0.3;
-    var _hUp=(keys['KeyW']||keys['ArrowUp']||_joyU);
-    var _hUpPress=_hUp&&!playerEgg._prevHUp;
-    // ---- Shoryuken detection removed — now uses bfR ----
-    // Determine "forward" and "back" based on facing direction
-    var _faceY=playerEgg.mesh.rotation.y;
-    var _faceSinY=Math.sin(_faceY),_faceCosY=Math.cos(_faceY);
-    var _inputX=(_hLeft?-1:0)+(_hRight?1:0);
-    var _inputZ=(_hDown?1:0)+(keys['KeyW']||keys['ArrowUp']?-1:0);
-    var _inputDot=_inputX*_faceSinY+_inputZ*_faceCosY;
-    // ---- Back-Forward detection: opposite directions (absolute) ----
-    if(!playerEgg._bfSeq)playerEgg._bfSeq=0;
-    if(!playerEgg._bfTimer)playerEgg._bfTimer=0;
-    playerEgg._bfTimer--;
-    // Detect any direction press (absolute, not relative to facing)
-    var _anyDX=(_hLeft?-1:0)+(_hRight?1:0);
-    var _anyDZ=(_hDown?1:0)+((keys['KeyW']||keys['ArrowUp'])?-1:0);
-    var _anyDL=DANBO_WASM.len2D(_anyDX,_anyDZ);
-    // Hysteresis: press at 0.3, release at 0.15 (easier to re-trigger on mobile joystick)
-    var _dpPressed=_anyDL>0.3;
-    if(!_dpPressed&&_anyDL<0.15)playerEgg._prevDA=false;
-    var _newDP=_dpPressed&&!playerEgg._prevDA;
-    if(_dpPressed)playerEgg._prevDA=true;
-    if(_newDP&&playerEgg._bfSeq===0){
-        playerEgg._bfSeq=1;playerEgg._bfTimer=30;
-        playerEgg._bfDX=_anyDX;playerEgg._bfDZ=_anyDZ;
-    } else if(_newDP&&playerEgg._bfSeq===1){
-        var _bfD2=_anyDX*(playerEgg._bfDX||0)+_anyDZ*(playerEgg._bfDZ||0);
-        if(_bfD2<-0.3){playerEgg._bfSeq=2;playerEgg._bfTimer=30;playerEgg._bfReady=true;playerEgg._bfMoveAngle=Math.atan2(_anyDX,_anyDZ);}
-        else{playerEgg._bfSeq=1;playerEgg._bfTimer=30;playerEgg._bfDX=_anyDX;playerEgg._bfDZ=_anyDZ;}
-    }
-    if(playerEgg._bfTimer<=0){playerEgg._bfSeq=0;playerEgg._bfReady=false;}
-    // Forward/back press for other uses
-    var _inputBack=(_inputDot<-0.3);
-    var _inputFwd=(_inputDot>0.3);
-    var _inputBackPress=_inputBack&&!playerEgg._prevBfBack;
-    var _inputFwdPress=_inputFwd&&!playerEgg._prevBfFwd;
-    playerEgg._prevBfBack=_inputBack;playerEgg._prevBfFwd=_inputFwd;
-    // ---- Forward-Forward detection: same direction pressed twice ----
-    if(!playerEgg._ffSeq)playerEgg._ffSeq=0;
-    if(!playerEgg._ffTimer)playerEgg._ffTimer=0;
-    playerEgg._ffTimer--;
-    if(_newDP&&playerEgg._ffSeq===0&&!playerEgg._bfReady){
-        playerEgg._ffSeq=1;playerEgg._ffTimer=30;
-        playerEgg._ffDX=_anyDX;playerEgg._ffDZ=_anyDZ;
-    } else if(_newDP&&playerEgg._ffSeq===1&&!playerEgg._bfReady){
-        var _ffDot=_anyDX*(playerEgg._ffDX||0)+_anyDZ*(playerEgg._ffDZ||0);
-        if(_ffDot>0.3){
-            playerEgg._ffSeq=2;playerEgg._ffTimer=30;playerEgg._ffReady=true;playerEgg._ffMoveAngle=Math.atan2(_anyDX,_anyDZ);
-        } else {
-            playerEgg._ffSeq=1;playerEgg._ffTimer=30;
-            playerEgg._ffDX=_anyDX;playerEgg._ffDZ=_anyDZ;
-        }
-    }
-    if(playerEgg._ffTimer<=0){playerEgg._ffSeq=0;playerEgg._ffReady=false;}
-    // ---- Unified move direction: used by all directional specials ----
-    // bf moves use second press direction, ff moves use second press direction
-    if(_tpsCamMode){
-        // TPS: all skills fire in character's facing direction
-        playerEgg._moveDir=playerEgg.mesh.rotation.y;
-    } else if(playerEgg._bfReady&&playerEgg._bfMoveAngle!==undefined)playerEgg._moveDir=playerEgg._bfMoveAngle;
-    else if(playerEgg._ffReady&&playerEgg._ffMoveAngle!==undefined)playerEgg._moveDir=playerEgg._ffMoveAngle;
-    else playerEgg._moveDir=playerEgg.mesh.rotation.y;
-    // ---- Tatsumaki (旋风腿): 後+前+T (back-forward-kick) ----
-    playerEgg._tatsuReady=playerEgg._bfReady;
-    // ---- Hadouken (波動拳): 前前+R (forward-forward-punch) ----
-    playerEgg._hadouReady=playerEgg._ffReady;
-    playerEgg._prevHLeft=_hLeft;playerEgg._prevHRight=_hRight;playerEgg._prevHDown=_hDown;playerEgg._prevHUp=_hUp;
-    // ---- Simple command inputs for charge characters (no actual charging needed) ----
-    // Sonic Boom / 気功拳: use →→+R (forward-forward, same as hadouken)
-    playerEgg._chargeForwardReady=playerEgg._ffReady;
-    // Somersault / Spinning Bird: use ←→+T (same as tatsumaki = bf)
-    playerEgg._chargeUpReady=playerEgg._bfReady;
-    // ---- Rapid press detection (Chun-Li/Honda/Blanka) ----
-    if(!playerEgg._rapidR)playerEgg._rapidR=0;
-    if(!playerEgg._rapidT)playerEgg._rapidT=0;
-    if(!playerEgg._rapidRTimer)playerEgg._rapidRTimer=0;
-    if(!playerEgg._rapidTTimer)playerEgg._rapidTTimer=0;
-    if(keys['KeyR']&&!playerEgg._rWasDown){playerEgg._rapidR++;playerEgg._rapidRTimer=60;}
-    if(keys['KeyT']&&!playerEgg._tWasDown){playerEgg._rapidT++;playerEgg._rapidTTimer=60;}
-    playerEgg._rapidRTimer--;playerEgg._rapidTTimer--;
-    if(playerEgg._rapidRTimer<=0)playerEgg._rapidR=0;
-    if(playerEgg._rapidTTimer<=0)playerEgg._rapidT=0;
-    // Rapid R ready (3+ presses in 60 frames) — 森林蛋/水晶蛋 rapid punch
-    playerEgg._rapidRReady=(playerEgg._rapidR>=3);
-    // Rapid T ready (3+ presses in 60 frames) — 星愿蛋 rapid kick
-    playerEgg._rapidTReady=(playerEgg._rapidT>=3);
-    // ---- Dhalsim passive: extended attack range ----
-    playerEgg._extendedRange=(_ct==='cockroach')?MOVE_PARAMS.cockroach.extendedRange:1.0;
-    // ---- Zangief Double Lariat: R+T held together ----
-    playerEgg._lariatReady=(keys['KeyR']&&keys['KeyT']&&_hasMove(_ct,'RT'));
-    // ---- Piledriver input sequence tracker (Zangief only: forward-back-forward+F) ----
-    if(_ct==='bear'){
-        if(!playerEgg._pdSeq)playerEgg._pdSeq=0;
-        if(!playerEgg._pdTimer)playerEgg._pdTimer=0;
-        playerEgg._pdTimer--;
-        if(_inputFwdPress&&playerEgg._pdSeq===0){playerEgg._pdSeq=1;playerEgg._pdTimer=40;}
-        else if(_inputBackPress&&playerEgg._pdSeq===1){playerEgg._pdSeq=2;playerEgg._pdTimer=40;}
-        else if(_inputFwdPress&&playerEgg._pdSeq===2){playerEgg._pdSeq=3;playerEgg._pdTimer=40;playerEgg._piledriverReady=true;}
-        if(playerEgg._pdTimer<=0){playerEgg._pdSeq=0;playerEgg._piledriverReady=false;}
-    } else {playerEgg._piledriverReady=false;}
-    playerEgg._pdPrevLeft=!!(keys['KeyA']||keys['ArrowLeft']);
-    playerEgg._pdPrevRight=!!(keys['KeyD']||keys['ArrowRight']);
     // ---- Body Slam landing impact (height-based damage) ----
     if(playerEgg._bodySlam&&playerEgg.onGround){
         playerEgg._bodySlam=false;

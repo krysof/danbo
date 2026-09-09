@@ -3,12 +3,20 @@
 // ---- Input ----
 const keys={};
 function _isTextInputEvent(e){return !!(e.isComposing||e.target&&(e.target.isContentEditable||e.target.closest&&e.target.closest('input,textarea,select')));}
+function _queueCombatPress(code){
+    if((code!=='KeyR'&&code!=='KeyT')||typeof playerEgg==='undefined'||!playerEgg||(gameState!=='city'&&gameState!=='racing')||window._accountPanelOpen||window._multiplayerPanelOpen||window._worldMapOpen||window._shopOpen||window._portalConfirmOpen)return;
+    playerEgg[code==='KeyR'?'_queuedAttackR':'_queuedAttackT']=true;
+}
+function _clearBufferedCombat(){if(typeof playerEgg!=='undefined'&&playerEgg){playerEgg._punchBuffer=playerEgg._kickBuffer=0;playerEgg._queuedAttackR=playerEgg._queuedAttackT=false;}}
+addEventListener('blur',_clearBufferedCombat);
+document.addEventListener('visibilitychange',function(){if(document.hidden)_clearBufferedCombat();});
 addEventListener('keydown',e=>{
     if(e.defaultPrevented||_isTextInputEvent(e))return;
     if(gameState==='menu'&&e.repeat)return;
     if(gameState==='menu'&&e.target&&e.target.closest&&e.target.closest('button,input,select,textarea,summary'))return;
     if(window._accountPanelOpen||window._journeyPanelOpen)return;
     keys[e.code]=true;
+    if(!e.repeat)_queueCombatPress(e.code);
     if(e.code==='KeyG')keys['Space']=true;
     if(['Space','KeyG','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','KeyF','ShiftLeft','ShiftRight'].includes(e.code))e.preventDefault();
     if(e.code==='Enter'&&gameState==='city'&&!_portalConfirmOpen&&!_chatOpen){
@@ -52,10 +60,10 @@ function updJoy(touch){
 // Helper: add both touch and mouse support to a virtual button
 function _bindVBtn(btn,keyCode){
     if(!btn)return;
-    btn.addEventListener('touchstart',function(e){e.preventDefault();keys[keyCode]=true;},{passive:false});
+    btn.addEventListener('touchstart',function(e){e.preventDefault();keys[keyCode]=true;_queueCombatPress(keyCode);},{passive:false});
     btn.addEventListener('touchend',function(e){e.preventDefault();keys[keyCode]=false;},{passive:false});
     btn.addEventListener('touchcancel',function(e){keys[keyCode]=false;},{passive:false});
-    btn.addEventListener('mousedown',function(e){e.preventDefault();keys[keyCode]=true;});
+    btn.addEventListener('mousedown',function(e){e.preventDefault();keys[keyCode]=true;_queueCombatPress(keyCode);});
     btn.addEventListener('mouseup',function(e){e.preventDefault();keys[keyCode]=false;});
     btn.addEventListener('mouseleave',function(e){keys[keyCode]=false;});
 }

@@ -196,6 +196,7 @@ function _applyLang(){
     var chatF=document.getElementById('chat-field');if(chatF)chatF.placeholder=L('chatPlaceholder');
     // Repaint in place: language changes must not recreate gates or reset their cooldown.
     if(typeof _refreshWarpPipeLabels==='function')_refreshWarpPipeLabels();
+    if(typeof scene!=='undefined')scene.traverse(function(node){if(node.userData&&node.userData.refreshSceneText)node.userData.refreshSceneText();});
     // Update portal names/descs to match new language
     if(typeof portals!=='undefined'){
         for(var pi2=0;pi2<portals.length;pi2++){

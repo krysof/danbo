@@ -566,39 +566,34 @@ function updateEggPhysics(egg, isCity){
 }
 
 // ---- Egg-to-egg collision ----
+function resolveEggBodyContact(a,b,moveA,moveB,zeroX){
+    if(!a||!b||a.alive===false||b.alive===false||a.heldBy||b.heldBy||a._networkHeldBy||b._networkHeldBy||a._piledriverLocked||b._piledriverLocked)return false;
+    const pa=a.mesh.position,pb=b.mesh.position,dx=pb.x-pa.x,dz=pb.z-pa.z;
+    const radius=(a.radius||.55)+(b.radius||.55),d2=dx*dx+dz*dz;
+    // Compare horizontal footprints on overlapping body-height bands, not the
+    // distance between feet in 3D. A stair or small hop must not remove a body.
+    if(Math.abs(pb.y-pa.y)>=1.05||d2>=radius*radius)return false;
+    const distance=Math.sqrt(d2),nx=distance>.0001?dx/distance:zeroX||1,nz=distance>.0001?dz/distance:0;
+    const overlap=radius-distance+.0001;
+    pa.x-=nx*overlap*moveA;pa.z-=nz*overlap*moveA;
+    if(moveB){pb.x+=nx*overlap*moveB;pb.z+=nz*overlap*moveB;}
+    // Remove only velocity closing the gap: no added bounce every walking tick,
+    // no cancellation of tangential motion, jump height or attack reactions.
+    const closing=((a.vx||0)-(b.vx||0))*nx+((a.vz||0)-(b.vz||0))*nz;
+    if(closing>0){a.vx=(a.vx||0)-nx*closing*moveA;a.vz=(a.vz||0)-nz*closing*moveA;
+        if(moveB){b.vx=(b.vx||0)+nx*closing*moveB;b.vz=(b.vz||0)+nz*closing*moveB;}}
+    return true;
+}
 function resolveEggCollisions(eggList){
     const protectedPlayer=window.DANBO_JOURNEY&&typeof playerEgg!=='undefined'&&DANBO_JOURNEY.protects(playerEgg)?playerEgg:null;
-    for(let i=0;i<eggList.length;i++){
+    for(let pass=0;pass<2;pass++)for(let i=0;i<eggList.length;i++){
         const a=eggList[i];
         if(!a.alive||a.heldBy||a._networkHeldBy||a._piledriverLocked)continue;
         for(let j=i+1;j<eggList.length;j++){
             const b=eggList[j];
             if(!b.alive||b.heldBy||b._networkHeldBy||b._piledriverLocked)continue;
-            const dx=b.mesh.position.x-a.mesh.position.x;
-            const dz=b.mesh.position.z-a.mesh.position.z;
-            const dy=b.mesh.position.y-a.mesh.position.y;
-            const dist=DANBO_WASM.dist3D(b.mesh.position.x,b.mesh.position.y,b.mesh.position.z,a.mesh.position.x,a.mesh.position.y,a.mesh.position.z);
-            const minDist=a.radius+b.radius;
-            if(dist<minDist&&dist>0.01){
-                // NPCs yield on the short introductory path; do not shove the
-                // learner off a marker or move their character before first input.
-                if(a===protectedPlayer||b===protectedPlayer){
-                    const npc=a===protectedPlayer?b:a,sign=a===protectedPlayer?1:-1;
-                    npc.mesh.position.x+=sign*dx/dist*(minDist-dist);
-                    npc.mesh.position.z+=sign*dz/dist*(minDist-dist);
-                    continue;
-                }
-                const overlap=(minDist-dist)*0.5;
-                const nx=dx/dist, nz=dz/dist, ny=dy/dist;
-                a.mesh.position.x-=nx*overlap;
-                a.mesh.position.z-=nz*overlap;
-                b.mesh.position.x+=nx*overlap;
-                b.mesh.position.z+=nz*overlap;
-                // Bounce velocities
-                const pushStr=0.06;
-                a.vx-=nx*pushStr; a.vz-=nz*pushStr;
-                b.vx+=nx*pushStr; b.vz+=nz*pushStr;
-                // Slight squash on contact
+            const moveA=a===protectedPlayer?0:b===protectedPlayer?1:.5;
+            if(resolveEggBodyContact(a,b,moveA,1-moveA)){
                 a.squash=Math.min(a.squash,0.85);
                 b.squash=Math.min(b.squash,0.85);
             }
