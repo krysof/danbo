@@ -1,0 +1,23 @@
+{
+  "id": "./",
+  "name": "蛋寶世界",
+  "short_name": "蛋寶世界",
+  "lang": "zh-TW",
+  "start_url": "./?from=homescreen",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#153746",
+  "theme_color": "#153746",
+  "icons": [
+    {
+      "src": "assets/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

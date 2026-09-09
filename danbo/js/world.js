@@ -46,6 +46,8 @@ function _danboMakePortalSign(group,text,color,pos,scale){
         ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
         ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
     }
+    function draw(label){
+    ctx.clearRect(0,0,512,112);text=label;
     ctx.shadowColor='rgba(5,10,24,.58)';ctx.shadowBlur=18;ctx.shadowOffsetY=7;
     var bg=ctx.createLinearGradient(0,14,0,98);
     bg.addColorStop(0,'rgba(31,42,65,.94)');bg.addColorStop(1,'rgba(11,18,34,.92)');
@@ -60,6 +62,9 @@ function _danboMakePortalSign(group,text,color,pos,scale){
     while(ctx.measureText(text||'').width>438&&fs>15){fs-=2;ctx.font='800 '+fs+'px sans-serif';}
     ctx.shadowColor='rgba(0,0,0,.72)';ctx.shadowBlur=5;ctx.fillText(text||'',256,69);
     ctx.shadowBlur=0;ctx.fillStyle=accent;roundedRect(206,82,100,5,3);ctx.fill();
+    if(tex)tex.needsUpdate=true;
+    }
+    draw(text);
     var tex=new THREE.CanvasTexture(canvas);
     if(THREE.SRGBColorSpace!==undefined)tex.colorSpace=THREE.SRGBColorSpace;
     var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
@@ -67,6 +72,7 @@ function _danboMakePortalSign(group,text,color,pos,scale){
     sign.scale.set(scale.x||5.4,scale.y||1.18,scale.z||1);
     sign.position.set(pos.x||0,pos.y||5.55,pos.z||0);
     sign.material.depthWrite=false;
+    sign.userData.setPortalText=draw;
     group.add(sign);
     return sign;
 }
@@ -864,14 +870,15 @@ function buildWarpPipes(){
         var tst=CITY_STYLES[tgt];
         var g=new THREE.Group();
         var pColor=pipeColors[tgt]||0x44DD44;
+        var pMat=new THREE.MeshPhongMaterial({color:pColor,transparent:true,opacity:0.4,side:THREE.DoubleSide});
         // Vertical tube — big and visible
-        var tube=_visualPipeBody(PIPE_CONFIG.radius,PIPE_CONFIG.height);
-        tube.position.y=PIPE_CONFIG.height/2;g.add(tube);
+        var tube=new THREE.Mesh(new THREE.CylinderGeometry(PIPE_CONFIG.radius,PIPE_CONFIG.radius,PIPE_CONFIG.height,16,1,true),pMat);
+        tube.name='danbo-transparent-warp-pipe';tube.position.y=PIPE_CONFIG.height/2;g.add(tube);
         // Top rim
-        var rim=_visualPipeFlange(PIPE_CONFIG.ringRadius,PIPE_CONFIG.ringThickness);
+        var rim=new THREE.Mesh(new THREE.TorusGeometry(PIPE_CONFIG.ringRadius,PIPE_CONFIG.ringThickness,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.4}));
         rim.position.y=PIPE_CONFIG.height;rim.rotation.x=Math.PI/2;g.add(rim);
         // Bottom rim
-        var rim2=_visualPipeFlange(PIPE_CONFIG.ringRadius,0.35);
+        var rim2=new THREE.Mesh(new THREE.TorusGeometry(PIPE_CONFIG.ringRadius,0.35,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.3}));
         rim2.position.y=0.1;rim2.rotation.x=Math.PI/2;g.add(rim2);
         // Inner glow spiral — more orbs
         var sMat=new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:0.5});
@@ -899,7 +906,19 @@ function buildWarpPipes(){
         var _pipeY=currentCityStyle===7?3:0;
         g.position.set(pos.x,_pipeY,pos.z);
         cityGroup.add(g);
-        warpPipeMeshes.push({group:g,x:pos.x,z:pos.z,y:_pipeY,targetStyle:tgt,_cooldown:false});
+        warpPipeMeshes.push({group:g,sign:sign,x:pos.x,z:pos.z,y:_pipeY,targetStyle:tgt,_cooldown:false});
+    }
+}
+
+function _refreshWarpPipeLabels(){
+    var pipes=warpPipeMeshes.concat(typeof _cloudWorldPipes!=='undefined'?_cloudWorldPipes:[]);
+    for(var i=0;i<pipes.length;i++){
+        var wp=pipes[i],tex=wp.sign&&wp.sign.material.map;
+        if(!tex||!CITY_STYLES[wp.targetStyle])continue;
+        var w=tex.image.width,h=tex.image.height,ctx=tex.image.getContext('2d');ctx.clearRect(0,0,w,h);
+        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,w,h);
+        ctx.fillStyle='#fff';ctx.font='bold '+Math.round(h*.35)+'px sans-serif';ctx.textAlign='center';
+        ctx.fillText(CITY_STYLES[wp.targetStyle].name,w/2,h*.65,w-24);tex.needsUpdate=true;
     }
 }
 
@@ -1271,71 +1290,29 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
     var midX=fromX+dirX*200;
     var midZ=fromZ+dirZ*200;
     _pipeMidX=midX;_pipeMidZ=midZ;
-    // Build the transparent tube corridor — long arc through sky
-    _pipeTubeGroup=new THREE.Group();
-    var steps=40;
-    var tubeColor=0xE5B230; // Amber energy corridor stays transparent for the travel camera.
-    var pColor=tubeColor;
-    var isMoonTravel=(targetStyle===5);
-    if(isMoonTravel)pColor=0x6644CC;
-    var tubeMat=new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:isMoonTravel?0.15:0.25,side:THREE.DoubleSide,depthWrite:false,fog:false});
-    tubeMat.forceSinglePass=true;
-    var tubeGeo=new THREE.CylinderGeometry(3,3,3,10,1,true);
-    var ringGeo=new THREE.TorusGeometry(3,0.2,8,16);
-    var ringMat=new THREE.MeshBasicMaterial({color:isMoonTravel?0x8866DD:pColor,transparent:true,opacity:isMoonTravel?0.5:0.4,fog:false});
-    for(var i=0;i<steps;i++){
-        var t=i/steps;
-        // Quadratic bezier: start → mid (far away) → end (center)
-        var u=1-t;
-        var px=u*u*fromX+2*u*t*midX+t*t*_pipeEndX;
-        var pz=u*u*fromZ+2*u*t*midZ+t*t*_pipeEndZ;
-        var py=_pipeStartY+Math.sin(t*Math.PI)*60; // high arc — 60 units up
-        var seg=new THREE.Mesh(tubeGeo,tubeMat);
-        seg.position.set(px,py,pz);
-        if(i<steps-1){
-            var t2=(i+1)/steps;var u2=1-t2;
-            var nx=u2*u2*fromX+2*u2*t2*midX+t2*t2*_pipeEndX;
-            var nz=u2*u2*fromZ+2*u2*t2*midZ+t2*t2*_pipeEndZ;
-            var ny=_pipeStartY+Math.sin(t2*Math.PI)*60;
-            seg.lookAt(nx,ny,nz);seg.rotateX(Math.PI/2);
-        }
-        _pipeTubeGroup.add(seg);
-        if(i%5===0){
-            var ringColor=isMoonTravel?0x8866DD:pColor;
-            var ring=new THREE.Mesh(ringGeo,ringMat);
-            ring.position.set(px,py,pz);
-            if(i<steps-1){
-                var t3=(i+1)/steps;var u3=1-t3;
-                ring.lookAt(u3*u3*fromX+2*u3*t3*midX+t3*t3*_pipeEndX,_pipeStartY+Math.sin(t3*Math.PI)*60,u3*u3*fromZ+2*u3*t3*midZ+t3*t3*_pipeEndZ);
-            }
-            _pipeTubeGroup.add(ring);
-        }
-        // Moon travel: stars and nebula particles inside the tunnel
-        if(isMoonTravel&&i%2===0){
-            var starColors2=[0xFFFFFF,0xCCDDFF,0xFFCCDD,0xDDCCFF,0xAABBFF,0xFFEECC];
-            for(var si=0;si<3;si++){
-                var sa=Math.random()*Math.PI*2;
-                var sr=0.5+Math.random()*2.5;
-                var ssc=starColors2[Math.floor(Math.random()*starColors2.length)];
-                var sStar=new THREE.Mesh(new THREE.SphereGeometry(0.08+Math.random()*0.15,4,3),new THREE.MeshBasicMaterial({color:ssc,transparent:true,opacity:0.7+Math.random()*0.3}));
-                sStar.position.set(px+Math.cos(sa)*sr,py+Math.sin(sa)*sr,pz+(Math.random()-0.5)*2);
-                _pipeTubeGroup.add(sStar);
-            }
-            // Nebula wisps
-            if(i%6===0){
-                var nebC=[0x330055,0x440033,0x220044,0x110033][Math.floor(Math.random()*4)];
-                var neb=new THREE.Mesh(new THREE.SphereGeometry(2+Math.random()*2,6,4),new THREE.MeshBasicMaterial({color:nebC,transparent:true,opacity:0.15+Math.random()*0.1,side:THREE.BackSide}));
-                neb.position.set(px+(Math.random()-0.5)*4,py+(Math.random()-0.5)*3,pz+(Math.random()-0.5)*4);
-                _pipeTubeGroup.add(neb);
-            }
-        }
-    }
-    // The travel corridor is its own unlit scene. Flying the main camera high
-    // above the city exposed thousands of previously unseen objects/shadows and
-    // paid their first-use GPU cost just to display a three-second transition.
+    // Independent, unlit dream corridor: no city rendering or shadow compilation.
     _pipeTravelScene=new THREE.Scene();
-    _pipeTravelScene.background=new THREE.Color(pColor).multiplyScalar(0.055);
-    _pipeTravelScene.add(_pipeTubeGroup);
+    _pipeTubeGroup=new THREE.Group();_pipeTravelScene.add(_pipeTubeGroup);
+    var moon=targetStyle===5;
+    var sky=new THREE.Mesh(new THREE.SphereGeometry(600,24,12),new THREE.ShaderMaterial({
+        uniforms:{top:{value:new THREE.Color(moon?0x483778:0x626be5)},horizon:{value:new THREE.Color(moon?0xb188d7:0xefb2da)},bottom:{value:new THREE.Color(moon?0x537db6:0x81dcea)}},
+        vertexShader:'varying vec3 vDir;void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+        fragmentShader:'uniform vec3 top;uniform vec3 horizon;uniform vec3 bottom;varying vec3 vDir;void main(){float h=normalize(vDir).y;vec3 c=mix(horizon,top,smoothstep(-.05,.8,h));c=mix(c,bottom,(1.-smoothstep(-.7,.1,h)));float veil=pow(.5+.5*sin(vDir.x*7.+vDir.z*5.+h*11.),3.)*.12;c+=vec3(.15,.2,.3)*veil;gl_FragColor=vec4(c,1.);\n#include <colorspace_fragment>\n}',
+        side:THREE.BackSide,depthWrite:false,toneMapped:false,fog:false
+    }));sky.name='danbo-dream-travel-sky';sky.renderOrder=-100;_pipeTravelScene.add(sky);
+    var curve=new THREE.Curve();curve.getPoint=function(t,out){var u=1-t;return (out||new THREE.Vector3()).set(u*u*fromX+2*u*t*midX,u*u*_pipeStartY+2*u*t*_pipeStartY+t*t*_pipeStartY+Math.sin(t*Math.PI)*60,u*u*fromZ+2*u*t*midZ);};
+    var corridor=new THREE.Mesh(new THREE.TubeGeometry(curve,80,3,12,false),new THREE.MeshBasicMaterial({color:moon?0xcbb1ff:0xbdf6ff,transparent:true,opacity:.14,side:THREE.DoubleSide,depthWrite:false,toneMapped:false,fog:false}));
+    corridor.material.forceSinglePass=true;_pipeTubeGroup.add(corridor);
+    var ringGeo=new THREE.TorusGeometry(3,.13,6,24),ringMat=new THREE.MeshBasicMaterial({color:moon?0xe3caff:0xffe3fb,transparent:true,opacity:.65,depthWrite:false,toneMapped:false,fog:false});
+    for(var i=1;i<16;i++){var t=i/16,ring=new THREE.Mesh(ringGeo,ringMat);ring.position.copy(curve.getPoint(t));ring.lookAt(curve.getPoint(Math.min(.999,t+.005)));_pipeTubeGroup.add(ring);}
+    var pos=[],col=[],palette=[new THREE.Color(0xffffff),new THREE.Color(0xa7f8ff),new THREE.Color(0xffc5ee),new THREE.Color(0xffecb0)];
+    for(var i=0;i<160;i++){var p=curve.getPoint(i/160),a=i*2.39996,r=4+(i%7)*1.4;pos.push(p.x+Math.cos(a)*r,p.y+Math.sin(a)*r,p.z+Math.sin(i*1.7)*8);var c=palette[i%4];col.push(c.r,c.g,c.b);}
+    var starsGeo=new THREE.BufferGeometry();starsGeo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));starsGeo.setAttribute('sparkleColor',new THREE.Float32BufferAttribute(col,3));
+    var stars=new THREE.Points(starsGeo,new THREE.ShaderMaterial({uniforms:{time:{value:0}},
+        vertexShader:'attribute vec3 sparkleColor;varying vec3 vColor;varying float vGlow;uniform float time;void main(){vColor=sparkleColor;vGlow=.65+.35*sin(time*2.+position.x);vec4 p=modelViewMatrix*vec4(position,1.);gl_PointSize=clamp(160./max(1.,-p.z),2.,8.);gl_Position=projectionMatrix*p;}',
+        fragmentShader:'varying vec3 vColor;varying float vGlow;void main(){vec2 p=abs(gl_PointCoord-.5)*2.;float a=max(pow(max(0.,1.-length(p)),2.),max(0.,1.-min(p.x,p.y)*9.)*max(0.,1.-max(p.x,p.y)));if(a<.02)discard;gl_FragColor=vec4(vColor,a*vGlow);\n#include <colorspace_fragment>\n}',
+        transparent:true,depthWrite:false,toneMapped:false,fog:false,blending:THREE.AdditiveBlending
+    }));stars.name='danbo-dream-travel-stars';_pipeTubeGroup.add(stars);
     // Preserve the selected character's silhouette and colours in the corridor,
     // but use cheap unlit copies rather than compiling another PBR light setup.
     _pipeTravelMarker=playerEgg.mesh.clone(true);
@@ -1344,7 +1321,7 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
         if(!object.isMesh||!object.material)return;
         function unlit(material){return new THREE.MeshBasicMaterial({
             color:material.color||0xffffff,map:material.map||null,vertexColors:!!material.vertexColors,
-            transparent:material.transparent,opacity:material.opacity,side:material.side,fog:false
+            transparent:material.transparent,opacity:material.opacity,side:material.side,fog:false,toneMapped:false
         });}
         object.material=Array.isArray(object.material)?object.material.map(unlit):unlit(object.material);
         object.castShadow=false;object.receiveShadow=false;
@@ -1421,6 +1398,8 @@ function _renderPipeTravelFrame(){
     if(!_pipeTravelScene||!playerEgg)return;
     _pipeTravelMarker.position.copy(playerEgg.mesh.position);
     _pipeTravelMarker.quaternion.copy(playerEgg.mesh.quaternion);
+    var sky=_pipeTravelScene.getObjectByName('danbo-dream-travel-sky');if(sky)sky.position.copy(camera.position);
+    var stars=_pipeTravelScene.getObjectByName('danbo-dream-travel-stars');if(stars)stars.material.uniforms.time.value=performance.now()*.001;
     R.setRenderTarget(null);
     R.render(_pipeTravelScene,camera);
 }
@@ -1952,11 +1931,12 @@ function _buildCloudWorldMoonPipe(px,py,pz,options){
     options=options||{};
     var pColor=0xCCCCFF;
     var g=new THREE.Group();
-    var tube=_visualPipeBody(2.5,6);
+    var pMat=new THREE.MeshPhongMaterial({color:pColor,transparent:true,opacity:0.4,side:THREE.DoubleSide});
+    var tube=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,6,16,1,true),pMat);
     tube.position.y=3;g.add(tube);
-    var rim=_visualPipeFlange(2.5,0.35);
+    var rim=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.35,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.5}));
     rim.position.y=6;rim.rotation.x=Math.PI/2;g.add(rim);
-    var rim2=_visualPipeFlange(2.5,0.3);
+    var rim2=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.3,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.3}));
     rim2.position.y=0.1;rim2.rotation.x=Math.PI/2;g.add(rim2);
     // Moon icon on top
     var moonSphere=new THREE.Mesh(new THREE.SphereGeometry(1.2,12,8),toon(0xEEEECC,{emissive:0xAAAA88,emissiveIntensity:0.4}));
@@ -1978,12 +1958,12 @@ function _buildCloudWorldMoonPipe(px,py,pz,options){
         g.add(sp);
     }
     // Label
-    var canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
+    var canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
     var ctx2=canvas.getContext('2d');
-    ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,256,64);
-    ctx2.fillStyle='#fff';ctx2.font='bold 28px sans-serif';ctx2.textAlign='center';
+    ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,512,128);
+    ctx2.fillStyle='#fff';ctx2.font='bold 44px sans-serif';ctx2.textAlign='center';
     var moonName=CITY_STYLES[5]?CITY_STYLES[5].name:'Moon';
-    ctx2.fillText(moonName,128,42);
+    ctx2.fillText(moonName,256,82,488);
     var tex=new THREE.CanvasTexture(canvas);
     var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
     sign.scale.set(4,1,1);sign.position.y=10;
@@ -1994,7 +1974,7 @@ function _buildCloudWorldMoonPipe(px,py,pz,options){
     if(options.editorSpecialIndex!==undefined)g.userData.editorSpecialIndex=Number(options.editorSpecialIndex);
     if(options.instanceId)g.userData.editorInstanceId=String(options.instanceId);
     scene.add(g);
-    var pipe={group:g,x:px,z:pz,y:py,targetStyle:5,_cooldown:false,scale:pipeScale,rotationY:pipeRotation*Math.PI/180,editorSpecialIndex:options.editorSpecialIndex};
+    var pipe={group:g,sign:sign,x:px,z:pz,y:py,targetStyle:5,_cooldown:false,scale:pipeScale,rotationY:pipeRotation*Math.PI/180,editorSpecialIndex:options.editorSpecialIndex};
     _cloudWorldPipes.push(pipe);
     if(!_cloudWorldPipe)_cloudWorldPipe=pipe;
     return pipe;
@@ -2060,11 +2040,12 @@ function _buildBabylonTower(){
     var archTop=new THREE.Mesh(new THREE.BoxGeometry(topW*0.8,0.8,1.2),toon(0x774400));
     archTop.position.set(0,topY+4,0);g.add(archTop);
     // Pipe elevator inside — launches player to cloud world (y=44)
-    var pipeBody=_visualPipeBody(1.8,topY+2,16,true);
+    var pipeMat=new THREE.MeshPhongMaterial({color:0x44FF88,transparent:true,opacity:0.5,side:THREE.DoubleSide});
+    var pipeBody=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.8,topY+2,16,1,true),pipeMat);
     pipeBody.position.y=(topY+2)/2;g.add(pipeBody);
-    var pipeRim=_visualPipeFlange(1.8,0.3);
+    var pipeRim=new THREE.Mesh(new THREE.TorusGeometry(1.8,0.3,8,16),toon(0x44FF88,{emissive:0x22AA44,emissiveIntensity:0.4}));
     pipeRim.position.y=0.2;pipeRim.rotation.x=Math.PI/2;g.add(pipeRim);
-    var pipeRimTop=_visualPipeFlange(1.8,0.3);
+    var pipeRimTop=new THREE.Mesh(new THREE.TorusGeometry(1.8,0.3,8,16),toon(0x44FF88,{emissive:0x22AA44,emissiveIntensity:0.4}));
     pipeRimTop.position.y=topY+1;pipeRimTop.rotation.x=Math.PI/2;g.add(pipeRimTop);
     // Glowing orbs spiraling up inside pipe
     var orbMat=new THREE.MeshBasicMaterial({color:0x88FFAA,transparent:true,opacity:0.6});

@@ -272,7 +272,7 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
    Japanese population labels. Wrap the HUD rather than cover language/audio. */
 @media(max-width:700px){.hud-top{padding-right:50vw}}
 #chest-hud{top:var(--danbo-status-top,44px)!important}
-#journey-task{top:calc(var(--danbo-status-top,44px) + 60px)!important}
+#journey-task,#journey-feedback{top:calc(var(--danbo-status-top,44px) + 60px)!important}
 .hud-pill{background:rgba(0,0,0,.5);color:#fff;padding:clamp(2px,0.8vw,5px) clamp(6px,2vw,13px);border-radius:16px;font-size:clamp(10px,2.5vw,13px);font-weight:700;backdrop-filter:blur(5px);white-space:nowrap}
 .hud-desktop-only{display:none}
 @media(min-width:600px){.hud-desktop-only{display:inline-block}}
@@ -398,11 +398,33 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 .server-list-item.full .server-state-text{color:#ffd479}
 .journey-actions button,#journey-next,#journey-conflict button{font:inherit;font-size:13px;font-weight:600;line-height:1.5;border:1px solid #82c9c050;border-radius:12px;padding:12px 14px;background:#244a59;color:#edfffb}.journey-actions .account-primary{background:linear-gradient(120deg,#6ed7bc,#47b9c5);color:#123441}.journey-actions button:focus-visible{outline:2px solid #ffd886;outline-offset:3px}@media(max-width:480px){.journey-actions button{flex-basis:100%!important;min-height:44px!important;margin:0!important;font-size:14px!important}.journey-card{padding:22px!important}.journey-card p{font-size:13px}.journey-card h2{font-size:25px}}
 .server-list-item:focus-visible{outline:2px solid #72efc1;outline-offset:-3px}
-.journey-card{max-width:540px}.journey-card p{line-height:1.6}.journey-actions{display:flex;gap:8px;flex-wrap:wrap}.journey-actions button{flex:1;min-width:140px;min-height:44px}.journey-check{display:flex!important;align-items:center;gap:9px;font-size:12px;line-height:1.6;margin:14px 0}.journey-check[hidden]{display:none!important}.journey-check input{width:18px!important;min-width:18px;height:18px;margin:0;accent-color:#35b69f}.journey-card button{cursor:pointer}.journey-card [hidden],.journey-actions[hidden]{display:none!important}#journey-card{width:100%;height:auto;border-radius:18px;margin:10px 0}#journey-message{color:#ffd886}#journey-status{color:#88e5c6}#journey-task{position:absolute;z-index:6;left:10px;top:104px;max-width:min(290px,53vw);border:1px solid #ffdc9270;background:#123342dd;color:#ffe3a7;border-radius:12px;padding:9px 12px;text-align:left;line-height:1.5;font-size:12px;cursor:pointer}#journey-task[hidden]{display:none}
+.journey-card{max-width:540px}.journey-card p{line-height:1.6}.journey-actions{display:flex;gap:8px;flex-wrap:wrap}.journey-actions button{flex:1;min-width:140px;min-height:44px}.journey-check{display:flex!important;align-items:center;gap:9px;font-size:12px;line-height:1.6;margin:14px 0}.journey-check[hidden]{display:none!important}.journey-check input{width:18px!important;min-width:18px;height:18px;margin:0;accent-color:#35b69f}.journey-card button{cursor:pointer}.journey-card [hidden],.journey-actions[hidden]{display:none!important}#journey-card{width:100%;height:auto;border-radius:18px;margin:10px 0}#journey-message{color:#ffd886}#journey-status{color:#88e5c6}#journey-task,#journey-feedback{position:absolute;z-index:6;left:10px;top:104px;max-width:min(290px,53vw);border:1px solid #ffdc9270;background:#123342dd;color:#ffe3a7;border-radius:12px;padding:9px 12px;text-align:left;line-height:1.5;font-size:12px;cursor:pointer}#journey-task[hidden]{display:none}
 @media(max-width:700px){.server-list-item{grid-template-columns:auto minmax(0,1fr) auto;min-height:88px}.server-ping{display:none}.server-state-text{grid-column:2/-1}.server-main-copy strong{font-size:16px}}
 
 .coop-card{margin:16px 0;padding:14px;border:1px solid #75cebc55;border-radius:16px;background:#16414d}.coop-card h3{color:#8ce9d2;margin:0 0 8px}.coop-card #coop-status{color:#ffe0a0;font-weight:700}.coop-card #coop-note{color:#8ce9d2}
-.coop-steps{padding-left:1.4em;font-size:13px;line-height:1.6}.coop-steps li+li{margin-top:6px}#coop-title:focus-visible{outline:2px solid #ffd886;outline-offset:3px}#coop-card{scroll-margin:12px}#journey-task{white-space:pre-line}
+.coop-steps{padding-left:1.4em;font-size:13px;line-height:1.6}.coop-steps li+li{margin-top:6px}#coop-title:focus-visible{outline:2px solid #ffd886;outline-offset:3px}#coop-card{scroll-margin:12px}#journey-task,#journey-feedback{white-space:pre-line}
 /* Keep dismissal available after the task scrolls directly to the rules. */
 #journey-close{position:sticky;top:0;right:0;float:right;z-index:2;width:36px;height:36px;border-radius:10px;background:#153746}#coop-title{padding-right:30px}
 .character-resume-card h2{font-size:21px;color:#9bc7c5}.character-resume-card #character-resume-name{font-size:clamp(24px,6vw,34px);font-weight:800;overflow-wrap:anywhere;margin:20px 0 5px}.character-resume-card #character-resume-hero{margin:0 0 24px}.character-resume-card button{min-height:48px}
+
+/* Pickup notices replace the task slot and never capture game input. */
+#journey-feedback{pointer-events:none;user-select:none;font-weight:700;color:#fff1b7;border-color:#ffe18c;background:#173744f0;box-shadow:0 0 12px #ffd66b28}
+#journey-feedback[hidden]{display:none}
+
+.journey-fold{margin-top:12px;border-top:1px solid #7fa8af45;padding-top:12px}.journey-fold>summary{cursor:pointer;font-weight:600;min-height:32px}.journey-card #journey-continue{width:100%;min-height:46px;margin:6px 0}.journey-card #journey-objectives{font-size:16px;color:#fff}.journey-card #journey-reward{font-size:13px;color:#ffe1a0}.journey-card #journey-card-name{font-size:14px;font-weight:500;margin:8px 0;color:#9dc6cd}
+/* Journey is a small non-modal HUD slot. Reserve the entire bottom control
+   area even with a short landscape viewport; extra content scrolls inside. */
+.journey-popover{position:absolute;z-index:8;left:10px;top:calc(var(--danbo-status-top,44px) + 60px);width:min(290px,53vw);max-height:max(48px,min(230px,calc(var(--danbo-vh,1dvh) * 100 - var(--danbo-status-top,44px) - 60px - max(185px,30dvh))));pointer-events:none;background:none;backdrop-filter:none}
+.journey-popover.hidden{display:none}
+.journey-popover>.journey-card{pointer-events:auto;width:100%;max-width:100%;max-height:inherit;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px!important;border-radius:12px;border-color:#6ea8a075;box-shadow:0 4px 12px #0003;background:#163441f0}
+.journey-popover .journey-card h2{font-size:14px;margin:0 28px 8px 0;line-height:1.5}
+.journey-popover #journey-card-name{display:none}
+.journey-popover .journey-card #journey-objectives{font-size:12px;margin:6px 0}
+.journey-popover .journey-card #journey-reward{font-size:11px;margin:6px 0}
+.journey-popover .journey-card p,.journey-popover .journey-fold{font-size:12px;line-height:1.5}
+.journey-popover .account-close{right:5px;top:2px;font-size:24px;min-width:30px;min-height:30px}
+.journey-popover .journey-card #journey-continue{padding:6px;min-height:32px;font-size:12px;margin:2px 0}
+.journey-popover .journey-fold{margin-top:6px;padding-top:6px}
+.journey-popover .journey-fold>summary{min-height:28px}
+.journey-popover .coop-card{padding:0;border:0;background:none;margin:8px 0}
+.journey-popover .journey-actions button{min-width:0;padding:7px;font-size:12px!important}

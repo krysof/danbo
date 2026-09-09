@@ -22,6 +22,12 @@
     function refresh(){
         if(!root.document||!document.querySelectorAll)return;
         if(document.documentElement)document.documentElement.lang={zhs:'zh-CN',zht:'zh-TW',ja:'ja',en:'en'}[locale()];
+        if(typeof L==='function'){
+            document.title=L('title');
+            document.querySelectorAll('[data-game-title]').forEach(function(el){if(el.tagName==='META')el.setAttribute('content',L('title'));else el.textContent=L('title');});
+            var manifest=document.querySelector&&document.querySelector('link[rel="manifest"]');
+            if(manifest)manifest.setAttribute('href',locale()==='en'?'manifest.webmanifest':'manifest.'+locale()+'.webmanifest');
+        }
         document.querySelectorAll('[data-ui-text]').forEach(function(el){el.textContent=text(el.getAttribute('data-ui-text'));});
         ['aria-label','placeholder','title'].forEach(function(attr){document.querySelectorAll('[data-ui-'+attr+']').forEach(function(el){el.setAttribute(attr,text(el.getAttribute('data-ui-'+attr)));});});
     }
@@ -34,6 +40,20 @@
     add(`旅行装扮¦旅行裝扮¦旅の装い¦Expedition outfit
 日常装扮¦日常裝扮¦いつもの装い¦Everyday outfit
 旅装¦旅裝¦旅装¦Travel`);
+    add(`旅程手册¦旅程手冊¦旅の手帳¦Journey journal
+来我的房间一起玩¦來我的房間一起玩¦私のルームで一緒に遊ぼう¦Come play in my room
+收起¦收起¦閉じる¦Collapse
+继续游戏¦繼續遊戲¦ゲームに戻る¦Continue playing
+多人挑战¦多人挑戰¦みんなでチャレンジ¦Co-op challenge
+保存与接力¦儲存與接力¦セーブ・引き継ぎ¦Save and transfer
+奖励：初旅星环¦獎勵：初旅星環¦報酬：はじまりの星環¦Reward: First Journey Halo
+奖励：初旅星环 ✓¦獎勵：初旅星環 ✓¦報酬：はじまりの星環 ✓¦Reward: First Journey Halo ✓
+★ 星光 +1 · {n}/3¦★ 星光 +1 · {n}/3¦★ 星の光 +1 · {n}/3¦★ Starlight +1 · {n}/3
+✨ 初旅星环已获得 · 已自动佩戴¦✨ 已獲得初旅星環 · 已自動佩戴¦✨ はじまりの星環を獲得・装着しました¦✨ First Journey Halo unlocked and equipped
+账号连接必须使用 HTTPS¦帳號連線必須使用 HTTPS¦アカウント接続には HTTPS が必要です¦Account connections require HTTPS
+服务器地址不能包含凭证¦伺服器位址不能包含憑證¦サーバーアドレスに認証情報は含められません¦Server addresses cannot contain credentials
+请先配置服务器地址¦請先設定伺服器位址¦先にサーバーアドレスを設定してください¦Set a server address first
+浏览器无法保存游客资料，请允许网站存储或注册账号¦瀏覽器無法儲存訪客資料，請允許網站儲存或註冊帳號¦ゲスト情報を保存できません。サイトの保存を許可するか、アカウント登録してください¦Guest data could not be saved. Allow site storage or register an account.`);
     add(`初次旅行¦初次旅行¦はじめての旅¦First journey
 移动 {n}/12 米 · WASD / 左摇杆¦移動 {n}/12 公尺 · WASD / 左搖桿¦{n}/12 m 歩こう · WASD / 左スティック¦Move {n}/12 m · WASD / left stick
 轻按并松开空格 /「跳」按钮¦輕按並放開空白鍵 /「跳」按鈕¦スペース /「ジャンプ」を押して離そう¦Press and release Space / Jump
@@ -220,7 +240,9 @@ DANBO 联机房¦DANBO 連線房¦DANBO オンラインルーム¦DANBO online r
 脚印¦腳印¦足跡¦Footprints
  · 实时试穿¦ · 即時試穿¦ · 試着中¦ · Live preview
 选择商品 · 3D 实时试穿¦選擇商品 · 即時試穿¦アイテムを選んで試着¦Select an item to try it on
-DANBO BOUTIQUE · 原创外观收藏¦DANBO BOUTIQUE · 原創造型收藏¦DANBO BOUTIQUE · オリジナルコレクション¦DANBO BOUTIQUE · Original collection
+原创造型收藏¦原創造型收藏¦オリジナルコレクション¦Original collection
+角色 {n}¦角色 {n}¦キャラ {n}¦Characters {n}
+含场景 NPC¦含場景 NPC¦街の NPC を含む¦Includes scene NPCs
 选择一件商品，在展台上实时试穿¦選擇一件商品，在展台上即時試穿¦アイテムを選んで、ここで試着しよう¦Select an item to try it on here
 ◆ 已装备¦◆ 已裝備¦◆ 装備中¦◆ Equipped
 ◇ 已拥有¦◇ 已擁有¦◇ 所持済み¦◇ Owned

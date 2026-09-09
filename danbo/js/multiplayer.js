@@ -133,12 +133,14 @@
             button.querySelector('.server-main-copy small').textContent=address;
             if(recommended&&entry.code===recommended.code)button.querySelector('.server-region').textContent=UI_T('推荐同服');
             var metrics=button.querySelectorAll('.server-metric b');
-            metrics[0].textContent=entry.status==='offline'?UI_T('离线'):UI_T('在线 {n}',{n:serverPopulation(entry)});
-            button.querySelector('.server-metric small').textContent=UI_T('空位 {n}',{n:entry.status==='offline'?0:Math.max(0,Math.min(entry.capacity,Number(entry.available)||0))});
-            if(window.DANBO_COMPANIONS&&Number.isInteger(entry.bots)&&entry.bots>0&&entry.status!=='offline'){
+            var npcs=window.DANBO_COMPANIONS?DANBO_COMPANIONS.ambient(true):0;
+            metrics[0].textContent=entry.status==='offline'?UI_T('离线'):UI_T('角色 {n}',{n:serverPopulation(entry)+npcs});
+            button.querySelector('.server-metric small').textContent=UI_T('含场景 NPC');
+            if(window.DANBO_COMPANIONS&&entry.status!=='offline'){
                 // Keep the breakdown available on demand, not a prominent
                 // "0 players" subtitle underneath an otherwise active world.
-                button.title=DANBO_COMPANIONS.detail(entry.players,entry.bots,entry.capacity)+' ('+DANBO_COMPANIONS.words().seats+')';
+                button.title=DANBO_COMPANIONS.detail(entry.players,entry.bots||0,entry.capacity,npcs)+' ('+DANBO_COMPANIONS.words().seats+')';
+                button.querySelector('.server-main-copy small').textContent=DANBO_COMPANIONS.detail(entry.players,entry.bots||0,0,npcs);
             }
             metrics[1].textContent=ping+'ms';
             button.querySelector('.server-state-text').textContent=entry.status==='full'?UI_T('已满（含预留席位）'):entry.status==='online'?UI_T('可进入'):UI_T('离线');
@@ -253,12 +255,10 @@
             title=serverLabel(normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value));
             if(window.DANBO_COMPANIONS){
                 var totals=DANBO_COMPANIONS.count(room.state);
-                count=totals.characters;
-                if(totals.bots){
-                    title+=' · '+DANBO_COMPANIONS.detail(totals.players,totals.bots,capacity)+' ('+DANBO_COMPANIONS.words().seats+')';
-                }
+                var npcs=DANBO_COMPANIONS.ambient(false);count=totals.characters+npcs;
+                title+=' · '+DANBO_COMPANIONS.detail(totals.players,totals.bots,capacity,npcs)+' ('+DANBO_COMPANIONS.words().seats+')';
             }
-            var populationText=UI_T('在线 {n}',{n:count});
+            var populationText=UI_T('角色 {n}',{n:count});
             text=(isPublicCode(code)?(code==='PUBLIC'?'1':code.slice(-1))+' · ':'')+populationText;online=true;
             if(ui.capacity)ui.capacity.textContent=populationText+' · '+(capacity?UI_T('最多 {n} 人',{n:capacity}):UI_T('读取容量中…'));
         }else if(status==='joining'||status==='reconnecting'){
@@ -326,11 +326,13 @@
         return sprite;
     }
     function rebuildRemoteAvatar(remote,statePlayer){
+        if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.disposeRemote(remote);
         if(remote.avatar){remote.root.remove(remote.avatar);disposeTransientObject3D(remote.avatar);}
         var index=Math.max(0,Math.min(7,Number(statePlayer.character)||0));
         var skin=CHARACTERS[index]||CHARACTERS[0];
         remote.avatar=createEggMesh(skin.color,skin.accent,skin.type,statePlayer.style==='classic'?'classic':'cinematic');
         remote.root.add(remote.avatar);
+        remote.root.userData=remote.avatar.userData; // Shared NPC face/status render helpers read this root.
         remote.character=index;remote.style=statePlayer.style;
         remote.appearance=null;
         remote.footBase=[];
@@ -357,6 +359,7 @@
     }
     function removeRemote(sessionId){
         var remote=remotes.get(sessionId);if(!remote)return;
+        if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.disposeRemote(remote);
         scene.remove(remote.root);
         if(remote.avatar)disposeTransientObject3D(remote.avatar);
         if(remote.nameSprite)disposeTransientObject3D(remote.nameSprite,true);
@@ -393,6 +396,7 @@
         if(action==='jump')avatar.position.y=Math.sin(performance.now()*0.015)*0.035;
         else avatar.position.y*=0.78;
         if(remote.companion&&window.DANBO_COMPANIONS)DANBO_COMPANIONS.animate(avatar,action,dt);
+        if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.animateRemote(remote,statePlayer,dt);
     }
     function syncRemotePlayers(dt){
         if(!room||!room.state||!room.state.players)return;
@@ -546,6 +550,7 @@
             vx:playerEgg.vx||0,vy:playerEgg.vy||0,vz:playerEgg.vz||0,action:detectAction(),teleport:teleport,language:typeof _langCode==='undefined'?'ja':_langCode
             ,interactive:!!(window.DANBO_INTERACTIONS&&DANBO_INTERACTIONS.interactive())
             ,combatReady:!!(window.DANBO_INTERACTIONS&&DANBO_INTERACTIONS.combatReady())
+            ,grounded:!!playerEgg.onGround,reactionState:window.DANBO_INTERACTIONS?DANBO_INTERACTIONS.snapshot():null
             ,worldActive:!!playerEgg.onGround&&!playerEgg.heldBy&&!playerEgg._networkHeldBy&&!(playerEgg.throwTimer>0)&&!document.hidden&&!window._interiorActive&&!window._danboPluginTransition&&!window._journeyPanelOpen&&!window._accountPanelOpen&&!window._multiplayerPanelOpen&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())
         });
     }
@@ -567,7 +572,7 @@
         var url=new URL(location.href);url.searchParams.set('room',normalizeCode(room.state&&room.state.code||ui.code.value));
         if(endpoint&&!window.DANBO_MULTIPLAYER_URL)url.searchParams.set('net',endpoint);
         var text=url.toString();
-        if(navigator.share){navigator.share({title:'DANBO 联机房',text:'来我的 DANBO 房间一起玩',url:text}).catch(function(){});}
+        if(navigator.share){navigator.share({title:L('title'),text:UI_T('来我的房间一起玩'),url:text}).catch(function(){});}
         else if(navigator.clipboard){navigator.clipboard.writeText(text).then(function(){showSummary(UI_T('邀请链接已复制。'),false);});}
         else{showSummary(text,false);}
     }

@@ -194,8 +194,8 @@ function _applyLang(){
     var stText=document.getElementById('struggle-text');if(stText)stText.textContent=L('struggle');
     // Update chat placeholder
     var chatF=document.getElementById('chat-field');if(chatF)chatF.placeholder=L('chatPlaceholder');
-    // Rebuild warp pipe signs with new city names
-    if(typeof buildWarpPipes==='function'&&typeof cityGroup!=='undefined'&&gameState==='city'){buildWarpPipes();}
+    // Repaint in place: language changes must not recreate gates or reset their cooldown.
+    if(typeof _refreshWarpPipeLabels==='function')_refreshWarpPipeLabels();
     // Update portal names/descs to match new language
     if(typeof portals!=='undefined'){
         for(var pi2=0;pi2<portals.length;pi2++){
@@ -207,10 +207,9 @@ function _applyLang(){
                 if(_pr._i18nName)_pr.name=_pr._i18nName[_langCode]||_pr._i18nName.en||_pr._i18nName.zhs||_pr.name;
                 if(_pr._i18nDesc)_pr.desc=_pr._i18nDesc[_langCode]||_pr._i18nDesc.en||_pr._i18nDesc.zhs||_pr.desc;
             }
+            if(_pr.mesh)_pr.mesh.traverse(function(node){if(node.userData&&node.userData.setPortalText)node.userData.setPortalText(_pr.name);});
         }
     }
-    // Portal signs are canvas textures - rebuild them would need full portal rebuild
-    // Just update the portal object names (prompt text uses these)
     // Rebuild move name translations from MOVE_PARAMS
     if(typeof _moveNames!=='undefined'&&typeof MOVE_PARAMS!=='undefined'){
         for(var _mk in _moveNames)delete _moveNames[_mk];

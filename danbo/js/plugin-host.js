@@ -262,6 +262,7 @@
         var origin={x:playerEgg.mesh.position.x,y:playerEgg.mesh.position.y,z:playerEgg.mesh.position.z};
         var rotY=playerEgg.mesh.rotation.y;
         var camStart=(typeof camera!=='undefined'&&camera)?{x:camera.position.x,y:camera.position.y,z:camera.position.z}:null;
+        var camRotation=camStart?camera.quaternion.clone():null;
         var rings=[],runes=[],pillars=[],particles=[],audioNodes=[];
         function mat(color,opacity){return new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:opacity,depthWrite:false,side:THREE.DoubleSide});}
         function disposeMesh(mesh){
@@ -352,11 +353,11 @@
             }catch(eAudio){}
         }
 
-        var start=Date.now(),dur=durationMs||6500,raf=0,done=false;
+        var start=performance.now(),dur=durationMs||6500,raf=0,done=false;
         function ease(x){return x<0?0:(x>1?1:(x<0.5?2*x*x:1-Math.pow(-2*x+2,2)/2));}
         function frame(){
             if(done)return;
-            var elapsed=Date.now()-start;
+            var elapsed=performance.now()-start;
             var t=Math.min(1,elapsed/dur);
             var pillarTop=120;
             // Phase 1: old 2s rainbow descends from sky.
@@ -388,7 +389,8 @@
                 }
                 if(camStart&&typeof camera!=='undefined'&&camera){
                     camera.position.x=camStart.x;camera.position.y=camStart.y;camera.position.z=camStart.z;
-                    camera.lookAt(origin.x,origin.y+20+p1*30,origin.z);
+                    camera.lookAt(origin.x,origin.y+5,origin.z);
+                    camera.quaternion.slerp(camRotation,1-ease(p1));
                 }
             }
             // Phase 2: old 4s rings lock on + player sucked into the light.
@@ -425,7 +427,7 @@
                     var sc=1-ep2*0.28;playerEgg.mesh.scale.set(sc,sc,sc);
                 }
                 if(camStart&&typeof camera!=='undefined'&&camera){
-                    camera.position.x=camStart.x+Math.sin(elapsed*0.06)*0.15*p2;
+                    camera.position.x=camStart.x;
                     camera.position.y=camStart.y+ep2*35;
                     camera.position.z=camStart.z+ep2*5;
                     camera.lookAt(origin.x,origin.y+ep2*40+5,origin.z);
@@ -457,6 +459,7 @@
             done=true;if(raf)cancelAnimationFrame(raf);
             for(var n=0;n<audioNodes.length;n++){try{audioNodes[n].stop(0);}catch(eStop){}}
             if(playerEgg&&playerEgg.mesh){playerEgg.mesh.position.set(origin.x,origin.y,origin.z);playerEgg.mesh.rotation.y=rotY;playerEgg.mesh.scale.set(1,1,1);}
+            if(camStart&&camera){camera.position.set(camStart.x,camStart.y,camStart.z);camera.quaternion.copy(camRotation);}
             for(var i=group.children.length-1;i>=0;i--){var ch=group.children[i];disposeMesh(ch);group.remove(ch);}
             scene.remove(group);disposeMesh(flash);scene.remove(flash);
         };

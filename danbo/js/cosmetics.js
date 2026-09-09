@@ -422,7 +422,7 @@ function _openShop(){
     var card=document.createElement('div');card.id='shop-card';
     card.innerHTML=
         '<div class="shop-header">'+
-          '<div class="shop-brand"><div class="shop-brand-mark">\u2726</div><div><div class="shop-title">'+_shopLocalizedName()+UI_HTML('</div><div class="shop-subtitle">DANBO BOUTIQUE \u00B7 \u539F\u521B\u5916\u89C2\u6536\u85CF</div></div></div>')+
+          '<div class="shop-brand"><div class="shop-brand-mark">\u2726</div><div><div class="shop-title">'+_shopLocalizedName()+UI_HTML('</div><div class="shop-subtitle">原创造型收藏</div></div></div>')+
           '<div class="shop-head-actions"><div id="shop-coins"><span class="shop-coin-gem"></span><span>'+_coinsNow()+UI_HTML('</span></div><button id="shop-close" type="button" aria-label="\u5173\u95ED">\u00D7</button></div>')+
         '</div>'+
         '<div class="shop-main">'+
@@ -826,7 +826,7 @@ function _showShopPrompt(show,mode){
             document.body.appendChild(el);}
         if(mode==='keeper'){
             el.textContent=UI_T('\uD83C\uDFEA \u8D70\u8FD1\u8001\u677F\uFF0C\u70B9\u51FB\u786E\u8BA4\u9009\u8D2D');
-            el.onclick=function(){if(typeof _portalDismissed!=='undefined')_portalDismissed=null;if(typeof showPortalConfirm==='function')showPortalConfirm({name:'\uD83C\uDFEA \u9009\u8D2D',desc:'\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F',raceIndex:-1,_hiddenType:'shopKeeper',_targetStyle:-97});else _openShop();};
+            el.onclick=function(){if(typeof _portalDismissed!=='undefined')_portalDismissed=null;if(typeof showPortalConfirm==='function')showPortalConfirm({name:UI_T('\uD83C\uDFEA \u9009\u8D2D'),desc:UI_T('\u548C\u8001\u677F\u9009\u8D2D\u5916\u89C2\uFF1F'),raceIndex:-1,_hiddenType:'shopKeeper',_targetStyle:-97});else _openShop();};
         }
         else {
             el.textContent=UI_T('\uD83C\uDFEA \u8D70\u8FD1\u5165\u53E3\uFF0C\u70B9\u51FB\u786E\u8BA4');

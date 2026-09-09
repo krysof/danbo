@@ -31,10 +31,10 @@ try{var _savedLang=localStorage.getItem('danbo_lang');if(_savedLang&&['auto','zh
 var _langCode=_langMode==='auto'?_autoLangCode:_langMode;
 var DANBO_CUTE_STYLE='round-minimal-v2'; // Kirby-like: soft round mascot, clean face, almost no clutter
 var I18N={
-    title:{zhs:'\u86CB\u5B9D\u4E16\u754C',zht:'\u86CB\u5B9D\u4E16\u754C',ja:'\u30C0\u30F3\u30DC\u30EF\u30FC\u30EB\u30C9',en:'DANBO World'},
-    shopName:{zhs:'\u86CB\u5B9D\u6742\u8D27\u94FA',zht:'\u86CB\u5BF6\u96DC\u8CA8\u8216',ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97',en:'Danbo General Store'},
+    title:{zhs:'蛋宝世界',zht:'蛋寶世界',ja:'たまごのなかまたち',en:'Little Egg Friends'},
+    shopName:{zhs:'\u86CB\u5B9D\u6742\u8D27\u94FA',zht:'\u86CB\u5BF6\u96DC\u8CA8\u8216',ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97',en:'Egg Friends General Store'},
     shopEnterDesc:{zhs:'\u8FDB\u5165\u86CB\u5B9D\u6742\u8D27\u94FA\uFF1F',zht:'\u9032\u5165\u86CB\u5BF6\u96DC\u8CA8\u8216\uFF1F',ja:'\u30C0\u30F3\u30DC\u96D1\u8CA8\u5E97\u306B\u5165\u308A\u307E\u3059\u304B\uFF1F',en:'Enter the Danbo General Store?'},
-    subtitle:{zhs:'D A N B O   W O R L D',zht:'D A N B O   W O R L D',ja:'D A N B O   W O R L D',en:'D A N B O   W O R L D'},
+    subtitle:{zhs:'Little Egg Friends',zht:'Little Egg Friends',ja:'Little Egg Friends',en:'Little Egg Friends'},
     slogan:{zhs:'\u63A2\u7D22\u57CE\u5E02 \u00B7 \u7A7F\u8D8A\u4E16\u754C \u00B7 \u4E00\u8D77\u5192\u9669',zht:'\u63A2\u7D22\u57CE\u5E02 \u00B7 \u7A7F\u8D8A\u4E16\u754C \u00B7 \u4E00\u8D77\u5192\u96AA',ja:'\u63A2\u691C\u30FB\u3064\u306A\u304C\u308B\u30FB\u3044\u3063\u3057\u3087\u306B\u904A\u307C\u3046',en:'Explore \u00B7 Connect \u00B7 Run Together'},
     version:(function(){var v=String(window.DANBO_ASSET_VERSION||'v=20260908.5').replace(/^v=/,'v');return{zhs:v+' by \u767D\u6CB3\u6101',zht:v+' by \u767D\u6CB3\u6101',ja:v+' by \u767D\u6CB3\u6101',en:v+' by Kryso'};})(),
     introStart:{zhs:'点击开始',zht:'點擊開始',ja:'タップしてスタート',en:'TAP TO START'},

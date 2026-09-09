@@ -693,19 +693,19 @@ function _renderIntro(now,preview){
             ctx.fillStyle='rgba(0,0,0,0.7)';
             ctx.font='bold '+Math.floor(52*scale)+'px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
             ctx.textAlign='center';
-            ctx.fillText(L('title'),W/2+3*scale,H*0.35+3*scale);
+            ctx.fillText(L('title'),W/2+3*scale,H*0.35+3*scale,W*.9);
 
             // Main title — gold metallic
             ctx.fillStyle='#FFD700';
             ctx.shadowColor='#FF8800';
             ctx.shadowBlur=25*scale;
-            ctx.fillText(L('title'),W/2,H*0.35);
+            ctx.fillText(L('title'),W/2,H*0.35,W*.9);
             ctx.shadowBlur=0;
 
             // Subtitle
             ctx.fillStyle='rgba(255,255,255,0.85)';
             ctx.font=Math.floor(16*scale)+'px "Segoe UI","PingFang SC",sans-serif';
-            ctx.fillText('D A N B O   W O R L D',W/2,H*0.35+45*scale);
+            if(typeof _langCode==='undefined'||_langCode!=='en')ctx.fillText(L('subtitle'),W/2,H*0.35+45*scale,W*.9);
 
             // Slogan
             ctx.fillStyle='rgba(255,255,255,0.5)';
@@ -744,7 +744,7 @@ function _drawIntroStart(){
     _introCtx.fillStyle='#000';_introCtx.fillRect(0,0,W,H);
     _introCtx.fillStyle='rgba(255,215,0,0.6)';
     _introCtx.font='bold '+Math.floor(28*scale)+'px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-    _introCtx.textAlign='center';_introCtx.fillText(L('title'),W/2,H*0.35);
+    _introCtx.textAlign='center';_introCtx.fillText(L('title'),W/2,H*0.35,W*.9);
     var button=document.getElementById('intro-start');
     if(button)button.textContent=L('introStart');
 }

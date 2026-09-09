@@ -747,6 +747,7 @@ function handlePlayerInput(){
                     } else {
                         _ae.vx+=_adx/_ad*0.08;_ae.vz+=_adz/_ad*0.08;
                         _ae.squash=0.78;_ae._hitStun=12;
+                        _addStunDamage(_ae,COMBAT.punch.stunDmg);
                     }
                     _dropNpcStolenCoins(_ae);playHitSound();
             }
@@ -867,6 +868,7 @@ function handlePlayerInput(){
                     } else {
                         _ke.vx+=_kdx/_kd*0.12;_ke.vz+=_kdz/_kd*0.12;
                         _ke.squash=0.72;_ke._hitStun=15;
+                        _addStunDamage(_ke,COMBAT.kick.stunDmg);
                     }
                     _dropNpcStolenCoins(_ke);playHitSound();
                 }

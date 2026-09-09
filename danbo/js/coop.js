@@ -105,7 +105,8 @@
             DANBO_PROGRESS.capture();DANBO_PROGRESS.flush();note='earned';rewardNoteUntil=Date.now()+12000;
             if(window.DANBO_JOURNEY)DANBO_JOURNEY.event('coop');
         }
-        var visible=!!(s&&p&&p.coopJoined&&(s.coopPhase==='idle'||s.coopPhase==='active')&&inWorld());
+        // Visibility is shared by the room; only scoring/protection is opt-in.
+        var visible=!!(s&&p&&(s.coopPhase==='idle'||s.coopPhase==='active')&&inWorld());
         if(visible&&!markers)build();if(markers)markers.visible=visible;
         if(visible){
             var pads=PADS[Math.min(2,s.coopStage||0)];
@@ -118,12 +119,18 @@
         // Cover the approach and paths between stages, not only the rings.
         var p=egg.mesh.position;return Math.abs(p.x)<=24&&p.z>=14&&p.z<=50;
     }
-    $('coop-join').addEventListener('click',function(){
+    function join(){
         if(gameState!=='city'||currentCityStyle!==0||window._interiorActive){error('returnToHope');return;}
         note='';DANBO_JOURNEY.close();DANBO_MULTIPLAYER.close();
         if(!DANBO_MULTIPLAYER.coop('join'))error('disconnected');render();
-    });
+    }
+    $('coop-join').addEventListener('click',join);
     $('coop-leave').addEventListener('click',function(){DANBO_MULTIPLAYER.coop('leave');note='';render();});
     $('coop-share').addEventListener('click',function(){DANBO_MULTIPLAYER.share();});
-    window.DANBO_COOP={update:update,render:render,error:error,hint:hint,invitation:invitation,joined:joined,protects:protects,pads:PADS};render();
+    function nearby(){
+        var info=state();if(!info||!info.s||!info.p||info.p.coopJoined||!inWorld()||!['idle','active'].includes(info.s.coopPhase))return '';
+        var p=playerEgg.mesh.position,pads=PADS[Math.min(2,info.s.coopStage||0)];
+        return pads.some(function(pad){return Math.hypot(p.x-pad[0],p.z-pad[1])<7;})?t('join'):'';
+    }
+    window.DANBO_COOP={update:update,render:render,error:error,hint:hint,invitation:invitation,joined:joined,protects:protects,pads:PADS,nearby:nearby,join:join};render();
 })();

@@ -1,5 +1,5 @@
 {
-  "id": "./", "name": "DANBO World", "short_name": "DANBO",
+  "id": "./", "name": "Little Egg Friends", "short_name": "Little Egg Friends", "lang": "en",
   "start_url": "./?from=homescreen", "scope": "./", "display": "standalone",
   "background_color": "#153746", "theme_color": "#153746",
   "icons": [

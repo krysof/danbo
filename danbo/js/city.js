@@ -244,7 +244,7 @@ function _cityCanvasSign(text,bg,fg){
     ctx.fillRect(6,6,244,68);
     ctx.strokeStyle='rgba(255,255,255,0.72)';ctx.lineWidth=3;ctx.strokeRect(10,10,236,60);
     ctx.fillStyle=fg||'#FFFFFF';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(text,128,42);
+    ctx.fillText(text,128,42,224);
     var tex=new THREE.CanvasTexture(c);tex.minFilter=THREE.LinearFilter;tex.magFilter=THREE.LinearFilter;
     return tex;
 }
@@ -602,7 +602,7 @@ function _decorateDefaultBuilding(b,bMeshes,col,st,i){
     var awn=new THREE.Mesh(new THREE.BoxGeometry(Math.min(b.w*0.7,4.2),0.18,0.85),toon(awningColor,{emissive:awningColor,emissiveIntensity:0.10}));
     awn.position.set(b.x,2.35,b.z+b.d/2+0.46);awn.rotation.x=-0.12;add(awn);
     if(i%2===0){
-        var sNames=['DANBO','SHOP','CAFE','HOTEL','STAR','TOY'];
+        var sNames=[L('title'),'SHOP','CAFE','HOTEL','STAR','TOY'];
         var tex=_cityCanvasSign(sNames[i%sNames.length],awningColor,'#FFFFFF');
         var sign=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
         sign.position.set(b.x,Math.min(b.h-1.5,4.2),b.z+b.d/2+0.20);

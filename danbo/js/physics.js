@@ -5,6 +5,57 @@
 const GRAVITY=CHAR_PHYSICS.GRAVITY, JUMP_FORCE=CHAR_PHYSICS.JUMP_FORCE, MOVE_ACCEL=CHAR_PHYSICS.MOVE_ACCEL, MAX_SPEED=CHAR_PHYSICS.MAX_SPEED, FRICTION=CHAR_PHYSICS.FRICTION;
 var MOON_CITY_SIZE=CITY_CONFIG.moonSize;
 
+// Cache a model-local box once. Only moving/rotating it updates the world box;
+// never traverse animal geometry once per egg per frame.
+function _propWorldBounds(prop){
+    var g=prop.group,b=prop._occupancy;
+    var frame=typeof _cityFrameNo==='number'?_cityFrameNo:-1;
+    if(b&&frame>=0&&b.frame===frame)return b.world;
+    if(!b){
+        g.updateWorldMatrix(true,true);
+        var inverse=g.matrixWorld.clone().invert(),local=new THREE.Box3(),part=new THREE.Box3(),matrix=new THREE.Matrix4();
+        g.traverse(function(node){if(!node.isMesh||!node.geometry)return;if(!node.geometry.boundingBox)node.geometry.computeBoundingBox();
+            matrix.multiplyMatrices(inverse,node.matrixWorld);part.copy(node.geometry.boundingBox).applyMatrix4(matrix);local.union(part);
+        });
+        if(local.isEmpty())local.set(new THREE.Vector3(-prop.radius,0,-prop.radius),new THREE.Vector3(prop.radius,1,prop.radius));
+        b=prop._occupancy={local:local,world:new THREE.Box3(),matrix:new THREE.Matrix4().makeScale(0,0,0)};
+    }
+    g.updateWorldMatrix(true,false);
+    if(!b.matrix.equals(g.matrixWorld)){b.matrix.copy(g.matrixWorld);b.world.copy(b.local).applyMatrix4(b.matrix);}
+    b.frame=frame;
+    return b.world;
+}
+function _collideGroundProp(egg,prop){
+    if(prop.grabbed||prop.throwTimer>0||prop.group.visible===false)return;
+    var p=egg.mesh.position,g=prop.group,dx=p.x-g.position.x,dz=p.z-g.position.z;
+    var precise=prop._animal||prop._fishRef||Math.abs(g.rotation.x)>.35||Math.abs(g.rotation.z)>.35;
+    if(precise){
+        if(dx*dx+dz*dz>400)return;
+        var box=_propWorldBounds(prop),r=egg.radius;
+        if(p.y>box.max.y+.3||p.y+1.8<box.min.y)return;
+        var nx=p.x-Math.max(box.min.x,Math.min(box.max.x,p.x)),nz=p.z-Math.max(box.min.z,Math.min(box.max.z,p.z)),d=Math.hypot(nx,nz);
+        if(d>=r)return;
+        if(p.y>=box.max.y-.3&&egg.vy<=0){p.y=box.max.y+.01;egg.vy=0;egg.onGround=true;return;}
+        if(d>.001){nx/=d;nz/=d;var overlap=r-d;p.x+=nx*overlap;p.z+=nz*overlap;}
+        else{
+            var left=p.x-box.min.x,right=box.max.x-p.x,front=p.z-box.min.z,back=box.max.z-p.z;
+            var nearest=Math.min(left,right,front,back);
+            if(nearest===left){nx=-1;nz=0;p.x=box.min.x-r;}
+            else if(nearest===right){nx=1;nz=0;p.x=box.max.x+r;}
+            else if(nearest===front){nx=0;nz=-1;p.z=box.min.z-r;}
+            else{nx=0;nz=1;p.z=box.max.z+r;}
+        }
+        var inward=egg.vx*nx+egg.vz*nz;if(inward<0){egg.vx-=inward*nx;egg.vz-=inward*nz;}return;
+    }
+    var distance=Math.hypot(dx,dz),limit=prop.radius+egg.radius;
+    if(distance>=limit)return;
+    var top=g.position.y+(prop.type==='bench'?.7:prop.type==='tree'?1.5:2.5);
+    if(p.y>top+.3||p.y+1.8<g.position.y)return;
+    if(p.y>top-.3&&egg.vy<=0){p.y=top+.01;egg.vy=0;egg.onGround=true;return;}
+    if(distance<.001){dx=1;dz=0;distance=1;limit+=1;}
+    p.x+=dx/distance*(limit-distance);p.z+=dz/distance*(limit-distance);egg.vx*=-.2;egg.vz*=-.2;
+}
+
 // (spherical _moonProject removed — moon is now flat city)
 // (spherical _moonOrient removed — moon is now flat city)
 
@@ -34,9 +85,11 @@ function updateEggPhysics(egg, isCity){
     }
     // Thrown egg bounce
     if(egg.throwTimer>0&&egg.vy<-0.05){
-        var _bFloor=0.01;
+        var _bFloor=isCity&&currentCityStyle===7?3.01:0.01;
         if(!isCity){var _bgz=-egg.mesh.position.z;_bFloor=getFloorY(_bgz)+0.01;}
-        if(egg.mesh.position.y<=_bFloor){
+        // Platform levels have no global floor; do not bounce over empty space.
+        var _hasBounceFloor=!isCity||(!_pfActive&&Math.abs(egg.mesh.position.x)<=(currentCityStyle===5?MOON_CITY_SIZE:(currentCityStyle===7?CITY_SIZE*4:CITY_SIZE))&&Math.abs(egg.mesh.position.z)<=(currentCityStyle===5?MOON_CITY_SIZE:(currentCityStyle===7?CITY_SIZE*4:CITY_SIZE)));
+        if(_hasBounceFloor&&egg.mesh.position.y<=_bFloor){
             if(egg._bounces>0){egg._bounces--;egg.vy=Math.abs(egg.vy)*0.5;egg.mesh.position.y=_bFloor;egg.squash=0.6;egg.vx*=0.75;egg.vz*=0.75;playHitSound(egg.mesh.position.x,egg.mesh.position.z);
                 // Drop coins on first impact
                 if(egg._dropCoinsOnLand&&!egg._coinsDropped){egg._coinsDropped=true;_dropNpcStolenCoins(egg);}
@@ -58,7 +111,7 @@ function updateEggPhysics(egg, isCity){
         var _cityBound=(currentCityStyle===5?MOON_CITY_SIZE:(currentCityStyle===7?CITY_SIZE*4:CITY_SIZE));
         var _inBounds=DANBO_WASM.aabb2D(egg.mesh.position.x,egg.mesh.position.z,0,0,_cityBound,_cityBound,0);
         var _groundY=currentCityStyle===7?3.01:0.01; // snow village island surface at y=3
-        if(_inBounds&&egg.mesh.position.y<=_groundY){egg.mesh.position.y=_groundY;if(egg.vy<-0.1)egg.squash=0.7;egg.vy=0;egg.onGround=true;
+        if(_inBounds&&egg.mesh.position.y<=_groundY&&egg.vy<=0){egg.mesh.position.y=_groundY;if(egg.vy<-0.1)egg.squash=0.7;egg.vy=0;egg.onGround=true;
             if(egg._dropCoinsOnLand&&!egg._coinsDropped){egg._coinsDropped=true;_dropNpcStolenCoins(egg);}
         }else if(!_inBounds){egg.onGround=false;}
         else{egg.onGround=false;}
@@ -166,7 +219,7 @@ function updateEggPhysics(egg, isCity){
                 var tc=cityColliders[tci];
                 var tdx=egg.mesh.position.x-tc.x, tdz=egg.mesh.position.z-tc.z;
                 var _tov=DANBO_WASM.aabbOverlap2D(egg.mesh.position.x,egg.mesh.position.z,tc.x,tc.z,tc.hw,tc.hd,egg.radius);
-                if(_tov[7]){
+                if(_tov[7]&&egg.mesh.position.y<(tc.y||0)+(tc.h||6)-0.05&&egg.mesh.position.y+1.5>(tc.y||0)){
                     // Hit building wall — bounce back and drop coins
                     if(_tov[4]===0){egg.mesh.position.x+=_tov[5]*_tov[2];egg.vx*=-0.3;}
                     else{egg.mesh.position.z+=_tov[6]*_tov[3];egg.vz*=-0.3;}
@@ -187,7 +240,7 @@ function updateEggPhysics(egg, isCity){
                 var htdz=egg.mesh.position.z-te.mesh.position.z;
                 var htdy=egg.mesh.position.y-te.mesh.position.y;
                 var htd=DANBO_WASM.dist3D(egg.mesh.position.x,egg.mesh.position.y,egg.mesh.position.z,te.mesh.position.x,te.mesh.position.y,te.mesh.position.z);
-                if(htd<2.0){
+                if(htd>0.001&&htd<2.0){
                     // Knockback the hit NPC
                     var kbf=0.3;
                     te.vx-=htdx/htd*kbf;te.vz-=htdz/htd*kbf;te.vy+=0.12;
@@ -255,24 +308,7 @@ function updateEggPhysics(egg, isCity){
     
         // City prop collisions (skip if thrown)
         if(egg.throwTimer<=0) for(var pi=0;pi<cityProps.length;pi++){
-            var cp=cityProps[pi];
-            if(cp.grabbed)continue;
-            var pdx=egg.mesh.position.x-cp.group.position.x;
-            var pdz=egg.mesh.position.z-cp.group.position.z;
-            var pd=DANBO_WASM.dist2D(egg.mesh.position.x,egg.mesh.position.z,cp.group.position.x,cp.group.position.z);
-            if(pd<cp.radius+egg.radius&&pd>0.01){
-                // Check if egg is above the prop — stand on it
-                var propTopY=cp.group.position.y+(cp.type==='bench'?0.7:cp.type==='tree'?1.5:2.5);
-                if(egg.mesh.position.y>propTopY-0.3&&egg.vy<=0){
-                    egg.mesh.position.y=propTopY+0.01;
-                    egg.vy=0; egg.onGround=true;
-                } else {
-                    var pov=cp.radius+egg.radius-pd;
-                    egg.mesh.position.x+=pdx/pd*pov;
-                    egg.mesh.position.z+=pdz/pd*pov;
-                    egg.vx*=-0.2;egg.vz*=-0.2;
-                }
-            }
+            _collideGroundProp(egg,cityProps[pi]);
         }
         // Cloud platform collisions — can land on clouds
         for(var cli=0;cli<cityCloudPlatforms.length;cli++){
@@ -336,7 +372,7 @@ function updateEggPhysics(egg, isCity){
         // Race track
         const gz=-egg.mesh.position.z;
         const hw=getHW(gz), floorY=getFloorY(gz);
-        if(egg.mesh.position.y<=floorY+0.01){egg.mesh.position.y=floorY+0.01;if(egg.vy<-0.1)egg.squash=0.7;egg.vy=0;egg.onGround=true;}else{egg.onGround=false;}
+        if(egg.mesh.position.y<=floorY+0.01&&egg.vy<=0){egg.mesh.position.y=floorY+0.01;if(egg.vy<-0.1)egg.squash=0.7;egg.vy=0;egg.onGround=true;}else{egg.onGround=false;}
         // Platform check
         egg.onPlatform=null;
         for(const ob of _danboRaceObstacles()){

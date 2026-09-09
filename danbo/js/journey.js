@@ -6,6 +6,15 @@
     var route=[[0,23],[0,31],[0,39]],marker=null,previous=null,lastUI=0,entered=false;
     var opened=false,lastFocus=null,sent={},pending={},started=0,visit=randomId(),visitDate=date(),hiddenAt=0,booth=new URLSearchParams(location.search).get('booth')==='1';
     var installPrompt=null,cardURL='',handoffURL='',busy=false,coopTask=false;
+    var feedbackKey='',feedbackValues=null,feedbackUntil=0;
+    function feedback(key,values,duration){
+        // Pickup feedback wins the same small HUD slot; never open a dialog.
+        if(opened){opened=false;$('journey-overlay').classList.add('hidden');}
+        feedbackKey=key;feedbackValues=values;feedbackUntil=performance.now()+duration;
+        $('journey-feedback').textContent=UI_T(key,values);
+        // This occupies the existing task slot, not a new layer over controls.
+        $('journey-feedback').hidden=false;$('journey-task').hidden=true;
+    }
     function randomId(){return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
     function date(){return new Date().toISOString().slice(0,10);}
     function consent(){try{return navigator.doNotTrack!=='1'&&localStorage.getItem('danbo_metrics_consent_v1')==='yes';}catch(_){return false;}}
@@ -31,15 +40,17 @@
     });
     function message(text){$('journey-message').textContent=UI_T(text);}
     function render(){
+        if(feedbackKey)$('journey-feedback').textContent=UI_T(feedbackKey,feedbackValues);
         var j=P.journey(),u=DANBO_ACCOUNT.getUser(),done=j.rewarded;
         var hint=!done?(j.distance<12?UI_T('移动 {n}/12 米 · WASD / 左摇杆',{n:Math.min(12,Math.floor(j.distance))}):!j.jumped?UI_T('轻按并松开空格 /「跳」按钮'):j.steps<3?UI_T('沿金色路标收集星光 {n}/3',{n:j.steps}):UI_T('首个挑战完成！')):
             (j.stamps.indexOf(date())<0?UI_T('今日小目标：打开一个新宝箱'):UI_T('今日旅程已盖章 · 自由探索吧'));
         // Discovery reuses the existing task button, after the first solo lesson.
-        var coopHint=window.DANBO_COOP&&(DANBO_COOP.hint()||(done&&DANBO_COOP.invitation()));
+        var nearby=window.DANBO_COOP&&DANBO_COOP.nearby&&DANBO_COOP.nearby();
+        var coopHint=nearby||(window.DANBO_COOP&&(DANBO_COOP.hint()||(done&&DANBO_COOP.invitation())));
         coopTask=!!coopHint;
         $('journey-task').textContent=coopHint||UI_T(done?'旅程手册 · {hint}':'初次旅行 · {hint}',{hint:hint});
-        $('journey-objectives').textContent=UI_T('① 移动 12 米 {walk}　② 跳跃一次 {jump}　③ 收集星光 {n}/3',{walk:j.distance>=12?'✓':'',jump:j.jumped?'✓':'',n:j.steps});
-        $('journey-reward').textContent=done?UI_T('已获得并解锁「初旅星环」！可以在装扮商店重新佩戴。'):UI_T('完成后获得「初旅星环」，没有倒计时、不限尝试次数。');
+        $('journey-objectives').textContent=hint;
+        $('journey-reward').textContent=UI_T(done?'奖励：初旅星环 ✓':'奖励：初旅星环');
         $('journey-stamps').textContent=UI_T('旅行纪念章：{n} 枚。{today} 不连续登录也不会扣奖励。',{n:j.stamps.length,today:UI_T(j.stamps.indexOf(date())>=0?'今天已获得。':'打开一个新宝箱，留下今天的足迹。')});
         $('journey-status').textContent=P.getStatus();
         $('journey-conflict').hidden=!P.hasConflict();
@@ -51,29 +62,32 @@
         $('journey-card-name').textContent=u?u.characterName:UI_T('你的蛋宝');
         if(window.DANBO_COOP)DANBO_COOP.render();
     }
-    function lock(value){
-        window._journeyPanelOpen=value;
-        if(typeof keys!=='undefined')Object.keys(keys).forEach(function(k){keys[k]=false;});
-        if(typeof joyActive!=='undefined')joyActive=false;
-        if(typeof joyVec!=='undefined')joyVec={x:0,y:0};
-    }
     function open(showCoop){
-        lastFocus=document.activeElement;opened=true;lock(true);render();$('journey-overlay').classList.remove('hidden');$('journey-close').focus();
+        // A bounded HUD popover, not a modal. Never set the legacy input lock,
+        // clear keys/joystick, trap focus or put a backdrop over the game.
+        lastFocus=document.activeElement;opened=true;window._journeyPanelOpen=false;
+        feedbackUntil=0;$('journey-feedback').hidden=true;render();$('journey-overlay').classList.remove('hidden');
+        $('journey-coop-details').open=showCoop===true;
+        $('journey-save-details').open=P.hasConflict()||!$('journey-claim').hidden;
         if(showCoop===true){$('coop-title').focus({preventScroll:true});$('coop-card').scrollIntoView({block:'start'});}
         if(DANBO_ACCOUNT.getUser()&&DANBO_ACCOUNT.getUser().kind==='account')DANBO_ACCOUNT.request('/preferences').then(function(r){$('journey-updates').checked=r.emailUpdates;}).catch(function(e){message(e.message);});
     }
-    function close(){if(busy)return;opened=false;lock(false);$('journey-overlay').classList.add('hidden');if(lastFocus&&lastFocus.focus)lastFocus.focus();}
-    function resetRuntime(){previous=null;entered=false;if(marker)marker.visible=false;}
+    function close(){opened=false;window._journeyPanelOpen=false;$('journey-overlay').classList.add('hidden');}
+    function resetRuntime(){previous=null;entered=false;feedbackUntil=0;feedbackKey='';$('journey-feedback').hidden=true;if(marker)marker.visible=false;}
     function protects(egg){
         if(window.DANBO_COOP&&DANBO_COOP.protects(egg))return true;
         if(!egg||!egg.isPlayer||gameState!=='city'||currentCityStyle!==0||P.journey().rewarded||window._interiorActive)return false;
         var p=egg.mesh.position;return Math.abs(p.x)<=6&&p.z>=14&&p.z<=45;
     }
     function buildMarker(){
-        marker=new THREE.Group();
-        var material=new THREE.MeshBasicMaterial({color:0xffd46c});
-        var gem=new THREE.Mesh(new THREE.OctahedronGeometry(0.65,0),material);gem.position.y=1.8;marker.add(gem);
-        var ring=new THREE.Mesh(new THREE.TorusGeometry(1.4,0.06,4,24),material);ring.rotation.x=-Math.PI/2;ring.position.y=0.08;marker.add(ring);
+        marker=new THREE.Group();marker.name='danbo-journey-starlight';
+        var material=new THREE.MeshBasicMaterial({color:0xffe17d,toneMapped:false});
+        // A recognisable five-point star, rather than a small diamond mistaken
+        // for scenery. Unlit materials remain bright without adding a light.
+        var shape=new THREE.Shape();
+        for(var i=0;i<10;i++){var a=Math.PI/2+i*Math.PI/5,r=i%2?.4:.9,x=Math.cos(a)*r,y=Math.sin(a)*r;if(i===0)shape.moveTo(x,y);else shape.lineTo(x,y);}shape.closePath();
+        var gem=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.18,bevelEnabled:true,bevelThickness:.05,bevelSize:.05,bevelSegments:1,steps:1}),material);gem.position.y=2.2;marker.add(gem);
+        var ring=new THREE.Mesh(new THREE.TorusGeometry(1.4,0.09,4,32),new THREE.MeshBasicMaterial({color:0xffd45d,toneMapped:false,transparent:true,opacity:.85}));ring.rotation.x=-Math.PI/2;ring.position.y=0.08;marker.add(ring);
         scene.add(marker); // retained, not rebuilt on city changes; hidden outside Hope
     }
     function reward(){
@@ -81,25 +95,37 @@
         j.rewarded=true;if(j.stamps.indexOf(date())<0)j.stamps.push(date());
         Cosmetics.data().owned.halo_journey=true;Cosmetics.equip('halo','halo_journey');Explorer.addPoints(20,'firstJourney');
         P.capture();P.flush();event('challenge');render();
-        message(UI_T('挑战完成！星环已经戴好。现在可以继续探索，或扫码把蛋宝带回家。'));open();
+        feedback('✨ 初旅星环已获得 · 已自动佩戴',null,5000);
     }
     function jump(){if(gameState==='city'&&currentCityStyle===0&&!P.journey().jumped){P.journey().jumped=true;P.capture();render();}}
     function update(){
         var active=gameState==='city'&&!window._interiorActive&&!window._pipeTraveling&&!window._pipeCityBuilding&&!window._danboPluginTransition&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())&&!!playerEgg;
-        var hidden=!active||opened||window._accountPanelOpen||window._worldMapOpen||window._shopOpen||window._multiplayerPanelOpen;
-        if($('journey-task').hidden!==hidden)$('journey-task').hidden=hidden;
+        var now=performance.now(),hidden=!active||window._accountPanelOpen||window._worldMapOpen||window._shopOpen||window._multiplayerPanelOpen;
+        var hasFeedback=now<feedbackUntil;
+        $('journey-feedback').hidden=hidden||!hasFeedback;
+        if($('journey-task').hidden!==(hidden||hasFeedback||opened))$('journey-task').hidden=hidden||hasFeedback||opened;
+        if(hidden&&opened)close();
         var j=P.journey(),routeActive=active&&currentCityStyle===0&&!j.rewarded&&!(window.DANBO_COOP&&DANBO_COOP.joined());
-        if(marker)marker.visible=routeActive;
-        if(!active||opened||document.hidden){previous=null;return;}
+        if(marker)marker.visible=routeActive&&j.steps<3;
+        if(hidden||document.hidden){previous=null;return;}
         if(!entered){entered=true;event('open');}
-        var p=playerEgg.mesh.position,now=performance.now();
+        var p=playerEgg.mesh.position;
         var controlled=(keys.KeyW||keys.KeyA||keys.KeyS||keys.KeyD||keys.ArrowUp||keys.ArrowDown||keys.ArrowLeft||keys.ArrowRight||joyActive)&&!window._accountPanelOpen&&!window._multiplayerPanelOpen;
         if(previous&&controlled&&!playerEgg.heldBy){var distance=Math.hypot(p.x-previous.x,p.z-previous.z);if(distance>0.01&&distance<2){if(routeActive)j.distance=Math.min(25,j.distance+distance);event('control');}}
         if(!previous)previous={x:p.x,z:p.z};else{previous.x=p.x;previous.z=p.z;}
         if(!routeActive){if(now-lastUI>(window.DANBO_COOP&&DANBO_COOP.joined()?250:1000)){lastUI=now;render();}return;}
         if(!marker)buildMarker();
-        var target=route[Math.min(j.steps,2)];marker.position.set(target[0],0,target[1]);marker.children[0].rotation.y=now*0.001;
-        if(j.steps<3&&Math.hypot(p.x-target[0],p.z-target[1])<1.8&&p.y<4){j.steps++;P.capture();if(typeof playCoinSound==='function')playCoinSound();}
+        var target=route[Math.min(j.steps,2)];marker.position.set(target[0],0,target[1]);
+        marker.children[0].position.y=2.2+Math.sin(now*.003)*.22;
+        if(typeof camera!=='undefined')marker.children[0].quaternion.copy(camera.quaternion);
+        marker.children[0].rotation.z=Math.sin(now*.0015)*.12;
+        marker.children[1].scale.setScalar(1+Math.sin(now*.004)*.12);
+        marker.children[1].material.opacity=.65+Math.sin(now*.004)*.2;
+        if(j.steps<3&&Math.hypot(p.x-target[0],p.z-target[1])<1.8&&p.y<4){
+            j.steps++;P.capture();if(typeof playCoinSound==='function')playCoinSound();
+            feedback('★ 星光 +1 · {n}/3',{n:j.steps},2600);
+            marker.visible=j.steps<3;
+        }
         reward();if(now-lastUI>250){lastUI=now;render();}
     }
     var oldChest=Explorer.openChest;
@@ -113,7 +139,7 @@
         var canvas=$('journey-card'),ctx=canvas.getContext('2d'),u=DANBO_ACCOUNT.getUser(),hero=CHARACTERS[u.character];
         canvas.width=720;canvas.height=960;
         var gradient=ctx.createLinearGradient(0,0,720,960);gradient.addColorStop(0,'#12364b');gradient.addColorStop(1,'#437d76');ctx.fillStyle=gradient;ctx.fillRect(0,0,720,960);
-        ctx.textAlign='center';ctx.fillStyle='#ffd886';ctx.font='bold 25px sans-serif';ctx.fillText('DANBO · MY FIRST JOURNEY',360,66);
+        ctx.textAlign='center';ctx.fillStyle='#ffd886';ctx.font='bold 25px sans-serif';ctx.fillText(L('title'),360,66,660);
         ctx.fillStyle='#ffffff';ctx.font='bold 42px sans-serif';ctx.fillText(u.characterName,360,125,660);
         ctx.fillStyle='#'+Number(hero.color).toString(16).padStart(6,'0');ctx.beginPath();ctx.ellipse(360,300,110,140,0,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='#193747';[325,395].forEach(function(x){ctx.beginPath();ctx.ellipse(x,280,9,16,0,0,Math.PI*2);ctx.fill();});
@@ -155,18 +181,18 @@
         localStorage.removeItem('danbo_metrics_visitor_v1');localStorage.removeItem('danbo_metrics_consent_v1');location.reload();
     });});
     $('journey-open').addEventListener('click',function(){open();});
-    $('journey-task').addEventListener('click',function(){open(coopTask);});$('journey-close').addEventListener('click',close);
-    $('journey-overlay').addEventListener('keydown',function(e){
-        e.stopPropagation();if(e.key==='Escape'){e.preventDefault();close();}
-        if(e.key==='Tab'){var nodes=Array.from(this.querySelectorAll('button,input')).filter(function(n){return !n.disabled&&n.getClientRects().length;});var first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
-    });
-    $('journey-overlay').addEventListener('keyup',function(e){e.stopPropagation();});
+    $('journey-task').addEventListener('click',function(){
+        if(window.DANBO_COOP&&DANBO_COOP.nearby&&DANBO_COOP.nearby()){DANBO_COOP.join();render();return;}
+        open(coopTask);
+    });$('journey-close').addEventListener('click',close);
+    $('journey-continue').addEventListener('click',close);
+    $('journey-overlay').addEventListener('keydown',function(e){if(e.key==='Escape'){e.preventDefault();close();}});
     // The fragment is never sent in HTTP requests or analytics. Claim is explicit,
     // not on page load, so link previews cannot consume a player's one-time save.
     var code=new URLSearchParams(location.hash.slice(1)).get('take');
     if(code&&/^[A-Za-z0-9_-]{32}$/.test(code)){
         history.replaceState(null,'',location.pathname+location.search);
-        setTimeout(function(){open();message(UI_T('收到一份蛋宝接力存档。领取会切换为游客，不会登录原账号；此浏览器已有进度会先备份。'));$('journey-claim').hidden=false;},500);
+        setTimeout(function(){$('journey-claim').hidden=false;open();message(UI_T('收到一份蛋宝接力存档。领取会切换为游客，不会登录原账号；此浏览器已有进度会先备份。'));},500);
         $('journey-claim').addEventListener('click',function(){action(async function(){
             if(!confirm(UI_T('领取并切换到这位游客？当前浏览器进度会先保留备份。')))return;
             await P.flush();var result=await DANBO_ACCOUNT.request('/claim',{code:code});

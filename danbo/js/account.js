@@ -8,7 +8,7 @@
     var box=$('account-overlay'),nameBox=$('character-name-overlay'),continueBox=$('character-resume-overlay');
     var GUEST_KEY='danbo_guest_profile_v1';
     var copy={
-        title:['你的蛋宝世界','你的蛋寶世界','あなたのダンボワールド','Your DANBO World'],
+        title:['蛋宝世界','蛋寶世界','たまごのなかまたち','Little Egg Friends'],
         play:['直接玩','直接玩','すぐに遊ぶ','Play now'],register:['注册账号','註冊帳號','アカウント作成','Create account'],login:['登录','登入','ログイン','Log in'],account:['我的账号','我的帳號','マイアカウント','My account'],
         back:['← 返回','← 返回','← 戻る','← Back'],close:['关闭','關閉','閉じる','Close'],logout:['退出账号','登出帳號','ログアウト','Log out'],
         username:['用户名','使用者名稱','ユーザー名','Username'],identity:['用户名或邮箱','使用者名稱或信箱','ユーザー名またはメール','Username or email'],email:['邮箱','電子信箱','メールアドレス','Email'],password:['密码','密碼','パスワード','Password'],
@@ -18,7 +18,7 @@
         details:['账号说明','帳號說明','アカウントについて','Account details'],
         detailsCopy:['注册会保留当前人物和进度。游客存档仅在此浏览器，清除网站数据会丢失。邮箱暂不验证，尚不支持邮件找回密码；请妥善保存密码。','註冊會保留目前人物和進度。訪客存檔僅在此瀏覽器，清除網站資料會遺失。目前不驗證信箱，尚不支援郵件重設密碼；請妥善保存密碼。','現在のキャラクターと進行状況を引き継ぎます。ゲストのデータはこのブラウザー内のみで、サイトデータの削除で失われます。現在メール認証・パスワード再設定は未対応です。パスワードを大切に保管してください。','Registration keeps your current character and progress. Guest saves stay in this browser and are lost if site data is cleared. Email verification and password recovery are not available yet; keep your password safe.'],
         guestAccount:['注册账号','註冊帳號','アカウント作成','Create account'],connecting:['正在进入…','正在進入…','接続中…','Joining…'],saving:['正在处理…','正在處理…','処理中…','Please wait…'],
-        nameTitle:['给人物起个名字','幫人物取個名字','キャラクターに名前をつけよう','Name your DANBO'],nameLabel:['人物名字','人物名字','キャラクター名','Character name'],nameHint:['这不是登录用户名，下次会记住。','這不是登入名稱，下次會記住。','ログイン用の名前とは別です。次回も覚えています。','Separate from your login username. We will remember it.'],namePlaceholder:['2–16 字','2–16 字','2〜16 文字','2–16 characters'],
+        nameTitle:['给人物起个名字','幫人物取個名字','キャラクターに名前をつけよう','Name your character'],nameLabel:['人物名字','人物名字','キャラクター名','Character name'],nameHint:['这不是登录用户名，下次会记住。','這不是登入名稱，下次會記住。','ログイン用の名前とは別です。次回も覚えています。','Separate from your login username. We will remember it.'],namePlaceholder:['2–16 字','2–16 字','2〜16 文字','2–16 characters'],
         nameSubmit:['进入游戏','進入遊戲','ゲームに入る','Enter game'],nameBack:['返回选角色','返回選角色','キャラクター選択に戻る','Back to characters'],hero:['已选角色：','已選角色：','キャラクター：','Character: '],
         resumeTitle:['上次的人物','上次的人物','前回のキャラクター','Your last character'],resumePlay:['继续游戏','繼續遊戲','続きから遊ぶ','Continue playing'],resumeChange:['更换角色','更換角色','キャラクターを変更','Change character'],
         settings:['设置','設定','設定','Settings'],metrics:['允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）','允許匿名試玩統計（可選，保留 90 天；不含姓名、信箱、聊天）','匿名のプレイ統計を許可（任意・90 日保存・名前、メール、チャットは含みません）','Allow anonymous play statistics (optional, kept for 90 days; no names, email or chat)'],updates:['接收游戏更新邮件（可选，随时取消）','接收遊戲更新郵件（可選，隨時取消）','ゲーム更新メールを受け取る（任意・いつでも解除可能）','Receive game update emails (optional; cancel anytime)']
@@ -102,7 +102,7 @@
         $('account-profile').textContent=logged?user.characterName+' · '+user.email:'';$('account-profile').hidden=!logged;
         $('account-form').hidden=logged||welcome;$('account-welcome').hidden=!welcome;
         $('account-tabs').hidden=logged||welcome;$('account-tab-login').hidden=!register;$('account-tab-register').hidden=register;
-        $('account-guest').hidden=!welcome;$('account-brand').hidden=!welcome;
+        $('account-guest').hidden=!welcome;$('account-brand').hidden=true;
         $('account-content').classList.toggle('is-welcome',welcome);
         $('account-back').hidden=logged||welcome;$('account-close').hidden=!!pending;
         $('account-logout').hidden=!logged;
@@ -115,7 +115,7 @@
         text('account-registration-note','saveHint');$('account-registration-note').hidden=!register||welcome||logged;
         text('account-details-label','details');text('account-details-copy','detailsCopy');$('account-details').hidden=!register||welcome||logged;
         text('character-name-title','nameTitle');text('character-name-label','nameLabel');text('character-name-hint','nameHint');text('character-name-submit','nameSubmit');text('character-name-back','nameBack');$('character-name-input').placeholder=t('namePlaceholder');
-        var hero=typeof CHARACTERS!=='undefined'&&CHARACTERS[selectedChar];$('character-name-hero').textContent=t('hero')+(hero?hero.name:'DANBO');
+        var hero=typeof CHARACTERS!=='undefined'&&CHARACTERS[selectedChar];$('character-name-hero').textContent=t('hero')+(hero?hero.name:t('title'));
         text('journey-settings-label','settings');text('journey-consent-label','metrics');text('journey-updates-label','updates');
         text('character-resume-title','resumeTitle');text('character-resume-play','resumePlay');text('character-resume-change','resumeChange');
         $('character-resume-name').textContent=user?user.characterName:'';

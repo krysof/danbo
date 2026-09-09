@@ -16,24 +16,38 @@ var _miniFollow=false;
 window._worldMapOpen=false;
 
 function _isMobileMap(){ return (window.innerWidth||1024)<700; }
-function _mapMiniTop(){ return _isMobileMap()?76:10; }
-function _mapMiniSize(){ return _isMobileMap()?126:216; }
+function _mapMiniTop(){
+    var top=8;
+    // Both desktop and mobile have buttons at the upper right. Fixed top:10
+    // used to draw the 216px map directly over language/music/gamepad controls.
+    ['sound-controls','city-hud'].forEach(function(id){
+        var el=document.getElementById(id);if(!el||!el.getBoundingClientRect)return;
+        var r=el.getBoundingClientRect();if(r.height>0)top=Math.max(top,r.bottom+8);
+    });
+    return Math.ceil(top);
+}
+function _mapMiniSize(){
+    var h=window.innerHeight||720,w=window.innerWidth||1024;
+    // Short landscape windows reserve the lower third for touch actions.
+    return Math.max(48,Math.floor(Math.min(h<520?64:(_isMobileMap()?126:216),w*.32,h*.28,h-_mapMiniTop()-(h<520?110:190))));
+}
 function _mapButtonSize(){ return _isMobileMap()?42:40; }
 function _layoutMapFloatingButtons(){
-    var top=_mapMiniTop(), size=_mapMiniSize(), btn=_mapButtonSize();
+    var top=_mapMiniTop(), size=_mapMiniSize(), btn=_mapButtonSize(),compact=(window.innerHeight||720)<520;
+    var right=compact?Math.min(220,Math.round((window.innerWidth||1024)*.26)):(_isMobileMap()?8:10);
     var wrap=document.getElementById('minimap-wrap');
     if(wrap){
-        wrap.style.top=top+'px';wrap.style.right=(_isMobileMap()?8:10)+'px';
+        wrap.style.top=top+'px';wrap.style.right=right+'px';
         wrap.style.width=size+'px';wrap.style.height=size+'px';
     }
     var mb=document.getElementById('map-btn');
     if(mb){
-        mb.style.top=(top+size+10)+'px';mb.style.right=(_isMobileMap()?14:12)+'px';
+        mb.style.top=(compact?top:top+size+10)+'px';mb.style.right=(right+(compact?size+10:4))+'px';
         mb.style.width=btn+'px';mb.style.height=btn+'px';mb.style.lineHeight=btn+'px';
     }
     var lb=document.getElementById('lb-btn');
     if(lb){
-        lb.style.top=(top+size+btn+18)+'px';lb.style.right=(_isMobileMap()?14:12)+'px';
+        lb.style.top=(compact?top:top+size+btn+18)+'px';lb.style.right=(right+(compact?size+btn+20:4))+'px';
         lb.style.width=btn+'px';lb.style.height=btn+'px';lb.style.lineHeight=btn+'px';
         lb.style.background='rgba(255,255,255,0.85)';lb.style.border='2px solid #FFD86B';lb.style.color='#B8860B';
     }
@@ -400,10 +414,10 @@ function _drawWorldMapLegacy(size){
 var _worldMapRAF=0;
 function _worldMapCopy(){
     var all={
-        zhs:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'蛋宝世界 · 冒险打卡地图',here:'当前位置',progress:'探索进度',visited:'已打卡',current:'当前位置',locked:'未到达',hint:'再次点击地图按钮，或点击空白区域关闭'},
-        zht:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'蛋寶世界 · 冒險打卡地圖',here:'目前位置',progress:'探索進度',visited:'已打卡',current:'目前位置',locked:'未到達',hint:'再次點擊地圖按鈕，或點擊空白區域關閉'},
-        ja:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'エッグワールド・冒険チェックイン地図',here:'現在地',progress:'探索進捗',visited:'チェック済み',current:'現在地',locked:'未到達',hint:'地図ボタンをもう一度押すか、外側をタップして閉じる'},
-        en:{eyebrow:'DANBO WORLD · ADVENTURE ATLAS',title:'DANBO World Adventure Atlas',here:'Current location',progress:'Exploration',visited:'Checked in',current:'You are here',locked:'Undiscovered',hint:'Tap the map button again or tap outside to close'}
+        zhs:{eyebrow:L('title'),title:'冒险地图',here:'当前位置',progress:'探索进度',visited:'已打卡',current:'当前位置',locked:'未到达',hint:'再次点击地图按钮，或点击空白区域关闭'},
+        zht:{eyebrow:L('title'),title:'冒險地圖',here:'目前位置',progress:'探索進度',visited:'已打卡',current:'目前位置',locked:'未到達',hint:'再次點擊地圖按鈕，或點擊空白區域關閉'},
+        ja:{eyebrow:L('title'),title:'冒険マップ',here:'現在地',progress:'探索進捗',visited:'チェック済み',current:'現在地',locked:'未到達',hint:'地図ボタンをもう一度押すか、外側をタップして閉じる'},
+        en:{eyebrow:L('title'),title:'Adventure Atlas',here:'Current location',progress:'Exploration',visited:'Checked in',current:'You are here',locked:'Undiscovered',hint:'Tap the map button again or tap outside to close'}
     };
     return all[_langCode]||all.en;
 }

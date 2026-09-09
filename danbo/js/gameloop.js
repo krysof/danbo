@@ -6,6 +6,36 @@ window.addEventListener('unhandledrejection',function(e){if(!window._errShown){w
 //  CITY UPDATE (portals, coins, NPCs)
 // ============================================================
 var _cityFrameNo=0;
+// Only carried animals are tracked; ordinary props keep their original pose.
+var _carriedAnimals=[];
+function _isAnimalProp(prop){return !!(prop&&(prop._animal||prop._fishRef));}
+function _placeHeldProp(prop,holder){
+    var animal=_isAnimalProp(prop),mesh=prop.group;
+    if(animal&&!prop._carryPose){
+        // Preserve Euler angles too: quaternion -> Euler canonicalization can
+        // introduce PI on X/Z; the animal AI replaces Z with a waddle later.
+        prop._carryPose={rotation:mesh.rotation.clone(),groundY:mesh.position.y};
+        _carriedAnimals.push(prop);
+    }
+    mesh.position.copy(holder.mesh.position);mesh.position.y+=animal?3:1.8;
+    if(animal)mesh.rotation.set(Math.PI,holder.mesh.rotation.y+Math.PI,0);
+}
+function _restoreReleasedAnimals(){
+    for(var i=_carriedAnimals.length-1;i>=0;i--){
+        var prop=_carriedAnimals[i];
+        if(prop.grabbed&&!(prop.throwTimer>0)&&prop.group.parent)continue;
+        prop.group.rotation.copy(prop._carryPose.rotation);
+        if(!(prop.throwTimer>0)){
+            prop.group.position.y=prop._carryPose.groundY;
+            if(prop._animal)prop._animal.y=prop.group.position.y;
+        }
+        delete prop._carryPose;_carriedAnimals.splice(i,1);
+    }
+}
+function _landThrownProp(prop){
+    if(_isAnimalProp(prop))prop.group.rotation.set(0,prop.group.rotation.y,0);
+    else prop.group.rotation.set(Math.PI/2*(Math.random()*0.4+0.8)*(Math.random()<0.5?1:-1),Math.random()*Math.PI*2,0);
+}
 
 function _danboPortalDist2D(px,pz,tx,tz){
     return DANBO_WASM.dist2D(px,pz,tx,tz);
@@ -184,6 +214,7 @@ function _updatePainFace(egg){
     }
 }
 function updateCity(){
+    _restoreReleasedAnimals();
     if(!playerEgg)return;
     const px=playerEgg.mesh.position.x, pz=playerEgg.mesh.position.z, py=playerEgg.mesh.position.y;
     _cityFrameNo++;
@@ -2165,9 +2196,7 @@ function updateHeldEggs(){
         var npc2=allEggs[np2];
         if(npc2.isPlayer||!npc2.alive||!npc2.holdingProp)continue;
         var hp=npc2.holdingProp;
-        hp.group.position.x=npc2.mesh.position.x;
-        hp.group.position.y=npc2.mesh.position.y+1.8;
-        hp.group.position.z=npc2.mesh.position.z;
+        _placeHeldProp(hp,npc2);
         if(!npc2._npcPropHoldTimer)npc2._npcPropHoldTimer=60;
         npc2._npcPropHoldTimer--;
         if(npc2._npcPropHoldTimer<=0){
@@ -2194,9 +2223,7 @@ function updateHeldEggs(){
     // Update held city prop position
     if(playerEgg&&playerEgg.holdingProp){
         var pp=playerEgg.holdingProp;
-        pp.group.position.x=playerEgg.mesh.position.x;
-        pp.group.position.y=playerEgg.mesh.position.y+1.8;
-        pp.group.position.z=playerEgg.mesh.position.z;
+        _placeHeldProp(pp,playerEgg);
     }
     // Thrown city prop physics
     for(var tpi=0;tpi<cityProps.length;tpi++){
@@ -2208,7 +2235,7 @@ function updateHeldEggs(){
             tp.grabbed=false;
             tp.x=tp.group.position.x;tp.z=tp.group.position.z;
             if(tp.group.position.y>0.01){tp.throwVy=-0.05;tp.throwTimer=1;} // still in air, keep falling
-            else{tp.group.rotation.set(Math.PI/2*(Math.random()*0.4+0.8)*(Math.random()<0.5?1:-1),Math.random()*Math.PI*2,0);} // topple over
+            else{_landThrownProp(tp);}
             continue;
         }
         tp.group.position.x+=tp.throwVx;
@@ -2237,7 +2264,7 @@ function updateHeldEggs(){
         if(tp.group.position.z<-_pb){tp.group.position.z=-_pb;tp.throwVz=Math.abs(tp.throwVz)*0.4;}
         if(tp.group.position.y<0.01&&tp.throwVy<0){
             if(tp._bounces>0){tp._bounces--;tp.throwVy=Math.abs(tp.throwVy)*0.45;tp.throwVx*=0.7;tp.throwVz*=0.7;tp.group.position.y=0.01;playHitSound(tp.group.position.x,tp.group.position.z);}
-            else{tp.group.position.y=0.01;tp.throwTimer=0;tp.grabbed=false;tp.group.rotation.set(Math.PI/2*(Math.random()*0.4+0.8)*(Math.random()<0.5?1:-1),Math.random()*Math.PI*2,0);tp.x=tp.group.position.x;tp.z=tp.group.position.z;}
+            else{tp.group.position.y=0.01;tp.throwTimer=0;tp.grabbed=false;_landThrownProp(tp);tp.x=tp.group.position.x;tp.z=tp.group.position.z;}
         }
         // Hit eggs
         for(var tpe=0;tpe<allEggs.length;tpe++){
@@ -2247,7 +2274,7 @@ function updateHeldEggs(){
             var tpdx=tpeg.mesh.position.x-tp.group.position.x;
             var tpdz=tpeg.mesh.position.z-tp.group.position.z;
             var tpd=DANBO_WASM.len2D(tpdx,tpdz);
-            if(tpd<tp.radius+0.8){
+            if(tpd>0.001&&tpd<tp.radius+0.8){
                 var impW=tp.weight||1;tpeg.vx+=tpdx/tpd*0.4*impW;tpeg.vz+=tpdz/tpd*0.4*impW;tpeg.vy=0.3+0.12*impW;tpeg.squash=COMBAT.propImpact.squash;tpeg.throwTimer=COMBAT.propImpact.throwTimer;tpeg._bounces=COMBAT.propImpact.bounces;
                 if(tpeg.isPlayer)playHitSound(tpeg.mesh.position.x,tpeg.mesh.position.z);
                 _dropNpcStolenCoins(tpeg);

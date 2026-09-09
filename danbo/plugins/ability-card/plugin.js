@@ -11,7 +11,7 @@
     window.DANBO_PLUGIN_HOST.register({
         id:'ability-card',
         version:'0.1.0',
-        name:{zhs:'角色能力卡测试',en:'Ability Card Demo'},
+        name:{zhs:'角色能力卡测试',zht:'角色能力卡測試',ja:'キャラクター能力カード',en:'Ability Card Demo'},
         description:'Example minigame plugin. It receives only the selected character snapshot and a network-room API.',
         create:function(ctx){
             var ch=ctx.character;

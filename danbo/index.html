@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
-<title>DANBO World</title>
+<title>Little Egg Friends</title>
 <meta name="theme-color" content="#153746">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="DANBO">
+<meta name="apple-mobile-web-app-title" content="Little Egg Friends" data-game-title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/app-icon-192.png">
 <script type="importmap">
@@ -18,19 +18,21 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260909.3">
+<link rel="stylesheet" href="style.css?v=20260909.4">
 </head>
 <body>
 <div id="game-container">
   <div id="three-root"></div>
   <div id="world-label-layer" aria-hidden="true" hidden></div>
   <button id="journey-task" type="button" hidden>初次旅行</button>
-  <div id="journey-overlay" class="account-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="journey-title">
+  <div id="journey-feedback" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+  <div id="journey-overlay" class="journey-popover hidden" role="region" aria-labelledby="journey-title">
     <section class="account-card journey-card">
       <button id="journey-close" class="account-close" type="button" aria-label="关闭旅程手册" data-ui-aria-label="关闭旅程手册">×</button>
-      <small>MY DANBO JOURNEY</small><h2 id="journey-title" data-ui-text="把蛋宝带回家">把蛋宝带回家</h2>
+      <h2 id="journey-title" data-ui-text="旅程手册">旅程手册</h2>
       <h3 id="journey-card-name"></h3><p id="journey-objectives"></p><p id="journey-reward"></p>
-      <p id="journey-stamps" class="account-hint"></p>
+      <button id="journey-continue" type="button" class="account-primary" data-ui-text="收起">收起</button>
+      <details id="journey-coop-details" class="journey-fold"><summary data-ui-text="多人挑战">多人挑战</summary>
       <section id="coop-card" class="coop-card" aria-labelledby="coop-title">
         <h3 id="coop-title" tabindex="-1">星光协奏 · 多人协作</h3>
         <p id="coop-intro"></p>
@@ -39,6 +41,9 @@
         <p id="coop-status" role="status" aria-live="polite"></p><p id="coop-note" role="status"></p>
         <div class="journey-actions"><button id="coop-join" type="button">加入协作</button><button id="coop-leave" type="button" hidden>退出协作</button><button id="coop-share" type="button">邀请朋友来同服</button></div>
       </section>
+      </details>
+      <details id="journey-save-details" class="journey-fold"><summary data-ui-text="保存与接力">保存与接力</summary>
+      <p id="journey-stamps" class="account-hint"></p>
       <p id="journey-status" role="status" aria-live="polite"></p>
       <div id="journey-conflict" hidden><p data-ui-text="未自动覆盖任何存档。请选择完整保留其中一份（不会合并金币）：">未自动覆盖任何存档。请选择完整保留其中一份（不会合并金币）：</p><button id="journey-use-cloud" type="button" data-ui-text="使用云端存档">使用云端存档</button><button id="journey-use-local" type="button" data-ui-text="用本机存档替换云端">用本机存档替换云端</button></div>
       <div class="journey-actions">
@@ -52,6 +57,7 @@
       <canvas id="journey-card" hidden aria-label="蛋宝纪念卡和一次性接力二维码" data-ui-aria-label="蛋宝纪念卡和一次性接力二维码"></canvas>
       <div id="journey-card-actions" class="journey-actions" hidden><button id="journey-download" type="button" data-ui-text="保存纪念卡图片">保存纪念卡图片</button><button id="journey-copy" type="button" data-ui-text="复制接力链接">复制接力链接</button></div>
       <p class="account-hint" data-ui-text="接力码 10 分钟有效，领取后失效。它包含人物和当前进度，不含账号登录权限。长期保存请注册；接力卡不要公开分享。">接力码 10 分钟有效，领取后失效。它包含人物和当前进度，不含账号登录权限。长期保存请注册；接力卡不要公开分享。</p>
+      </details>
       <details class="journey-settings"><summary id="journey-settings-label" data-ui-text="设置">设置</summary>
         <label class="journey-check"><input id="journey-consent" type="checkbox"><span id="journey-consent-label" data-ui-text="允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）">允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）</span></label>
         <label id="journey-preferences" class="journey-check" hidden><input id="journey-updates" type="checkbox"><span id="journey-updates-label" data-ui-text="愿意接收游戏更新邮件（可选，随时取消）">愿意接收游戏更新邮件（可选，随时取消）</span></label>
@@ -68,7 +74,7 @@
         <button id="account-close" class="account-dismiss" type="button" aria-label="关闭" data-ui-aria-label="关闭">×</button>
       </header>
       <div id="account-content" class="account-card account-content">
-        <div id="account-brand" class="account-brand">DANBO</div><h2 id="account-title">你的蛋宝世界</h2>
+        <div id="account-brand" class="account-brand" hidden></div><h2 id="account-title">Little Egg Friends</h2>
         <div id="account-welcome" class="account-welcome"><button id="account-guest" class="account-primary" type="button">直接玩</button><button id="account-create" class="account-guest" type="button">注册账号</button></div>
         <p id="account-current" hidden></p><p id="account-profile" hidden></p>
         <form id="account-form" hidden>
@@ -133,7 +139,7 @@
     <div class="server-browser-shell">
       <header class="server-browser-header">
         <div>
-          <small>DANBO ONLINE</small>
+          <small data-game-title>Little Egg Friends</small>
           <h2 data-ui-text="选择服务器">选择服务器</h2>
           <p data-ui-text="刷新服务器状态，选择后再进入角色界面。">刷新服务器状态，选择后再进入角色界面。</p>
           <button id="account-server-open" class="server-refresh-btn" type="button">游客 / 登录注册</button>
@@ -158,9 +164,9 @@
     <div class="select-sky-glow select-sky-glow-b" aria-hidden="true"></div>
     <div class="select-cinematic-shell">
       <header class="select-cinematic-header">
-        <div class="select-brand-mark"><span>DW</span></div>
+        <div class="select-brand-mark"><span>🥚</span></div>
         <div class="select-header-copy">
-          <div class="select-kicker">DANBO WORLD · ADVENTURER CAST</div>
+          <div class="select-kicker" data-game-title>Little Egg Friends</div>
           <h1 id="select-page-title">选择角色</h1>
           <p id="select-world-intro">每一枚生命蛋壳，都孕育着独一无二的伙伴。</p>
         </div>
@@ -263,7 +269,7 @@
   <div id="multiplayer-overlay" class="multiplayer-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="multiplayer-title">
     <section class="multiplayer-panel">
       <button id="multiplayer-close" class="multiplayer-close" type="button" aria-label="关闭" data-ui-aria-label="关闭">×</button>
-      <div class="multiplayer-eyebrow">DANBO ONLINE · PUBLIC SERVERS</div>
+      <div class="multiplayer-eyebrow" data-game-title>Little Egg Friends</div>
       <div class="multiplayer-title-row">
         <div>
           <h2 id="multiplayer-title" data-ui-text="一起逛蛋宝世界">一起逛蛋宝世界</h2>
@@ -356,7 +362,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260909.3';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260909.4';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";

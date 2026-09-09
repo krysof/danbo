@@ -176,11 +176,9 @@ function MoveProjectile_update(proj){
         target.squash=COMBAT.projectile.squash;
         target.throwTimer=COMBAT.projectile.throwTimer;
         target._bounces=COMBAT.projectile.bounces;
-        if(proj.isPlayer){
-            _addStunDamage(target,COMBAT.projectile.stunDmg);
-        } else {
-            target._stunTimer=COMBAT.projectile.npcStunTimer;
-        }
+        // Use the original NPC-to-player recovery for every projectile victim.
+        // The attacker being human must not silently remove the dizzy reaction.
+        target._stunTimer=COMBAT.projectile.npcStunTimer;
         if(proj.burns) target._onFire=COMBAT.projectile.fireDuration;
         if(proj.isSonicBoom) spawnSlashEffect(target,Math.atan2(proj.vx,proj.vz));
         _dropNpcStolenCoins(target);

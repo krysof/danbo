@@ -19,7 +19,15 @@
         if(state&&state.players)state.players.forEach(function(p,id){fn(p,id,false);});
         var n=0;if(state&&state.bots)state.bots.forEach(function(p,id){if(n++<6)fn(p,'bot:'+id,true);});
     }
-    function detail(players,bots,capacity){var w=words();return players+(capacity?'/'+capacity:'')+' '+w.players+' · '+bots+' '+w.bots;}
+    function ambient(preview){
+        // Scene residents are local actors, not network connections. In the
+        // lobby show the authored arrival-city roster; in game count live NPCs.
+        if(!preview&&typeof cityNPCs!=='undefined'&&typeof gameState!=='undefined'&&gameState==='city')
+            return cityNPCs.filter(function(p){return p.alive!==false&&p.mesh&&p.mesh.visible!==false;}).length;
+        var npc=typeof _getCityNpc==='function'?_getCityNpc(0):null;
+        return npc&&Number.isInteger(npc.count)&&npc.count>0?npc.count:0;
+    }
+    function detail(players,bots,capacity,npcs){var w=words();return players+(capacity?'/'+capacity:'')+' '+w.players+' · '+bots+' '+w.bots+(npcs!==undefined?' · '+npcs+' NPC':'');}
     function animate(avatar,action,dt){
         var data=avatar.userData,rig=data._companionRig;
         if(!rig)rig=data._companionRig={action:'',time:0,phase:Math.random()*Math.PI*2};
@@ -42,5 +50,5 @@
         }
         if(rig.camera){rig.camera.visible=action==='photo';rig.flash.visible=rig.time>0.75&&rig.time<0.90;}
     }
-    window.DANBO_COMPANIONS={count:count,each:each,words:words,detail:detail,animate:animate};
+    window.DANBO_COMPANIONS={count:count,each:each,words:words,detail:detail,animate:animate,ambient:ambient};
 })();

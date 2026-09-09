@@ -5,7 +5,7 @@
     window.DANBO_PLUGIN_HOST.register({
         id:'rocket-road',
         version:'0.1.3',
-        name:{zhs:'蛋宝火箭公路',en:'Danbo Rocket Road'},
+        name:{zhs:'蛋宝火箭公路',zht:'蛋寶火箭公路',ja:'ダンボ・ロケットロード',en:'Danbo Rocket Road'},
         description:'Original Danbo arcade road minigame: 3D presentation, 2D Road Fighter-inspired single-stage rules, independent WASM.',
         create:function(ctx){
             if(ctx.net)ctx.net.send('minigame.startIntent',{pluginId:ctx.pluginId,characterId:ctx.character.id,screen:'title'});
