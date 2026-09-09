@@ -161,6 +161,179 @@ function _visualCanvasTexture(canvas,isColor,repeat){
     else if(THREE.NoColorSpace!==undefined)tex.colorSpace=THREE.NoColorSpace;
     return tex;
 }
+// Authored industrial paint: seamless broad chips, oxide pits and vertical runoff.
+// Two 256px maps and two shared materials for every pipe, with no per-frame work.
+function _visualRustPipeMaterial(part){
+    var key='rust-pipe-'+(part==='rim'?'rim':'body');
+    if(_visualSurfaceMaterials[key])return _visualSurfaceMaterials[key];
+    var set=_visualSurfaceTextureSets.rustPipe;
+    if(!set){
+        var size=256,canvas=document.createElement('canvas'),rough=document.createElement('canvas');
+        canvas.width=canvas.height=rough.width=rough.height=size;
+        var ctx=canvas.getContext('2d'),rc=rough.getContext('2d');
+        var albedo=ctx.createImageData(size,size),data=rc.createImageData(size,size);
+        function hash(x,y,n){
+            x=(x%n+n)%n;y=(y%n+n)%n;
+            var h=Math.imul(x+137,374761393)+Math.imul(y+71,668265263);
+            h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295;
+        }
+        function noise(x,y,n){
+            x=x/size*n;y=y/size*n;var ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+            fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+            return (hash(ix,iy,n)*(1-fx)+hash(ix+1,iy,n)*fx)*(1-fy)+(hash(ix,iy+1,n)*(1-fx)+hash(ix+1,iy+1,n)*fx)*fy;
+        }
+        var rng=_visualSeededRandom(932771),rustPixels=0;
+        for(var y=0;y<size;y++)for(var x=0;x<size;x++){
+            var grain=rng(),field=noise(x,y,8)*.68+noise(x,y,23)*.24+grain*.08;
+            var chipped=field>.58,edge=field>.55,streak=noise(x*4,y,8)>.72;
+            var p=(y*size+x)*4,shade=(grain-.5)*22;
+            // Ochre yellow paint remains the dominant readable colour, not green.
+            var rgb=chipped?[103+grain*48,46+grain*23,20+grain*12]:(edge?[168,91,29]:(streak?[192,126,36]:[229,178,48]));
+            for(var k=0;k<3;k++){albedo.data[p+k]=rgb[k]+shade;data.data[p+k]=chipped?240:184+grain*22;}
+            albedo.data[p+3]=data.data[p+3]=255;if(chipped)rustPixels++;
+        }
+        ctx.putImageData(albedo,0,0);rc.putImageData(data,0,0);
+        set={map:_visualCanvasTexture(canvas,true,1),roughnessMap:_visualCanvasTexture(rough,false,1)};
+        set.map.userData.danboSharedAsset=set.roughnessMap.userData.danboSharedAsset=true;
+        set.map.userData.rustCoverage=rustPixels/(size*size);
+        _visualSurfaceTextureSets.rustPipe=set;
+    }
+    var rim=part==='rim';
+    var mat=new THREE.MeshStandardMaterial({color:rim?0xCCA369:0xFFFFFF,map:set.map,
+        roughnessMap:set.roughnessMap,bumpMap:set.roughnessMap,bumpScale:.035,
+        roughness:1,metalness:rim?.36:.16,envMapIntensity:.35,side:THREE.DoubleSide});
+    mat.name=key;mat.userData.danboSharedAsset=true;
+    _visualSurfaceMaterials[key]=mat;return mat;
+}
+function _visualPipeBody(radius,height,segments,openFront){
+    var geometry=new THREE.CylinderGeometry(radius,radius,height,segments||16,1,true,openFront?.38:0,openFront?Math.PI*1.76:Math.PI*2);
+    var uv=geometry.attributes.uv;
+    for(var i=0;i<uv.count;i++)uv.setY(i,uv.getY(i)*Math.max(1,height/(radius*2)));
+    var mesh=new THREE.Mesh(geometry,_visualRustPipeMaterial('body'));
+    mesh.name='danbo-rust-yellow-pipe';mesh.castShadow=true;mesh.receiveShadow=true;return mesh;
+}
+function _visualPipeFlange(radius,thickness){
+    // Polygonal steel collar instead of a glossy toy torus. Its outer bounds
+    // match the old rim, so existing triggers and obstacle collision stay valid.
+    var shape=new THREE.Shape(),hole=new THREE.Path(),n=12;
+    for(var i=0;i<=n;i++){var a=i/n*Math.PI*2,x=Math.cos(a),y=Math.sin(a);
+        if(i===0){shape.moveTo(x*(radius+thickness),y*(radius+thickness));hole.moveTo(x*(radius-thickness),-y*(radius-thickness));}
+        else{shape.lineTo(x*(radius+thickness),y*(radius+thickness));hole.lineTo(x*(radius-thickness),-y*(radius-thickness));}}
+    shape.holes.push(hole);
+    var geo=new THREE.ExtrudeGeometry(shape,{depth:thickness,steps:1,bevelEnabled:false,curveSegments:1});
+    geo.translate(0,0,-thickness/2);
+    var mesh=new THREE.Mesh(geo,_visualRustPipeMaterial('rim'));
+    mesh.name='danbo-industrial-pipe-flange';mesh.castShadow=true;mesh.receiveShadow=true;return mesh;
+}
+
+function _visualClockworkSentry(){
+    // The legacy goomba collision/AI key is intentionally retained by callers.
+    var g=new THREE.Group(),metal=new THREE.MeshStandardMaterial({color:0x668F9B,roughness:.68,metalness:.3});
+    var dark=new THREE.MeshStandardMaterial({color:0x263D48,roughness:.84});
+    function add(geo,mat,x,y,z){var m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;g.add(m);return m;}
+    var body=add(new THREE.DodecahedronGeometry(.54,0),metal,0,.57,0);body.scale.set(.85,1,.8);
+    add(new THREE.BoxGeometry(.53,.17,.07),dark,0,.67,.40);
+    var lamp=new THREE.MeshBasicMaterial({color:0xFFDE83});
+    [-1,1].forEach(function(s){add(new THREE.BoxGeometry(.09,.07,.03),lamp,s*.13,.67,.45);
+        var wheel=add(new THREE.CylinderGeometry(.18,.18,.12,8),dark,s*.38,.18,0);wheel.rotation.z=Math.PI/2;});
+    var key=add(new THREE.TorusGeometry(.13,.038,4,8),metal,0,.74,-.48);key.rotation.x=Math.PI/2;
+    g.name='danbo-clockwork-sentry';return g;
+}
+
+function _visualLunarSurveyUnit(legacyType,weaponType){
+    // Keep the prototype's internal IDs for AI, saved data and respawn. All live
+    // models are egg-shaped survey drones / ring haulers, not humanoid replicas.
+    var g=new THREE.Group(),result={group:g};g.name='danbo-lunar-survey-unit';
+    var palette={gundam:0xE1B564,gm:0xC2AAA0,zaku:0x66B8BA,dom:0x827EAC,
+        valkyrie:0xD696AF,sdf1:0xE5C791,zenPod:0xA8B5D6,zenCruiser:0x8AABBA};
+    var paint=new THREE.MeshStandardMaterial({color:palette[legacyType]||0x82B4AC,roughness:.65,metalness:.22});
+    var dark=new THREE.MeshStandardMaterial({color:0x273E49,roughness:.7,metalness:.3});
+    var light=new THREE.MeshBasicMaterial({color:0xA3F1EE});
+    function add(geo,mat,x,y,z,parent){var m=new THREE.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);(parent||g).add(m);return m;}
+    var hauler=legacyType==='sdf1'||legacyType==='zenCruiser';
+    var hull=add(new THREE.SphereGeometry(1,12,8),paint,0,0,0);
+    hull.scale.set(hauler?3.4:1.15,hauler?1.3:1.55,hauler?2:1);
+    var ring=add(new THREE.TorusGeometry(hauler?3:1.25,hauler?.22:.12,6,16),dark,0,-.22,0);
+    ring.rotation.x=Math.PI/2;
+    // Three separate round sensors, no V-fin, masked humanoid face or mono-eye.
+    for(var i=0;i<3;i++)add(new THREE.SphereGeometry(hauler?.23:.13,6,4),light,(i-1)*(hauler?.7:.32),.12,hauler?1.95:.96);
+    var pods=hauler?6:3;
+    for(var j=0;j<pods;j++){
+        var angle=j/pods*Math.PI*2,r=hauler?3.2:1.32;
+        var pod=add(new THREE.SphereGeometry(hauler?.55:.29,8,6),paint,Math.sin(angle)*r,-.62,Math.cos(angle)*r);
+        pod.scale.y=1.45;add(new THREE.CylinderGeometry(.14,.19,.18,8),light,Math.sin(angle)*r,-1.05,Math.cos(angle)*r);
+    }
+    if(legacyType==='valkyrie'){var sail=add(new THREE.TorusGeometry(1.85,.16,5,6),paint,0,.25,-.3);sail.rotation.y=.45;}
+    if(weaponType==='saber'){
+        var tool=new THREE.Group();tool.position.set(1.3,-.2,.3);g.add(tool);
+        add(new THREE.TorusGeometry(.52,.095,5,10,Math.PI*1.5),light,0,0,0,tool);result.saberMesh=tool;
+    }else if(weaponType==='funnel'){
+        result.funnels=[];for(var f=0;f<6;f++){var a=f/6*Math.PI*2;
+            var probe=add(new THREE.OctahedronGeometry(.32),light,Math.cos(a)*3,Math.sin(a)*2,Math.sin(a)*3);
+            result.funnels.push({mesh:probe,angle:a,dist:3});}
+    }else{
+        var emitter=new THREE.Group();emitter.position.set(0,-.5,hauler?2:1);g.add(emitter);
+        add(new THREE.SphereGeometry(.25,8,6),dark,0,0,0,emitter);result.weapon=emitter;
+    }
+    return result;
+}
+
+function _visualExpeditionOutfit(g,body,color,accent,charType){
+    if(!g||!body)return null;
+    var root=new THREE.Group(),details=[];root.name='danbo-expedition-outfit';root.visible=false;body.add(root);
+    var cloth=new THREE.MeshStandardMaterial({color:0x436969,roughness:.94});
+    var brass=new THREE.MeshStandardMaterial({color:0xC49A59,roughness:.56,metalness:.42});
+    var trim=new THREE.MeshStandardMaterial({color:accent||0xE3BE79,roughness:.72});
+    var glass=new THREE.MeshStandardMaterial({color:0x234D60,roughness:.28,metalness:.15});
+    function add(geo,mat,x,y,z){var m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;root.add(m);details.push(m);return m;}
+    var pack=add(new THREE.BoxGeometry(.56,.53,.23),cloth,0,-.10,-.65);
+    add(new THREE.BoxGeometry(.48,.08,.26),trim,0,.12,-.66);
+    add(new THREE.BoxGeometry(.13,.14,.03),brass,0,-.08,-.785);
+    // Goggles are carried above the face, leaving eyes, cheeks and mouth readable.
+    [-1,1].forEach(function(s){
+        add(new THREE.TorusGeometry(.105,.023,6,14),brass,s*.13,.63,.40);
+        add(new THREE.CircleGeometry(.092,14),glass,s*.13,.63,.402);
+        var strap=add(new THREE.BoxGeometry(.038,.6,.026),cloth,s*.32,-.08,.62);strap.rotation.z=s*.12;
+    });
+    var pouch=add(new THREE.BoxGeometry(.20,.20,.10),cloth,.36,-.35,.60);pouch.rotation.z=-.10;
+    add(new THREE.CircleGeometry(.058,6),brass,.36,-.34,.656);
+    var charm=add(new THREE.OctahedronGeometry(.065),trim,-.34,-.31,.67);charm.scale.y=1.5;
+    g.userData._classicFighterRoot=root;g.userData._classicFighterDetails=details;return root;
+}
+
+function _visualMistbloomBathhouse(x,z,baseY){
+    var g=new THREE.Group();g.name='danbo-mistbloom-baths';g.position.set(x,baseY,z);
+    var ivory=new THREE.MeshStandardMaterial({color:0xEADCB9,roughness:.88});
+    var copper=new THREE.MeshStandardMaterial({color:0x6F9C98,roughness:.63,metalness:.25});
+    var stone=new THREE.MeshStandardMaterial({color:0x756B59,roughness:.92});
+    var windowMat=new THREE.MeshStandardMaterial({color:0x74949A,emissive:0x365653,emissiveIntensity:.16,roughness:.35});
+    function add(geo,mat,px,py,pz){var m=new THREE.Mesh(geo,mat);m.position.set(px,py,pz);m.castShadow=true;m.receiveShadow=true;g.add(m);return m;}
+    add(new THREE.BoxGeometry(14.5,.8,14.5),stone,0,.4,0);
+    add(new THREE.BoxGeometry(11,6,10),ivory,0,3.8,-1);
+    [-1,1].forEach(function(s){
+        add(new THREE.BoxGeometry(3,4.6,12),ivory,s*5.7,3.1,0);
+        add(new THREE.BoxGeometry(3.3,.4,12.4),copper,s*5.7,5.6,0);
+        add(new THREE.BoxGeometry(1.7,2,.08),windowMat,s*5.7,3,6.05);
+    });
+    var canopy=add(new THREE.SphereGeometry(1,16,8,0,Math.PI*2,0,Math.PI/2),copper,0,6.8,-1);
+    canopy.scale.set(5.7,3,5.2);
+    var skylight=add(new THREE.SphereGeometry(1,12,6,0,Math.PI*2,0,Math.PI/2),windowMat,0,8.7,-1);
+    skylight.scale.set(2.4,1.5,2.4);
+    [-1,1].forEach(function(s){add(new THREE.BoxGeometry(2,2.3,.1),windowMat,s*3.1,3.7,4.1);});
+    add(new THREE.BoxGeometry(2.4,3.3,.14),copper,0,2.45,4.1);
+    var canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;
+    var ctx=canvas.getContext('2d');ctx.fillStyle='#263F43';ctx.fillRect(0,0,512,96);
+    ctx.fillStyle='#F5E4B5';ctx.font='bold 42px sans-serif';ctx.textAlign='center';
+    var names={zhs:'雾樱汤苑',zht:'霧櫻湯苑',ja:'霧桜の湯',en:'Mistbloom Baths'};
+    ctx.fillText(names[typeof _langCode==='string'?_langCode:'en']||names.en,256,64,490);
+    var tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
+    var sign=new THREE.Mesh(new THREE.PlaneGeometry(7.5,1.4),new THREE.MeshBasicMaterial({map:tex}));
+    sign.position.set(0,6,4.2);g.add(sign);cityGroup.add(g);
+    cityColliders.push({x:x,z:z,hw:7.5,hd:7.5,h:baseY+10.2});
+    cityBuildingMeshes.push({meshes:g.children.slice(),x:x,z:z,hw:7.5,hd:7.5,h:baseY+10.2});
+    return g;
+}
+
 function _visualExternalSurfaceTextureSet(kind){
     // The photographic grey plaster has dense directional grain which reads as burlap
     // after it is tinted and stretched over tall procedural buildings. Facades therefore

@@ -119,7 +119,16 @@ function _drawCuteRoundPortrait(ctx,ch,W,H){
     ctx.strokeStyle='#2B202B';ctx.lineWidth=2.5;ctx.stroke();
 }
 
-function drawPortrait(ch) {
+function drawPortrait(ch){
+    if(!portraitCanvas)return;
+    var hd=_setupHiDPICanvas(portraitCanvas,220,260);if(!hd)return;
+    var scale=Math.min(hd.w/220,hd.h/260);
+    hd.ctx.clearRect(0,0,hd.w,hd.h);hd.ctx.save();
+    hd.ctx.translate((hd.w-220*scale)/2,(hd.h-260*scale)/2);hd.ctx.scale(scale,scale);
+    _drawCuteRoundPortrait(hd.ctx,ch,220,260);hd.ctx.restore();
+}
+// Original illustrator preserved as reference; live cards never call it.
+function _drawPrototypePortrait(ch) {
     if (!portraitCanvas) return;
     var hd=_setupHiDPICanvas(portraitCanvas,220,260);
     if(!hd)return;

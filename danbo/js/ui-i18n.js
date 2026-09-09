@@ -26,6 +26,9 @@
         ['aria-label','placeholder','title'].forEach(function(attr){document.querySelectorAll('[data-ui-'+attr+']').forEach(function(el){el.setAttribute(attr,text(el.getAttribute('data-ui-'+attr)));});});
     }
     root.UI_T=text;root.UI_HTML=html;root.DANBO_UI_I18N={text:text,html:html,refresh:refresh,add:add,locales:locales,table:table};
+    add(`旅行装扮¦旅行裝扮¦旅の装い¦Expedition outfit
+日常装扮¦日常裝扮¦いつもの装い¦Everyday outfit
+旅装¦旅裝¦旅装¦Travel`);
     add(`初次旅行¦初次旅行¦はじめての旅¦First journey
 移动 {n}/12 米 · WASD / 左摇杆¦移動 {n}/12 公尺 · WASD / 左搖桿¦{n}/12 m 歩こう · WASD / 左スティック¦Move {n}/12 m · WASD / left stick
 轻按并松开空格 /「跳」按钮¦輕按並放開空白鍵 /「跳」按鈕¦スペース /「ジャンプ」を押して離そう¦Press and release Space / Jump

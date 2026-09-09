@@ -422,6 +422,10 @@ function _animateCuteCharacterDetails(model,now){
 // portrait. The layer can therefore be toggled without rebuilding physics,
 // animation or combat hit meshes.
 function _addClassicArcadeFighterRig(g,body,color,accent,charType){
+    // The saved "classic" choice now means the original expedition outfit.
+    return _visualExpeditionOutfit(g,body,color,accent,charType);
+}
+function _addPrototypeArcadeFighterRig(g,body,color,accent,charType){
     if(!g||!body)return null;
     var type=charType||'egg',high=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.high;
     var root=new THREE.Group();

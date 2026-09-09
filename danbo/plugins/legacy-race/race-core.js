@@ -15,7 +15,7 @@ let trackSegments = [];
 function clearRace() {
     while(raceGroup.children.length){
         const c=raceGroup.children[0]; raceGroup.remove(c);
-        c.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});
+        disposeTransientObject3D(c);
     }
     obstacleObjects.length=0;
     for(var rc of raceCoins) raceGroup.remove(rc.mesh);
@@ -310,20 +310,20 @@ function buildRaceTrack(ri){
             // Giant mushroom decorations (red+white dome on stick)
             var _mStalk=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.35,3,8),toon(0xFFEEDD));
             _mStalk.position.set(_ms*(TRACK_W+5),1.5,-_mz); raceGroup.add(_mStalk);
-            var _mCap=new THREE.Mesh(new THREE.SphereGeometry(1.2,10,6,0,Math.PI*2,0,Math.PI/2),toon(0xFF2222));
+            var _mCap=new THREE.Mesh(new THREE.ConeGeometry(1.2,1.4,6),toon(0x75C8B4,{emissive:0x315B60,emissiveIntensity:.2}));
             _mCap.position.set(_ms*(TRACK_W+5),3,-_mz); raceGroup.add(_mCap);
             // White dots on mushroom cap
             for(var _dot=0;_dot<3;_dot++){
-                var _wdot=new THREE.Mesh(new THREE.SphereGeometry(0.2,6,4),toon(0xFFFFFF));
+                var _wdot=new THREE.Mesh(new THREE.OctahedronGeometry(0.18),toon(0xEFBF7B));
                 _wdot.position.set(_ms*(TRACK_W+5)+Math.sin(_dot*2.1)*0.7,3.2+Math.cos(_dot*2.1)*0.3,-_mz+Math.cos(_dot*1.5)*0.5); raceGroup.add(_wdot);
             }
         }
         for(var _qi=0;_qi<8;_qi++){var _qz=_d8Z*(_qi+0.5)/8,_qs=(_qi%2===0?-1:1);
             // Question mark blocks (yellow cubes)
-            var _qBlock=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.2,1.2),toon(0xFFCC00,{emissive:0xFFAA00,emissiveIntensity:0.2}));
+            var _qBlock=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.65,1.2,8),toon(0x407F88,{emissive:0x19444B,emissiveIntensity:0.12}));
             _qBlock.position.set(_qs*(TRACK_W+3),3.5,-_qz); raceGroup.add(_qBlock);
             // ? mark (small white plane)
-            var _qMark=new THREE.Mesh(new THREE.PlaneGeometry(0.6,0.8),toon(0xFFFFFF,{side:THREE.DoubleSide}));
+            var _qMark=new THREE.Mesh(new THREE.CircleGeometry(0.32,4),toon(0xE3B978,{side:THREE.DoubleSide}));
             _qMark.position.set(_qs*(TRACK_W+3),3.5,-_qz+0.61); raceGroup.add(_qMark);
         }
         for(var _bi=0;_bi<6;_bi++){var _bz=_d8Z*(_bi+0.5)/6,_bs=(_bi%2===0?-1:1);
@@ -684,16 +684,16 @@ function buildObs(seg,ri,sm){
         const pH=2.0+Math.random()*1.5;
         const pg=new THREE.Group();
         // Pipe body
-        const body2=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,pH,12),toon(0x33AA33));
+        const body2=_visualPipeBody(0.8,pH,12);
         body2.position.y=pH/2; body2.castShadow=true; pg.add(body2);
         // Pipe rim (wider top)
-        const rim2=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,0.4,12),toon(0x228822));
+        const rim2=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,0.4,12),_visualRustPipeMaterial('rim'));
         rim2.position.y=pH+0.2; rim2.castShadow=true; pg.add(rim2);
         // Dark inside
         const hole=new THREE.Mesh(new THREE.CircleGeometry(0.7,12),toon(0x111111));
         hole.rotation.x=-Math.PI/2; hole.position.y=pH+0.41; pg.add(hole);
         // Highlight stripe
-        const stripe=new THREE.Mesh(new THREE.CylinderGeometry(0.82,0.82,0.15,12),toon(0x55CC55));
+        const stripe=new THREE.Mesh(new THREE.CylinderGeometry(0.82,0.82,0.15,12),_visualRustPipeMaterial('rim'));
         stripe.position.y=pH*0.6; pg.add(stripe);
         pg.position.set(ox,fy,-oz);
         raceGroup.add(pg);
@@ -703,28 +703,7 @@ function buildObs(seg,ri,sm){
     if(seg.type==='goombas') for(let i=0;i<(seg.count||3);i++){
         const oz=seg.startZ+(i+1)*len/((seg.count||3)+1);
         const ox=(Math.random()-0.5)*hw*1.0;
-        const gg=new THREE.Group();
-        // Body — brown mushroom cap
-        const cap=new THREE.Mesh(new THREE.SphereGeometry(0.55,10,8),toon(0x8B4513));
-        cap.scale.set(1.2,0.7,1.2); cap.position.y=0.7; cap.castShadow=true; gg.add(cap);
-        // Stem/body
-        const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.4,0.5,8),toon(0xFFDDAA));
-        stem.position.y=0.3; gg.add(stem);
-        // Angry eyes
-        [-1,1].forEach(function(s){
-            var ew2=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),toon(0xffffff));
-            ew2.position.set(s*0.2,0.75,0.4); gg.add(ew2);
-            var ep2=new THREE.Mesh(new THREE.SphereGeometry(0.07,4,4),toon(0x111111));
-            ep2.position.set(s*0.2,0.73,0.48); gg.add(ep2);
-            // Angry eyebrows
-            var brow=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.04,0.04),toon(0x111111));
-            brow.position.set(s*0.2,0.88,0.44); brow.rotation.z=s*0.4; gg.add(brow);
-        });
-        // Feet
-        [-1,1].forEach(function(s){
-            var ft=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,4),toon(0x222222));
-            ft.position.set(s*0.2,0.08,0); ft.scale.set(1,0.5,1.3); gg.add(ft);
-        });
+        const gg=_visualClockworkSentry();
         gg.position.set(ox,fy,-oz);
         raceGroup.add(gg);
         obstacleObjects.push({type:'goomba',mesh:gg,data:{z:oz,fy:fy,x:ox,startX:ox,radius:0.6,walkDir:i%2===0?1:-1,walkRange:hw*0.6,walkSpeed:(0.02+ri*0.003)*sm,phase:i*Math.PI}});
@@ -736,13 +715,13 @@ function buildObs(seg,ri,sm){
         var qbH=4; // height above floor
         var qg=new THREE.Group();
         // Yellow box body
-        var qBox=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),toon(0xFFCC00,{emissive:0xFFAA00,emissiveIntensity:0.2}));
+        var qBox=new THREE.Mesh(new THREE.CylinderGeometry(1,1,2,8),toon(0x407F88,{emissive:0x19444B,emissiveIntensity:0.12}));
         qg.add(qBox);
         // ? mark on front face (small white plane)
-        var qMark=new THREE.Mesh(new THREE.PlaneGeometry(0.8,1.0),toon(0xFFFFFF,{side:THREE.DoubleSide}));
+        var qMark=new THREE.Mesh(new THREE.CircleGeometry(0.45,4),toon(0xE3B978,{side:THREE.DoubleSide}));
         qMark.position.set(0,0,1.01); qg.add(qMark);
         // ? mark on back
-        var qMark2=new THREE.Mesh(new THREE.PlaneGeometry(0.8,1.0),toon(0xFFFFFF,{side:THREE.DoubleSide}));
+        var qMark2=new THREE.Mesh(new THREE.CircleGeometry(0.45,4),toon(0xE3B978,{side:THREE.DoubleSide}));
         qMark2.position.set(0,0,-1.01); qg.add(qMark2);
         qg.position.set(qox,fy+qbH,-qoz);
         raceGroup.add(qg);
@@ -776,4 +755,31 @@ function buildObs(seg,ri,sm){
             raceCoins.push({mesh:_itemG,z:qoz,x:qox,fy:fy+qbH+1.8,collected:false,bobPhase:qi*0.7,type:_itemType});
         }
     }
+}
+
+// Prototype model retained for art-history reference; not used by live obstacles.
+function _buildPrototypeGoomba(){
+        const gg=new THREE.Group();
+        // Body — brown mushroom cap
+        const cap=new THREE.Mesh(new THREE.SphereGeometry(0.55,10,8),toon(0x8B4513));
+        cap.scale.set(1.2,0.7,1.2); cap.position.y=0.7; cap.castShadow=true; gg.add(cap);
+        // Stem/body
+        const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.4,0.5,8),toon(0xFFDDAA));
+        stem.position.y=0.3; gg.add(stem);
+        // Angry eyes
+        [-1,1].forEach(function(s){
+            var ew2=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),toon(0xffffff));
+            ew2.position.set(s*0.2,0.75,0.4); gg.add(ew2);
+            var ep2=new THREE.Mesh(new THREE.SphereGeometry(0.07,4,4),toon(0x111111));
+            ep2.position.set(s*0.2,0.73,0.48); gg.add(ep2);
+            // Angry eyebrows
+            var brow=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.04,0.04),toon(0x111111));
+            brow.position.set(s*0.2,0.88,0.44); brow.rotation.z=s*0.4; gg.add(brow);
+        });
+        // Feet
+        [-1,1].forEach(function(s){
+            var ft=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,4),toon(0x222222));
+            ft.position.set(s*0.2,0.08,0); ft.scale.set(1,0.5,1.3); gg.add(ft);
+        });
+        return gg;
 }

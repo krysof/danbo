@@ -18,7 +18,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260909.1">
+<link rel="stylesheet" href="style.css?v=20260909.2">
 </head>
 <body>
 <div id="game-container">
@@ -164,7 +164,7 @@
           <h1 id="select-page-title">选择角色</h1>
           <p id="select-world-intro">每一枚生命蛋壳，都孕育着独一无二的伙伴。</p>
         </div>
-        <div class="select-quality-chip"><i></i><span id="select-quality-label">CINEMATIC 3D</span></div>
+        <div class="select-quality-chip"><i></i><span id="select-quality-label" data-ui-text="日常装扮">日常装扮</span></div>
       </header>
 
       <main class="select-cinematic-main">
@@ -188,7 +188,7 @@
               <div class="select-roster-title"><small>CHOOSE YOUR HERO</small></div>
               <div class="select-style-toggle" id="select-style-toggle" role="group" aria-label="Character select style">
                 <button type="button" class="select-style-btn active" data-select-style="cinematic" aria-pressed="true" title="Cinematic 3D">3D</button>
-                <button type="button" class="select-style-btn" data-select-style="classic" aria-pressed="false" title="Classic arcade">SF</button>
+                <button type="button" class="select-style-btn" data-select-style="classic" aria-pressed="false" title="旅行装扮" data-ui-title="旅行装扮" data-ui-text="旅装">旅装</button>
               </div>
               <span class="select-roster-count"><b id="select-roster-index">01</b> / 08</span>
             </div>
@@ -356,7 +356,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260909.1';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260909.2';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";

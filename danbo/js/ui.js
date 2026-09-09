@@ -209,6 +209,12 @@ function _drawCuteMiniPortrait(ctx,ch,size){
 }
 
 function _drawMiniPortrait(ch,size){
+    var dpr=Math.min(window.devicePixelRatio||1,3),c=document.createElement('canvas');
+    c.width=c.height=Math.round(size*dpr);c.style.width=c.style.height=size+'px';
+    var ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+    _drawCuteMiniPortrait(ctx,ch,size);return c;
+}
+function _drawPrototypeMiniPortrait(ch,size){
     var dpr=Math.min(window.devicePixelRatio||1,3);
     var c=document.createElement('canvas');c.width=Math.round(size*dpr);c.height=Math.round(size*dpr);
     c.style.width=size+'px';c.style.height=size+'px';
@@ -287,7 +293,7 @@ if (portraitCtx) _updateSF2Select(0);
         screen.dataset.selectStyle=value;
         window.DANBO_SELECTED_CHARACTER_STYLE=value;
         var qualityLabel=document.getElementById('select-quality-label');
-        if(qualityLabel)qualityLabel.textContent=value==='classic'?'ARCADE LEGACY':'CINEMATIC 3D';
+        if(qualityLabel){var copy=value==='classic'?'旅行装扮':'日常装扮';qualityLabel.setAttribute('data-ui-text',copy);qualityLabel.textContent=UI_T(copy);}
         toggle.querySelectorAll('[data-select-style]').forEach(function(button){
             var active=button.dataset.selectStyle===value;
             button.classList.toggle('active',active);

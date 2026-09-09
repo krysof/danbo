@@ -7,14 +7,14 @@ const RACES = [
     {name:'🔨 锤子风暴', desc:'大锤与摆锤！小心！', x:35, z:20, color:0xFF8800},
     {name:'⚡ 极限挑战', desc:'所有障碍加速！', x:20, z:35, color:0x8844FF},
     {name:'👑 冠军之路', desc:'最终决战！', x:0, z:40, color:0xFFD700},
-    {name:'💎 \u7eff\u5b9d\u77f3\u5c71\u4e18', desc:'Sonic\u98ce\u683c\uff01\u91d1\u5e01\u4e0e\u5f39\u7c27\uff01', x:-20, z:35, color:0x44DD44},
+    {name:"💎 露晶丘陵", desc:"露晶丘陵！金币与弹簧！", x:-20, z:35, color:0x44DD44},
     {name:'🔥 \u706b\u7130\u5c71\u8c37', desc:'\u52a0\u901f\u5e26\u4e0e\u5ca9\u6d46\u5730\u5f62\uff01', x:-35, z:20, color:0xFF4400},
     {name:'\u2744\ufe0f \u51b0\u971c\u6ed1\u9053', desc:'\u6ed1\u51b0\u5730\u5f62\u4e0e\u5f39\u7c27\uff01', x:-40, z:0, color:0x44CCFF},
     {name:'🌈 \u5f69\u8679\u5929\u7a7a', desc:'\u7a7a\u4e2d\u5e73\u53f0\u4e0e\u91d1\u5e01\u96e8\uff01', x:-35, z:-20, color:0xFF88FF},
-    {name:'🍄 \u8611\u83c7\u738b\u56fd', desc:'\u7ecf\u5178\u6c34\u7ba1\u4e0e\u677f\u6817\uff01', x:-20, z:-35, color:0x44BB44},
+    {name:"🍄 孢光工坊", desc:"锈管与发条巡逻员！", x:-20, z:-35, color:0x44BB44},
     {name:'🔥 \u5ca9\u6d46\u57ce\u5821', desc:'\u5ca9\u6d46\u5730\u5f62\u4e0e\u706b\u7403\uff01', x:0, z:-40, color:0xDD4400},
     {name:'\u2601\ufe0f \u4e91\u7aef\u5929\u5802', desc:'\u7a7a\u4e2d\u5e73\u53f0\u4e0e\u5f39\u7c27\uff01', x:20, z:-35, color:0x88CCFF},
-    {name:'🏰 \u5e93\u5df4\u57ce\u5821', desc:'\u6700\u7ec8\u5173\u5361\uff01\u5168\u969c\u788d\uff01', x:35, z:-20, color:0x884422}
+    {name:"🏰 炉心要塞", desc:'\u6700\u7ec8\u5173\u5361\uff01\u5168\u969c\u788d\uff01', x:35, z:-20, color:0x884422}
 ];
 // Keep the rebuilt race entrances on the open inner boulevard.  The previous
 // 40-unit ring intersected eight of the new city buildings, hiding the portals.
@@ -841,8 +841,6 @@ function buildWarpPipes(){
     warpPipeMeshes=[];
     // No ground warp pipes on moon (only reachable from cloud world)
     if(currentCityStyle===5)return;
-    var pipeMat=new THREE.MeshPhongMaterial({color:0x44DD44,transparent:true,opacity:0.45,side:THREE.DoubleSide});
-    var rimMat=toon(0x33BB33,{emissive:0x22AA22,emissiveIntensity:0.2});
     // Build pipe targets: ground pipes go to cities 0-4 only (not moon=5)
     var targets=[];
     for(var ti=0;ti<CITY_STYLES.length;ti++){
@@ -866,15 +864,14 @@ function buildWarpPipes(){
         var tst=CITY_STYLES[tgt];
         var g=new THREE.Group();
         var pColor=pipeColors[tgt]||0x44DD44;
-        var pMat=new THREE.MeshPhongMaterial({color:pColor,transparent:true,opacity:0.4,side:THREE.DoubleSide});
         // Vertical tube — big and visible
-        var tube=new THREE.Mesh(new THREE.CylinderGeometry(PIPE_CONFIG.radius,PIPE_CONFIG.radius,PIPE_CONFIG.height,16,1,true),pMat);
+        var tube=_visualPipeBody(PIPE_CONFIG.radius,PIPE_CONFIG.height);
         tube.position.y=PIPE_CONFIG.height/2;g.add(tube);
         // Top rim
-        var rim=new THREE.Mesh(new THREE.TorusGeometry(PIPE_CONFIG.ringRadius,PIPE_CONFIG.ringThickness,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.4}));
+        var rim=_visualPipeFlange(PIPE_CONFIG.ringRadius,PIPE_CONFIG.ringThickness);
         rim.position.y=PIPE_CONFIG.height;rim.rotation.x=Math.PI/2;g.add(rim);
         // Bottom rim
-        var rim2=new THREE.Mesh(new THREE.TorusGeometry(PIPE_CONFIG.ringRadius,0.35,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.3}));
+        var rim2=_visualPipeFlange(PIPE_CONFIG.ringRadius,0.35);
         rim2.position.y=0.1;rim2.rotation.x=Math.PI/2;g.add(rim2);
         // Inner glow spiral — more orbs
         var sMat=new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:0.5});
@@ -888,12 +885,13 @@ function buildWarpPipes(){
         var beacon=new THREE.Mesh(new THREE.SphereGeometry(0.8,8,6),new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:0.7}));
         beacon.position.y=9;g.add(beacon);
         // Label sign
-        var canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
+        var canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
         var ctx2=canvas.getContext('2d');
-        ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,256,64);
-        ctx2.fillStyle='#fff';ctx2.font='bold 28px sans-serif';ctx2.textAlign='center';
-        ctx2.fillText(tst.name,128,42);
+        ctx2.fillStyle='rgba(0,0,0,0.6)';ctx2.fillRect(0,0,512,128);
+        ctx2.fillStyle='#fff';ctx2.font='bold 44px sans-serif';ctx2.textAlign='center';
+        ctx2.fillText(tst.name,256,82,488);
         var tex=new THREE.CanvasTexture(canvas);
+        tex.colorSpace=THREE.SRGBColorSpace;
         var signMat=new THREE.SpriteMaterial({map:tex,transparent:true});
         var sign=new THREE.Sprite(signMat);
         sign.scale.set(5,1.2,1);sign.position.y=10.5;
@@ -1276,9 +1274,8 @@ function startPipeTravel(fromX,fromZ,targetStyle,fromY){
     // Build the transparent tube corridor — long arc through sky
     _pipeTubeGroup=new THREE.Group();
     var steps=40;
-    var tubeColor=CITY_STYLES[targetStyle]?0x44FF88:0x44DD44;
-    var pipeColors=[0x44DD44,0x44CCFF,0xFF8844,0xFF44DD,0xFFDD44,0xCCCCFF,0xFFAABB];
-    var pColor=pipeColors[targetStyle]||tubeColor;
+    var tubeColor=0xE5B230; // Amber energy corridor stays transparent for the travel camera.
+    var pColor=tubeColor;
     var isMoonTravel=(targetStyle===5);
     if(isMoonTravel)pColor=0x6644CC;
     var tubeMat=new THREE.MeshBasicMaterial({color:pColor,transparent:true,opacity:isMoonTravel?0.15:0.25,side:THREE.DoubleSide,depthWrite:false,fog:false});
@@ -1955,12 +1952,11 @@ function _buildCloudWorldMoonPipe(px,py,pz,options){
     options=options||{};
     var pColor=0xCCCCFF;
     var g=new THREE.Group();
-    var pMat=new THREE.MeshPhongMaterial({color:pColor,transparent:true,opacity:0.4,side:THREE.DoubleSide});
-    var tube=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,6,16,1,true),pMat);
+    var tube=_visualPipeBody(2.5,6);
     tube.position.y=3;g.add(tube);
-    var rim=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.35,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.5}));
+    var rim=_visualPipeFlange(2.5,0.35);
     rim.position.y=6;rim.rotation.x=Math.PI/2;g.add(rim);
-    var rim2=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.3,8,16),toon(pColor,{emissive:pColor,emissiveIntensity:0.3}));
+    var rim2=_visualPipeFlange(2.5,0.3);
     rim2.position.y=0.1;rim2.rotation.x=Math.PI/2;g.add(rim2);
     // Moon icon on top
     var moonSphere=new THREE.Mesh(new THREE.SphereGeometry(1.2,12,8),toon(0xEEEECC,{emissive:0xAAAA88,emissiveIntensity:0.4}));
@@ -2064,12 +2060,11 @@ function _buildBabylonTower(){
     var archTop=new THREE.Mesh(new THREE.BoxGeometry(topW*0.8,0.8,1.2),toon(0x774400));
     archTop.position.set(0,topY+4,0);g.add(archTop);
     // Pipe elevator inside — launches player to cloud world (y=44)
-    var pipeMat=new THREE.MeshPhongMaterial({color:0x44FF88,transparent:true,opacity:0.5,side:THREE.DoubleSide});
-    var pipeBody=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.8,topY+2,16,1,true),pipeMat);
+    var pipeBody=_visualPipeBody(1.8,topY+2,16,true);
     pipeBody.position.y=(topY+2)/2;g.add(pipeBody);
-    var pipeRim=new THREE.Mesh(new THREE.TorusGeometry(1.8,0.3,8,16),toon(0x44FF88,{emissive:0x22AA44,emissiveIntensity:0.4}));
+    var pipeRim=_visualPipeFlange(1.8,0.3);
     pipeRim.position.y=0.2;pipeRim.rotation.x=Math.PI/2;g.add(pipeRim);
-    var pipeRimTop=new THREE.Mesh(new THREE.TorusGeometry(1.8,0.3,8,16),toon(0x44FF88,{emissive:0x22AA44,emissiveIntensity:0.4}));
+    var pipeRimTop=_visualPipeFlange(1.8,0.3);
     pipeRimTop.position.y=topY+1;pipeRimTop.rotation.x=Math.PI/2;g.add(pipeRimTop);
     // Glowing orbs spiraling up inside pipe
     var orbMat=new THREE.MeshBasicMaterial({color:0x88FFAA,transparent:true,opacity:0.6});

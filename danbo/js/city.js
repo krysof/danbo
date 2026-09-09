@@ -2520,33 +2520,9 @@ function* _buildCitySteps() {
             _buildJpnElev(jb.x,jb.z,jb.w,jb.d,jb.h,jb.c,_pH,jb.face||0);
         }
 
-        // === 2. The Bathhouse (油屋) — large building at end of street ===
-        var _bhX=-30,_bhZ=-40;
-        // Build 油屋 using _buildJpnElev (same style as other ryokan but 8-story)
-        _buildJpnElev(_bhX,_bhZ,14,14,24,0x8B2500,_pH,1);
-        // Add red trim layers at 1/3 and 2/3 height (千と千寻 signature)
-        var _by=_pH;
-        var _bhRedTrim1=new THREE.Mesh(new THREE.BoxGeometry(15,0.5,15),_jRedM);
-        _bhRedTrim1.position.set(_bhX,_by+8.5,_bhZ);cityGroup.add(_bhRedTrim1);
-        var _bhRedTrim2=new THREE.Mesh(new THREE.BoxGeometry(14,0.5,14),_jRedM);
-        _bhRedTrim2.position.set(_bhX,_by+16.5,_bhZ);cityGroup.add(_bhRedTrim2);
-        // Corner lanterns (4)
-        var _bhLP=[[-8,_by+24.5,8],[-8,_by+24.5,-8],[8,_by+24.5,8],[8,_by+24.5,-8]];
-        for(var _bli2=0;_bli2<_bhLP.length;_bli2++){
-        yield;
-            var lp=_bhLP[_bli2];
-            var bLan=new THREE.Mesh(new THREE.SphereGeometry(0.6,6,4),toon(0xFF6644,{emissive:0xFF4422,emissiveIntensity:0.6}));
-            bLan.position.set(_bhX+lp[0],lp[1],_bhZ+lp[2]);cityGroup.add(bLan);
-        }
-        // Bathhouse name sign
-        var _bhSignC=document.createElement('canvas');_bhSignC.width=256;_bhSignC.height=64;
-        var _bhCtx=_bhSignC.getContext('2d');
-        _bhCtx.fillStyle='rgba(80,20,0,0.8)';_bhCtx.fillRect(0,0,256,64);
-        _bhCtx.fillStyle='#FFD700';_bhCtx.font='bold 40px serif';_bhCtx.textAlign='center';
-        _bhCtx.fillText('\u6CB9\u5C4B',128,46);
-        var _bhTex=new THREE.CanvasTexture(_bhSignC);
-        var _bhSign=new THREE.Sprite(new THREE.SpriteMaterial({map:_bhTex,transparent:true}));
-        _bhSign.scale.set(5,1.5,1);_bhSign.position.set(_bhX,_by+14,_bhZ+7.5);cityGroup.add(_bhSign);
+        // === 2. Bathhouse prototype: 油屋, eight stories with red trim (千と千寻).
+        // Live art: Mistbloom Baths, low ivory pavilions with a copper glass canopy.
+        _visualMistbloomBathhouse(-30,-40,_pH);
 
         // === 3. Deep gorge river (深い渓流) ===
         window._sakuraCanalWater=[];
@@ -3559,7 +3535,7 @@ function* _buildCitySteps() {
             doors:[{a:0,w:0.25},{a:Math.PI/2,w:0.25},{a:Math.PI,w:0.25},{a:Math.PI*1.5,w:0.25}]
         }); // Von Braun dome
         window._moonCities=[
-            {cx:-200,cy:0,cz:0,r:160,scale:8,name:{zhs:'\u51AF\u00B7\u5E03\u52B3\u6069',zht:'\u99AE\u00B7\u5E03\u52DE\u6069',ja:'\u30D5\u30A9\u30F3\u30FB\u30D6\u30E9\u30A6\u30F3',en:'Von Braun'},flatX:-200,flatZ:0}
+            {cx:-200,cy:0,cz:0,r:160,scale:8,name:{zhs:"月穹港",zht:"月穹港",ja:"月天ドーム港",en:"Moonvault Port"},flatX:-200,flatZ:0}
         ];
         // ---- Granada (second city, far side) ----
         var granada=new THREE.Group();
@@ -3642,7 +3618,7 @@ function* _buildCitySteps() {
             granada.add(gdoorG);
         }
         // Granada collider zone (flat)
-        window._moonCities.push({cx:-200,cy:0,cz:-200,r:100,scale:8,name:{zhs:'\u683C\u62C9\u7EB3\u8FBE',zht:'\u683C\u62C9\u7D0D\u9054',ja:'\u30B0\u30E9\u30CA\u30C0',en:'Granada'},flatX:-200,flatZ:-200});
+        window._moonCities.push({cx:-200,cy:0,cz:-200,r:100,scale:8,name:{zhs:"星砂站",zht:"星砂站",ja:"星砂ステーション",en:"Starsand Station"},flatX:-200,flatZ:-200});
         window._moonShields.push({x:-200,y:0,z:-200,r:100,
             doors:[{a:0,w:0.3},{a:Math.PI/2,w:0.3},{a:Math.PI,w:0.3},{a:Math.PI*1.5,w:0.3}]
         }); // Granada dome
@@ -4138,6 +4114,10 @@ function* _buildCitySteps() {
 }
 
 function _buildMobileSuit(msType,weaponType,customColor){
+    return _visualLunarSurveyUnit(msType,weaponType);
+}
+// Prototype kept for provenance. Live spawn and respawn use survey drones above.
+function _buildPrototypeMobileSuit(msType,weaponType,customColor){
     var g=new THREE.Group();
     var gray=toon(0x666677);var darkGray=toon(0x333344);
     var glowMat=new THREE.MeshBasicMaterial({color:0x44AAFF,transparent:true,opacity:0.6});
