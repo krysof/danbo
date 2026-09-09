@@ -491,14 +491,14 @@ function _optimizeCityInstances(){
     // InstancedMesh, BatchedMesh can combine the many differently-sized facade
     // primitives that share one material into one render-list entry.
     if(typeof cityBuildingMeshes!=='undefined')cityBuildingMeshes.forEach(function(building){
-        var unique=new Set();
-        (building.meshes||[]).forEach(function(root){if(root&&root.isObject3D)root.traverse(function(child){if(child.isMesh)unique.add(child);});});
+        var unique=new Set(),labels=new Set();
+        (building.meshes||[]).forEach(function(root){if(root&&root.isObject3D)root.traverse(function(child){if(child.isMesh)unique.add(child);else if(child._worldLabel||child.isSprite)labels.add(child);});});
         var removed=new Set(),replacements=[];
         buildBatches(Array.from(unique),'building',function(items,batched){
             items.forEach(function(item){removed.add(item);});
             replacements.push(batched);
         });
-        building.meshes=Array.from(unique).filter(function(mesh){return mesh.parent&&!removed.has(mesh);}).concat(replacements);
+        building.meshes=Array.from(unique).filter(function(mesh){return mesh.parent&&!removed.has(mesh);}).concat(replacements,Array.from(labels).filter(function(label){return !!label.parent;}));
     });
 
     // Movable props keep invisible source nodes whose matrices are mirrored each

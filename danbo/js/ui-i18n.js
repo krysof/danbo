@@ -37,7 +37,8 @@
 蓄力中 · 松开投掷¦蓄力中 · 放開投擲¦ため中 · 離して投げる¦Charging · Release to throw
 抓取中…¦抓取中…¦つかみ中…¦Grabbing…
 暂时无法抓取，靠近后再试¦暫時無法抓取，靠近後再試¦今はつかめません。近づいて再試行¦Cannot grab now. Move closer and try again`);
-    add(`旅行装扮¦旅行裝扮¦旅の装い¦Expedition outfit
+    add(`发送¦傳送¦送信¦Send
+旅行装扮¦旅行裝扮¦旅の装い¦Expedition outfit
 日常装扮¦日常裝扮¦いつもの装い¦Everyday outfit
 旅装¦旅裝¦旅装¦Travel`);
     add(`旅程手册¦旅程手冊¦旅の手帳¦Journey journal

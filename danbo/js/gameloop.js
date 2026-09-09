@@ -1886,45 +1886,54 @@ function ensureStruggleBar(){
 // ---- PSOBB-style Chat Bubble System ----
 var _chatBubbles=[]; // {egg, sprite: Object3D text anchor, timer}
 var _chatInput=null, _chatOpen=false;
+function _layoutChatInput(){
+    if(!_chatOpen||!_chatInput||!_chatInput.getBoundingClientRect)return;
+    var container=document.getElementById('game-container').getBoundingClientRect(),bottom=container.bottom;
+    if(window.visualViewport)bottom=Math.min(bottom,visualViewport.offsetTop+visualViewport.height);
+    ['joystick-area','jump-btn','grab-btn','punch-btn','kick-btn','tps-btn','chat-btn'].forEach(function(id){
+        var node=document.getElementById(id);if(!node||node.closest('.hidden,[hidden]'))return;
+        var r=node.getBoundingClientRect();if(r.width&&r.height&&r.top<bottom&&r.bottom>container.top)bottom=Math.min(bottom,r.top-10);
+    });
+    // Measure only on open/viewport changes, never every animation frame.
+    bottom=Math.max(container.top+52,bottom);
+    _chatInput.style.bottom=Math.max(12,container.bottom-bottom)+'px';
+}
+function _submitChatInput(){
+    var field=document.getElementById('chat-field');if(!field||!_chatOpen)return;
+    var msg=field.value.trim();
+    if(!msg)return;
+    if(!_processChatCommand(msg)&&!(window.DANBO_MULTIPLAYER&&DANBO_MULTIPLAYER.sendChat&&DANBO_MULTIPLAYER.sendChat(msg))&&playerEgg)_showChatBubble(playerEgg,msg);
+    field.value='';_closeChatInput();
+}
 function _ensureChatInput(){
     if(_chatInput)return;
-    _chatInput=document.createElement('div');
-    _chatInput.id='chat-input-bar';
-    _chatInput.style.cssText='position:absolute;bottom:60px;left:50%;transform:translateX(-50%);z-index:20;display:none;';
-    _chatInput.innerHTML='<input id="chat-field" type="text" maxlength="40" style="width:260px;padding:8px 12px;border:2px solid rgba(255,255,255,0.4);border-radius:20px;background:rgba(0,0,0,0.7);color:#fff;font-size:14px;outline:none;backdrop-filter:blur(6px);" placeholder="'+L('chatPlaceholder')+'">';
+    _chatInput=document.createElement('div');_chatInput.id='chat-input-bar';_chatInput.style.display='none';
+    _chatInput.innerHTML='<input id="chat-field" type="text" maxlength="40" autocomplete="off" enterkeyhint="send"><button id="chat-send" type="button">➤</button>';
     document.getElementById('game-container').appendChild(_chatInput);
-    var field=document.getElementById('chat-field');
+    var field=document.getElementById('chat-field'),composing=false;
+    field.addEventListener('compositionstart',function(){composing=true;});
+    field.addEventListener('compositionend',function(){composing=false;});
     field.addEventListener('keydown',function(e){
         e.stopPropagation();
-        if(e.code==='Enter'){
-            var msg=field.value.trim();
-            if(msg){
-                // Check for chat commands (don't show bubble)
-                if(_processChatCommand(msg)){
-                    field.value='';_closeChatInput();
-                    return;
-                }
-                if(!(window.DANBO_MULTIPLAYER&&DANBO_MULTIPLAYER.sendChat&&DANBO_MULTIPLAYER.sendChat(msg))&&playerEgg)_showChatBubble(playerEgg,msg);
-            }
-            field.value='';_closeChatInput();
-        }
+        if(composing||e.isComposing||e.keyCode===229)return;
+        if(e.code==='Enter'){e.preventDefault();_submitChatInput();}
         if(e.code==='Escape'){field.value='';_closeChatInput();}
     });
+    document.getElementById('chat-send').onclick=function(){if(!composing)_submitChatInput();};
+    window.addEventListener('resize',_layoutChatInput);
+    if(window.visualViewport){visualViewport.addEventListener('resize',_layoutChatInput);visualViewport.addEventListener('scroll',_layoutChatInput);}
 }
 function _openChatInput(){
     if(_chatOpen||gameState!=='city')return;
-    _ensureChatInput();
-    _chatOpen=true;
-    _chatInput.style.display='block';
-    var field=document.getElementById('chat-field');
-    field.placeholder=L('chatPlaceholder');
-    field.focus();
+    _ensureChatInput();_releaseGameplayControls();_chatOpen=true;_chatInput.style.display='flex';document.body.classList.add('danbo-chat-open');
+    var field=document.getElementById('chat-field');field.placeholder=L('chatPlaceholder');
+    document.getElementById('chat-send').setAttribute('aria-label',UI_T('发送'));document.getElementById('chat-send').title=UI_T('发送');
+    field.focus();_layoutChatInput();
 }
 function _closeChatInput(){
-    _chatOpen=false;
+    _chatOpen=false;_releaseGameplayControls();document.body.classList.remove('danbo-chat-open');
     if(_chatInput)_chatInput.style.display='none';
-    var field=document.getElementById('chat-field');
-    if(field)field.blur();
+    var field=document.getElementById('chat-field');if(field)field.blur();
 }
 function _processChatCommand(msg){
     var cmd=msg.toLowerCase().replace(/\s+/g,' ').trim();

@@ -80,6 +80,7 @@ function _setTouchControlsVisible(v){
     else {tc.classList.add('hidden');}
     _touchVisible=!!v;
     _updateGamepadBtn();
+    if(typeof _layoutChatInput==='function')_layoutChatInput();
 }
 function _showMenuTouch(){
     // Menu/select are tapped directly; keep virtual controls hidden until gameplay.
@@ -333,6 +334,7 @@ if(_pfBackBtn)_pfBackBtn.addEventListener('click', function(){if(typeof _pfEndGa
             if(gap>30)offset=Math.max(offset,Math.min(gap*0.6,80));
         }
         tc.style.setProperty('--nav-offset',offset+'px');
+        if(typeof _layoutChatInput==='function')_layoutChatInput();
     }
     calcOffset();
     window.addEventListener('resize',calcOffset);

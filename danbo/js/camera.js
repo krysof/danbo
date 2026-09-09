@@ -195,6 +195,36 @@ document.addEventListener('touchmove',function(e){
     }
 },{passive:true});
 document.addEventListener('touchend',function(e){_moonTouchOrbit=false;},{passive:true});
+// Native world labels are anchors, not meshes. Fade them with their building
+// without accessing a nonexistent material. Opacity is a uniform: only a change
+// in shader-affecting transparency needs a material version bump.
+function _fadeBuildingMesh(mesh,fade,tps){
+    if(!mesh)return;
+    if(mesh._worldLabel){DANBO_WORLD_LABELS.setOpacity(mesh,fade?0:1);return;}
+    if(!mesh.material)return;
+    var data=mesh.userData,base=data._sharedFadeBase||(data._sharedFadeBase=mesh.material);
+    if(fade&&!data._usesFadeClone){
+        mesh.material=Array.isArray(base)?base.map(function(m){return m.clone();}):base.clone();
+        data._usesFadeClone=true;data._fadeBaseOrder=mesh.renderOrder;
+    }
+    if(!data._usesFadeClone)return;
+    var materials=Array.isArray(mesh.material)?mesh.material:[mesh.material],restored=!fade;
+    for(var i=0;i<materials.length;i++){
+        var mat=materials[i];
+        if(mat._origOpacity===undefined)mat._origOpacity=mat.opacity;
+        var goal=(fade?.01:1)*mat._origOpacity;
+        mat.opacity+=(goal-mat.opacity)*(tps?.3:.15);
+        if(!mat.transparent){mat.transparent=true;mat.needsUpdate=true;}
+        mat.depthWrite=mat.opacity>.95;
+        if(Math.abs(mat.opacity-mat._origOpacity)>.015)restored=false;
+    }
+    mesh.renderOrder=fade?10:data._fadeBaseOrder;
+    if(restored){
+        mesh.material=base;data._usesFadeClone=false;mesh.renderOrder=data._fadeBaseOrder;
+        for(var j=0;j<materials.length;j++)materials[j].dispose();
+    }
+}
+
 function updateCamera(){
     if(gameState==='raceIntro'&&window._raceBifrostCamera)return;
     if(!playerEgg)return;
@@ -436,32 +466,7 @@ function updateCamera(){
                 }
             }
 
-            const targetOp=shouldFade?0.01:1.0;
-            for(const m of bld.meshes){
-                if(!m.userData._sharedFadeBase)m.userData._sharedFadeBase=m.material;
-                if(shouldFade&&m.material===m.userData._sharedFadeBase){
-                    m.material=m.userData._sharedFadeBase.clone();
-                    m.userData._usesFadeClone=true;
-                }
-                // Shared PBR materials stay immutable for every visible building. A private
-                // clone only exists while this particular building crosses the camera ray.
-                if(!shouldFade&&!m.userData._usesFadeClone)continue;
-                const mat=m.material;
-                if(!mat)continue;
-                if(!mat.hasOwnProperty('_origOpacity')){mat._origOpacity=mat.opacity||1;mat._origTransparent=mat.transparent||false;mat._origDepthWrite=mat.depthWrite!==undefined?mat.depthWrite:true;}
-                const goal=targetOp*mat._origOpacity;
-                mat.opacity+=(goal-mat.opacity)*(_tpsCamMode?0.3:0.15);
-                mat.transparent=true;
-                mat.depthWrite=mat.opacity>0.95;
-                mat.needsUpdate=true;
-                m.renderOrder=shouldFade?10:0;
-                if(!shouldFade&&m.userData._usesFadeClone&&mat.opacity>0.985){
-                    var oldFadeMat=m.material;
-                    m.material=m.userData._sharedFadeBase;
-                    m.userData._usesFadeClone=false;m.renderOrder=0;
-                    if(oldFadeMat&&oldFadeMat.dispose)oldFadeMat.dispose();
-                }
-            }
+            for(const m of bld.meshes)_fadeBuildingMesh(m,shouldFade,_tpsCamMode);
         }
     }
 }

@@ -198,5 +198,5 @@
     }
     // Pointer clicks do not force keyboard highlight or steal control ownership.
     addEventListener('pointerdown',function(){hudMode=false;lastRoot=null;if(marked)marked.classList.remove('danbo-nav-focus');});
-    window.DANBO_MENU_INPUT={update:update,context:context,move:move,confirm:confirm,back:back};
+    window.DANBO_MENU_INPUT={update:update,context:context,move:move,confirm:confirm,back:back,releaseGameplay:reset};
 })();

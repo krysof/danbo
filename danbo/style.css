@@ -9,6 +9,10 @@ body{overflow:hidden;background:#000;font-family:'Segoe UI','PingFang SC','Micro
 #three-root{position:absolute;inset:0;z-index:0;pointer-events:none}
 /* World text stays at native browser resolution even when the 3D view is downscaled. */
 #world-label-layer{position:absolute;inset:0;z-index:3;overflow:hidden;pointer-events:none}
+#chat-input-bar{position:absolute;bottom:calc(60px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:20;width:min(360px,calc(100% - 24px));gap:6px;align-items:center}
+#chat-field{box-sizing:border-box;min-width:0;flex:1;padding:10px 12px;border:1px solid #89d7cf;border-radius:18px;background:#102735f5;color:#fff;font:16px system-ui,sans-serif;outline:none}
+#chat-send{flex:none;width:44px;height:44px;padding:0;border:1px solid #9bf5df;border-radius:50%;background:#47b6b9;color:#092c39;font-size:22px;cursor:pointer}
+.danbo-chat-open #door-prompt,.danbo-chat-open #portal-prompt,.danbo-chat-open #shop-prompt{display:none!important}
 #world-label-layer[hidden],.world-label[hidden],.world-label-secondary[hidden]{display:none!important}
 .world-label{position:absolute;transform:translate(-50%,-100%);width:max-content;max-width:min(230px,80vw);padding:4px 8px;border:1px solid #d2edf052;border-radius:9px;background:rgba(8,24,35,.86);color:#fff;text-align:center;font-family:system-ui,'PingFang SC','Microsoft YaHei',sans-serif;font-size:15px;line-height:1.35;font-weight:700;pointer-events:none;text-shadow:none}
 .world-label-primary,.world-label-secondary{display:block}.world-label-primary{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.world-label-secondary{font-size:12px;font-weight:600;color:#ffe6a1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}

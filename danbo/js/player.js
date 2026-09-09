@@ -57,15 +57,22 @@ function _applyBasicMeleeHit(target,kind,dx,dz,heavy,aerial){
 }
 // Track directions BEFORE consuming attacks: same-frame direction + button
 // must work on keyboard, touch and a standard gamepad alike.
-function _updateCombatCommands(playerEgg,keys,joyVec,joyActive,tps){
-    var _ct=playerEgg.mesh.userData._charType||'egg';
-    var _rPress=keys.KeyR&&!playerEgg._rWasDown||playerEgg._queuedAttackR;
-    var _tPress=keys.KeyT&&!playerEgg._tWasDown||playerEgg._queuedAttackT;
-    playerEgg._queuedAttackR=playerEgg._queuedAttackT=false;
-    playerEgg._punchBuffer=Math.max(0,(playerEgg._punchBuffer||0)-1);
-    playerEgg._kickBuffer=Math.max(0,(playerEgg._kickBuffer||0)-1);
-    if(_rPress)playerEgg._punchBuffer=12;
-    if(_tPress)playerEgg._kickBuffer=12;
+var _combatButtonSlots=[['KeyR','R','punch','r'],['KeyT','T','kick','t']];
+function _sampleCombatButtons(egg,keys){
+    var now=performance.now();
+    _combatButtonSlots.forEach(function(button){
+        var queued='_queuedAttack'+button[1],buffer='_'+button[2]+'Buffer',was='_'+button[3]+'WasDown';
+        var edge=!!keys[button[0]]&&!egg[was],queuedFresh=egg[queued]&&(!egg[queued+'Until']||now<egg[queued+'Until']);
+        egg['_command'+button[1]+'Press']=!!(edge||queuedFresh);egg[was]=!!keys[button[0]];
+        egg[buffer]=Math.max(0,(egg[buffer]||0)-1);
+        if(egg[buffer+'Until']&&now>=egg[buffer+'Until'])egg[buffer]=0;
+        if(edge||queuedFresh){egg[buffer+'Until']=edge?now+200:egg[queued+'Until']||now+200;egg[buffer]=Math.min(12,Math.ceil((egg[buffer+'Until']-now)*.06));}
+        egg[queued]=false;egg[queued+'Until']=0;
+    });
+}
+function _updateCombatCommands(playerEgg,keys,joyVec,joyActive,tps,sampled){
+    if(!sampled)_sampleCombatButtons(playerEgg,keys);
+    var _ct=playerEgg.mesh.userData._charType||'egg',_rPress=playerEgg._commandRPress,_tPress=playerEgg._commandTPress;
     // ---- Special move input trackers ----
     // Detect horizontal direction presses (keyboard + joystick)
     var _joyL=joyActive&&joyVec.x<-0.3;
@@ -188,6 +195,9 @@ function _updateCombatCommands(playerEgg,keys,joyVec,joyActive,tps){
 function handlePlayerInput(){
     try{
     if(!playerEgg||!playerEgg.alive)return;
+    // Sample even while stunned/thrown so a held button cannot become a new
+    // press on recovery, and a paused simulation cannot keep a tap forever.
+    _sampleCombatButtons(playerEgg,keys);
     if(_portalConfirmOpen)return;
     if(playerEgg.finished&&gameState==='racing')return;
     if(playerEgg._fallPenalty>0)return;
@@ -266,6 +276,7 @@ function handlePlayerInput(){
         return;
     }
     // ---- TPS Input State (clean state machine) ----
+    if(window._chatOpen)return;
     // Raw input
     var _rawMX=0,_rawMZ=0;
     if(keys['KeyA']||keys['ArrowLeft'])_rawMX-=1;
@@ -497,7 +508,7 @@ function handlePlayerInput(){
     var _throwChargeMax=60; // 1 second max charge
     var _holdingSomething=playerEgg.holding||playerEgg.holdingProp||playerEgg.holdingObs;
     // Normal state check — block all new moves during any special move
-    _updateCombatCommands(playerEgg,keys,joyVec,joyActive,_tpsCamMode);
+    _updateCombatCommands(playerEgg,keys,joyVec,joyActive,_tpsCamMode,true);
     var _inSpecialMove=!!(playerEgg._tatsuActive||playerEgg._shoryuActive||playerEgg._piledriverTarget||playerEgg._bodySlam||_spinDashing||playerEgg._blankaSpinTimer||playerEgg._blankaSpinFalling||playerEgg._guileSomersault||playerEgg._yogaFlame);
     // Track F press (blocked during special moves)
     if(keys['KeyF']&&!playerEgg._fWasDown&&playerEgg.grabCD<=0&&!_inSpecialMove){

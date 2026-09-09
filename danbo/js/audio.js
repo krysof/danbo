@@ -194,6 +194,7 @@ function _applyLang(){
     var stText=document.getElementById('struggle-text');if(stText)stText.textContent=L('struggle');
     // Update chat placeholder
     var chatF=document.getElementById('chat-field');if(chatF)chatF.placeholder=L('chatPlaceholder');
+    var chatSend=document.getElementById('chat-send');if(chatSend){chatSend.title=UI_T('发送');chatSend.setAttribute('aria-label',UI_T('发送'));}
     // Repaint in place: language changes must not recreate gates or reset their cooldown.
     if(typeof _refreshWarpPipeLabels==='function')_refreshWarpPipeLabels();
     if(typeof scene!=='undefined')scene.traverse(function(node){if(node.userData&&node.userData.refreshSceneText)node.userData.refreshSceneText();});

@@ -4,17 +4,29 @@
 const keys={};
 function _isTextInputEvent(e){return !!(e.isComposing||e.target&&(e.target.isContentEditable||e.target.closest&&e.target.closest('input,textarea,select')));}
 function _queueCombatPress(code){
-    if((code!=='KeyR'&&code!=='KeyT')||typeof playerEgg==='undefined'||!playerEgg||(gameState!=='city'&&gameState!=='racing')||window._accountPanelOpen||window._multiplayerPanelOpen||window._worldMapOpen||window._shopOpen||window._portalConfirmOpen)return;
-    playerEgg[code==='KeyR'?'_queuedAttackR':'_queuedAttackT']=true;
+    if((code!=='KeyR'&&code!=='KeyT')||typeof playerEgg==='undefined'||!playerEgg||(gameState!=='city'&&gameState!=='racing')||window._chatOpen||window._accountPanelOpen||window._multiplayerPanelOpen||window._worldMapOpen||window._shopOpen||window._portalConfirmOpen||window._pipeTraveling||window._danboPluginTransition)return;
+    var key=code==='KeyR'?'_queuedAttackR':'_queuedAttackT';
+    playerEgg[key]=true;playerEgg[key+'Until']=performance.now()+200;
 }
 function _clearBufferedCombat(){if(typeof playerEgg!=='undefined'&&playerEgg){playerEgg._punchBuffer=playerEgg._kickBuffer=0;playerEgg._queuedAttackR=playerEgg._queuedAttackT=false;}}
+function _cancelCombatPress(code){
+    if(typeof playerEgg==='undefined'||!playerEgg)return;
+    if(code==='KeyR'){playerEgg._queuedAttackR=false;playerEgg._punchBuffer=0;}
+    if(code==='KeyT'){playerEgg._queuedAttackT=false;playerEgg._kickBuffer=0;}
+}
+function _releaseGameplayControls(){
+    if(window.DANBO_MENU_INPUT&&DANBO_MENU_INPUT.releaseGameplay)DANBO_MENU_INPUT.releaseGameplay();
+    _clearBufferedCombat();Object.keys(keys).forEach(function(k){keys[k]=false;});
+    joyTouchId=null;_joyMouseDown=false;joyActive=false;joyVec={x:0,y:0};_pinchStartDist=0;
+    if(joystickKnob)joystickKnob.style.transform='translate(0,0)';
+}
 addEventListener('blur',_clearBufferedCombat);
 document.addEventListener('visibilitychange',function(){if(document.hidden)_clearBufferedCombat();});
 addEventListener('keydown',e=>{
     if(e.defaultPrevented||_isTextInputEvent(e))return;
     if(gameState==='menu'&&e.repeat)return;
     if(gameState==='menu'&&e.target&&e.target.closest&&e.target.closest('button,input,select,textarea,summary'))return;
-    if(window._accountPanelOpen||window._journeyPanelOpen)return;
+    if(window._chatOpen||window._accountPanelOpen||window._journeyPanelOpen||window._worldMapOpen||window._shopOpen||window._multiplayerPanelOpen||window._portalConfirmOpen)return;
     keys[e.code]=true;
     if(!e.repeat)_queueCombatPress(e.code);
     if(e.code==='KeyG')keys['Space']=true;
@@ -38,9 +50,9 @@ const joystickKnob=document.getElementById('joystick-knob');
 const jumpBtn=document.getElementById('jump-btn');
 
 if(joystickArea){
-    joystickArea.addEventListener('touchstart',e=>{e.preventDefault();joyTouchId=e.changedTouches[0].identifier;joyActive=true;updJoy(e.changedTouches[0]);},{passive:false});
+    joystickArea.addEventListener('touchstart',e=>{e.preventDefault();if(joyTouchId!==null)return;joyTouchId=e.changedTouches[0].identifier;joyActive=true;updJoy(e.changedTouches[0]);},{passive:false});
     joystickArea.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)if(t.identifier===joyTouchId)updJoy(t);},{passive:false});
-    joystickArea.addEventListener('touchend',e=>{for(const t of e.changedTouches)if(t.identifier===joyTouchId){joyActive=false;joyVec={x:0,y:0};joystickKnob.style.transform='translate(0,0)';}});
+    joystickArea.addEventListener('touchend',e=>{for(const t of e.changedTouches)if(t.identifier===joyTouchId){joyTouchId=null;joyActive=false;joyVec={x:0,y:0};joystickKnob.style.transform='translate(0,0)';}});
     joystickArea.addEventListener('touchcancel',()=>{joyTouchId=null;joyActive=false;joyVec={x:0,y:0};joystickKnob.style.transform='translate(0,0)';});
     // Mouse support for PC
     var _joyMouseDown=false;
@@ -62,8 +74,8 @@ function _bindVBtn(btn,keyCode){
     if(!btn)return;
     btn.addEventListener('touchstart',function(e){e.preventDefault();keys[keyCode]=true;_queueCombatPress(keyCode);},{passive:false});
     btn.addEventListener('touchend',function(e){e.preventDefault();keys[keyCode]=false;},{passive:false});
-    btn.addEventListener('touchcancel',function(e){keys[keyCode]=false;},{passive:false});
-    btn.addEventListener('mousedown',function(e){e.preventDefault();keys[keyCode]=true;_queueCombatPress(keyCode);});
+    btn.addEventListener('touchcancel',function(e){keys[keyCode]=false;_cancelCombatPress(keyCode);},{passive:false});
+    btn.addEventListener('mousedown',function(e){if(e.button!==0)return;e.preventDefault();keys[keyCode]=true;_queueCombatPress(keyCode);});
     btn.addEventListener('mouseup',function(e){e.preventDefault();keys[keyCode]=false;});
     btn.addEventListener('mouseleave',function(e){keys[keyCode]=false;});
 }
