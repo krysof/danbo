@@ -412,11 +412,35 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 #journey-feedback[hidden]{display:none}
 
 .journey-fold{margin-top:12px;border-top:1px solid #7fa8af45;padding-top:12px}.journey-fold>summary{cursor:pointer;font-weight:600;min-height:32px}.journey-card #journey-continue{width:100%;min-height:46px;margin:6px 0}.journey-card #journey-objectives{font-size:16px;color:#fff}.journey-card #journey-reward{font-size:13px;color:#ffe1a0}.journey-card #journey-card-name{font-size:14px;font-weight:500;margin:8px 0;color:#9dc6cd}
-/* Journey is a small non-modal HUD slot. Reserve the entire bottom control
-   area even with a short landscape viewport; extra content scrolls inside. */
-.journey-popover{position:absolute;z-index:8;left:10px;top:calc(var(--danbo-status-top,44px) + 60px);width:min(290px,53vw);max-height:max(48px,min(230px,calc(var(--danbo-vh,1dvh) * 100 - var(--danbo-status-top,44px) - 60px - max(185px,30dvh))));pointer-events:none;background:none;backdrop-filter:none}
+/* A paged HUD card, never a scrollbox or a modal. Menus remain above it. */
+.journey-popover{position:absolute;z-index:5;left:10px;top:calc(var(--danbo-status-top,44px) + 60px);width:min(290px,53vw);max-height:max(48px,min(230px,calc(var(--danbo-vh,1dvh) * 100 - var(--danbo-status-top,44px) - 60px - max(185px,30dvh))));pointer-events:none;background:none;backdrop-filter:none}
 .journey-popover.hidden{display:none}
-.journey-popover>.journey-card{pointer-events:auto;width:100%;max-width:100%;max-height:inherit;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:10px!important;border-radius:12px;border-color:#6ea8a075;box-shadow:0 4px 12px #0003;background:#163441f0}
+.journey-popover>.journey-card[hidden]{display:none!important}
+.journey-frame{pointer-events:auto;box-sizing:border-box;padding:10px;display:grid;grid-template-rows:24px 28px minmax(0,1fr) 26px;gap:5px;border:1px solid #c4efdc88;border-radius:18px;background:linear-gradient(145deg,#153c48f5,#18303ef5);color:#effff7;box-shadow:0 5px 16px #071b2429;overflow:clip;font-size:12px;line-height:1.45}
+.journey-frame header,.journey-frame nav,.journey-frame footer{display:flex;align-items:center;gap:6px;justify-content:space-between;min-width:0}
+.journey-frame header strong{font-size:13px;white-space:nowrap}
+.journey-frame button{font:inherit;cursor:pointer;touch-action:manipulation;color:inherit;border:1px solid #c4efdc33;border-radius:10px;background:#537b7c38;min-width:28px;min-height:24px;padding:3px 7px}
+.journey-frame button:hover,.journey-frame button[aria-pressed=true]{background:#73d7c9;color:#173943}
+.journey-frame button:focus-visible{outline:2px solid #ffe3a7;outline-offset:1px}
+.journey-frame button:disabled{opacity:.3;cursor:default}
+.journey-frame nav button{flex:1;font-size:16px;line-height:20px;padding:1px 4px}
+.journey-frame .journey-dismiss{border:0;background:none;font-size:22px;padding:0}
+.journey-page-body{min-height:0;overflow:clip;display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.journey-page-body>*{flex-shrink:0;margin:0;box-sizing:border-box}
+.journey-page-body p{font-size:12px;line-height:1.45;color:#d5eee5;overflow-wrap:anywhere}
+.journey-page-body button{padding:5px 8px;line-height:1.4;background:#366966;color:#f4fffc;text-align:left}
+.journey-page-body img{object-fit:contain;width:100%;min-height:0}
+.journey-page-body label{display:flex;align-items:center;gap:8px}
+.journey-frame footer{font-size:10px;color:#abd5d1}
+.journey-frame footer button{min-width:32px;font-size:20px;line-height:18px}
+.danbo-nav-focus{outline:3px solid #ffe5a0!important;outline-offset:3px;box-shadow:0 0 0 5px #153746aa!important}
+.danbo-controller-keyboard{position:fixed;z-index:120;bottom:max(8px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(440px,96vw);padding:10px;box-sizing:border-box;background:#173b48f5;color:#edfff7;border:1px solid #a1d8cd;border-radius:16px;box-shadow:0 4px 18px #0005}
+.danbo-controller-keyboard output{display:block;min-height:22px;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:14px sans-serif}
+.danbo-keyboard-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:5px}
+.danbo-controller-keyboard button{font:16px sans-serif;color:inherit;min-height:30px;padding:4px 0;border:1px solid #85b6af70;border-radius:6px;background:#365d65;cursor:pointer;touch-action:manipulation}
+.danbo-controller-keyboard footer{display:flex;gap:6px;margin-top:7px}.danbo-controller-keyboard footer button{flex:1}
+@media(max-height:440px){.danbo-controller-keyboard{width:min(620px,94vw);padding:6px}.danbo-keyboard-grid{grid-template-columns:repeat(14,minmax(0,1fr));gap:4px}.danbo-controller-keyboard button{min-height:24px;font-size:13px;padding:2px 0}.danbo-controller-keyboard output{min-height:17px;margin-bottom:4px}}
+@media(max-height:520px){.journey-frame{padding:6px;grid-template-rows:22px minmax(0,1fr) 22px;gap:3px}.journey-frame nav{position:absolute;left:80px;right:38px;top:7px}.journey-frame nav button{min-width:24px;min-height:20px;font-size:13px;line-height:16px}.journey-frame header strong{font-size:10px;max-width:68px;overflow:hidden}.journey-frame footer button{min-height:20px}}
 .journey-popover .journey-card h2{font-size:14px;margin:0 28px 8px 0;line-height:1.5}
 .journey-popover #journey-card-name{display:none}
 .journey-popover .journey-card #journey-objectives{font-size:12px;margin:6px 0}

@@ -134,6 +134,7 @@ function _resetViewMode(){
     _setViewMode(0);
 }
 document.addEventListener('keydown',function(e){
+    if(_isTextInputEvent(e))return;
     if((e.code==='Digit1'||e.code==='KeyC')&&gameState==='city')_cycleViewMode();
     if(e.code==='Digit2'&&gameState==='city')_recenterTPS();
 });
@@ -163,6 +164,7 @@ if(_specBtn){_specBtn.addEventListener('click',function(){
     }
 });}
 document.addEventListener('keydown',function(e){
+    if(_isTextInputEvent(e))return;
     if(e.code==='KeyV'&&currentCityStyle===5&&gameState==='city'){
         _spectatorMode=!_spectatorMode;
         if(_spectatorMode&&playerEgg){_specCamX=camera.position.x;_specCamY=camera.position.y;_specCamZ=camera.position.z;}

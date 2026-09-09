@@ -18,7 +18,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260909.5">
+<link rel="stylesheet" href="style.css?v=20260909.6">
 </head>
 <body>
 <div id="game-container">
@@ -362,7 +362,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260909.5';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260909.6';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -439,7 +439,8 @@
     'js/player.js',
     'js/camera.js',
     'js/gameloop.js',
-    'js/main.js'
+    'js/main.js',
+    'js/menu-input.js'
   ];
   function setEngineLoading(text,percent,data){
     var el=document.getElementById('engine-loader');
@@ -471,6 +472,10 @@
     var wait=assets&&typeof assets.then==='function'?assets:Promise.resolve();
     var timeout=new Promise(function(resolve){setTimeout(resolve,20000);});
     Promise.race([wait,timeout]).catch(function(err){console.warn('Render asset fallback',err);}).then(function(){
+      // HDR arrival changes the reflection shader variant. Warm the final
+      // environment before revealing play, not only the earlier fallback cube.
+      if(typeof _prewarmCityShaders==='function')return Promise.race([Promise.resolve(_prewarmCityShaders()),new Promise(function(resolve){setTimeout(resolve,1500);})]);
+    }).catch(function(err){console.warn('Shader warmup fallback',err);}).then(function(){
       try{localStorage.setItem('danbo_loader_version',cache);}catch(e){}
       setEngineLoading('ready',100);setTimeout(hideEngineLoading,warmStart?80:250);
     });

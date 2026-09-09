@@ -385,9 +385,9 @@ function updateCity(){
         for(var _fi2=0;_fi2<window._cityFish.length;_fi2++){
             var fish=window._cityFish[_fi2];
             // Find matching prop
-            var _fishProp=null;
-            for(var _fpi=0;_fpi<cityProps.length;_fpi++){
-                if(cityProps[_fpi]._fishRef===fish){_fishProp=cityProps[_fpi];break;}
+            var _fishProp=fish._prop||null;
+            if(!_fishProp)for(var _fpi=0;_fpi<cityProps.length;_fpi++){
+                if(cityProps[_fpi]._fishRef===fish){_fishProp=fish._prop=cityProps[_fpi];break;}
             }
             // Sync grabbed state from prop
             if(_fishProp)fish.grabbed=_fishProp.grabbed;

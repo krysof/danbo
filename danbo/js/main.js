@@ -151,6 +151,7 @@ document.getElementById('confirm-btn').addEventListener('click',function(){_conf
 var _menuJoyCD=0; // cooldown to prevent rapid scrolling
 var _menuJoyConfirmCD=0;
 function _updateMenuJoy(){
+    if(window.DANBO_MENU_INPUT){DANBO_MENU_INPUT.update();requestAnimationFrame(_updateMenuJoy);return;}
     if(window._accountPanelOpen||window._journeyPanelOpen){requestAnimationFrame(_updateMenuJoy);return;}
     if(gameState!=='menu'){requestAnimationFrame(_updateMenuJoy);return;}
     // Title screen: jump or grab button = start game
@@ -218,6 +219,7 @@ function selectCharByIndex(idx){
     playMenuMove();
 }
 addEventListener('keydown',function(e){
+    if(window.DANBO_MENU_INPUT)return;
     if(window._accountPanelOpen||window._journeyPanelOpen)return;
     if(gameState==='menu'&&e.target&&e.target.closest&&e.target.closest('button,input,select,textarea,summary'))return;
     if(gameState==='menu'){

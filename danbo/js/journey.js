@@ -7,6 +7,66 @@
     var opened=false,lastFocus=null,sent={},pending={},started=0,visit=randomId(),visitDate=date(),hiddenAt=0,booth=new URLSearchParams(location.search).get('booth')==='1';
     var installPrompt=null,cardURL='',handoffURL='',busy=false,coopTask=false;
     var feedbackKey='',feedbackValues=null,feedbackUntil=0;
+    // Keep the original controls as the data/action source. Present one bounded
+    // page at a time instead of squeezing the entire handbook into a scrollbox.
+    var pane='trip',page=0,pages=[],cardSignature='',pager=null;
+    var source=$('journey-overlay').firstElementChild;source.hidden=true;
+    function initPager(){
+        if(pager)return;
+        pager=document.createElement('section');pager.className='journey-frame';
+        pager.innerHTML='<header><strong></strong><button type="button" class="journey-dismiss">×</button></header><nav></nav><div class="journey-page-body"></div><footer><button type="button">‹</button><span></span><button type="button">›</button></footer>';
+        $('journey-overlay').appendChild(pager);
+        pager.querySelector('.journey-dismiss').onclick=close;
+        [['trip','★','旅程手册'],['coop','♧','多人挑战'],['save','☁','保存与接力'],['settings','⚙','设置']].forEach(function(item){
+            var b=document.createElement('button');b.type='button';b.textContent=item[1];b.dataset.pane=item[0];b.dataset.label=item[2];
+            b.onclick=function(){pane=item[0];page=0;cardSignature='';renderPager();};pager.querySelector('nav').appendChild(b);
+        });
+        var arrows=pager.querySelectorAll('footer button');arrows[0].onclick=function(){page--;showPage();};arrows[1].onclick=function(){page++;showPage();};
+    }
+    function showPage(){
+        page=Math.max(0,Math.min(page,pages.length-1));var body=pager.querySelector('.journey-page-body');body.replaceChildren();
+        (pages[page]||[]).forEach(function(n){body.appendChild(n);});
+        var arrows=pager.querySelectorAll('footer button');arrows[0].disabled=page===0;arrows[1].disabled=page>=pages.length-1;
+        pager.querySelector('footer span').textContent=(page+1)+' / '+Math.max(1,pages.length);
+    }
+    function renderPager(){
+        if(!opened)return;initPager();
+        var sections={trip:['journey-objectives','journey-reward','journey-stamps'],
+            coop:['coop-title','coop-status','coop-join','coop-leave','coop-note','coop-step-stand','coop-step-join','coop-step-finish','coop-reward','coop-share'],
+            save:['journey-status','journey-register','journey-cloud-save','journey-claim','journey-message','journey-conflict','journey-handoff','journey-card','journey-download','journey-copy','journey-install'],
+            settings:['journey-consent-label','journey-consent','journey-updates-label','journey-updates','journey-next']};
+        var overlay=$('journey-overlay');overlay.style.left='10px';
+        // Short landscape: dock beside the movement pad, not on top of it.
+        if(innerHeight<520&&innerWidth>=600){var joy=$('joystick-base'),jr=joy&&joy.getBoundingClientRect();if(jr&&jr.width)overlay.style.left=(jr.right+12)+'px';}
+        var rect=overlay.getBoundingClientRect(),bottom=innerHeight-12;
+        document.querySelectorAll('#touch-controls button,#joystick-zone,#joystick-base').forEach(function(n){var r=n.getBoundingClientRect();if(r.width&&r.height&&r.left<rect.right&&r.right>rect.left&&r.top>rect.top)bottom=Math.min(bottom,r.top-8);});
+        var height=Math.min(248,Math.max(116,bottom-rect.top));pager.style.height=height+'px';
+        var nodes=sections[pane].map($).filter(function(n){return n&&!n.hidden&&!(n.id.indexOf('journey-updates')===0&&$('journey-preferences').hidden)&&!(['journey-download','journey-copy'].includes(n.id)&&$('journey-card-actions').hidden);});
+        var signature=pane+'|'+Math.round(rect.width)+'|'+height+'|'+_langCode+'|'+nodes.map(function(n){return n.id+':'+n.textContent+':'+n.checked+':'+n.disabled;}).join('|');
+        if(signature===cardSignature)return;cardSignature=signature;
+        pager.querySelectorAll('nav button').forEach(function(b){b.title=UI_T(b.dataset.label);b.setAttribute('aria-label',b.title);b.setAttribute('aria-pressed',b.dataset.pane===pane?'true':'false');if(b.dataset.pane===pane)pager.querySelector('header strong').textContent=b.title;});
+        pager.querySelector('.journey-dismiss').setAttribute('aria-label',UI_T('关闭旅程手册'));
+        var arrows=pager.querySelectorAll('footer button');arrows[0].setAttribute('aria-label',UI_T('上一页'));arrows[1].setAttribute('aria-label',UI_T('下一页'));
+        var body=pager.querySelector('.journey-page-body');body.replaceChildren();var budget=body.clientHeight,units=[];
+        function addText(text){
+            var rest=Array.from(text||'');while(rest.length){var p=document.createElement('p');body.replaceChildren(p);var lo=1,hi=rest.length,best=1;
+                while(lo<=hi){var mid=(lo+hi)>>1;p.textContent=rest.slice(0,mid).join('');if(p.getBoundingClientRect().height<=budget){best=mid;lo=mid+1;}else hi=mid-1;}
+                if(best<rest.length){var cut=rest.slice(0,best).join('').lastIndexOf(' ');if(cut>best*.6)best=cut+1;}
+                p.textContent=rest.splice(0,best).join('');units.push(p);
+            }
+        }
+        function addNode(n){
+            if(n.tagName==='BUTTON'){var b=document.createElement('button');b.type='button';b.textContent=n.textContent;b.disabled=n.disabled;b.onclick=function(){n.click();cardSignature='';renderPager();};units.push(b);}
+            else if(n.tagName==='INPUT'){var label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.checked=n.checked;check.setAttribute('aria-label',$(n.id+'-label').textContent);check.onchange=function(){n.checked=check.checked;n.dispatchEvent(new Event('change'));};label.appendChild(check);label.appendChild(document.createTextNode(UI_T('设置')));units.push(label);}
+            else if(n.tagName==='CANVAS'){var image=document.createElement('img');image.src=n.toDataURL();image.alt=n.getAttribute('aria-label');image.style.maxHeight=budget+'px';units.push(image);}
+            else if(n.id==='journey-conflict'){Array.from(n.children).forEach(addNode);}
+            else addText(n.textContent);
+        }
+        nodes.forEach(addNode);pages=[];var group=[];body.replaceChildren();
+        units.forEach(function(n){body.appendChild(n);if(body.scrollHeight>budget+1&&group.length){pages.push(group);group=[];body.replaceChildren(n);}group.push(n);});if(group.length)pages.push(group);
+        showPage();
+    }
+    window.addEventListener('resize',function(){cardSignature='';renderPager();});
     function feedback(key,values,duration){
         // Pickup feedback wins the same small HUD slot; never open a dialog.
         if(opened){opened=false;$('journey-overlay').classList.add('hidden');}
@@ -61,15 +121,16 @@
         $('journey-consent').checked=consent();
         $('journey-card-name').textContent=u?u.characterName:UI_T('你的蛋宝');
         if(window.DANBO_COOP)DANBO_COOP.render();
+        renderPager();
     }
     function open(showCoop){
         // A bounded HUD popover, not a modal. Never set the legacy input lock,
         // clear keys/joystick, trap focus or put a backdrop over the game.
         lastFocus=document.activeElement;opened=true;window._journeyPanelOpen=false;
-        feedbackUntil=0;$('journey-feedback').hidden=true;render();$('journey-overlay').classList.remove('hidden');
+        feedbackUntil=0;$('journey-feedback').hidden=true;$('journey-overlay').classList.remove('hidden');
         $('journey-coop-details').open=showCoop===true;
         $('journey-save-details').open=P.hasConflict()||!$('journey-claim').hidden;
-        if(showCoop===true){$('coop-title').focus({preventScroll:true});$('coop-card').scrollIntoView({block:'start'});}
+        pane=showCoop===true?'coop':P.hasConflict()||!$('journey-claim').hidden?'save':'trip';page=0;cardSignature='';render();
         if(DANBO_ACCOUNT.getUser()&&DANBO_ACCOUNT.getUser().kind==='account')DANBO_ACCOUNT.request('/preferences').then(function(r){$('journey-updates').checked=r.emailUpdates;}).catch(function(e){message(e.message);});
     }
     function close(){opened=false;window._journeyPanelOpen=false;$('journey-overlay').classList.add('hidden');}
@@ -158,7 +219,7 @@
         var url=new URL(location.href);url.search='';url.hash='take='+result.code;
         url.searchParams.set('net',DANBO_MULTIPLAYER.getEndpoint());var room=DANBO_MULTIPLAYER.getRoom();if(room&&room.state)url.searchParams.set('room',room.state.code);
         handoffURL=url.href;drawCard(handoffURL);event('handoff');message(UI_T('接力卡已生成。请私下传给自己的手机，不要公开发布；过期后可重新生成。'));
-        $('journey-card').scrollIntoView({block:'center',behavior:'smooth'});
+        cardSignature='';renderPager();
     });});
     $('journey-copy').addEventListener('click',function(){action(async function(){await navigator.clipboard.writeText(handoffURL);message(UI_T('接力链接已复制'));});});
     $('journey-download').addEventListener('click',function(){
@@ -180,7 +241,7 @@
         P.resetGuest();await DANBO_ACCOUNT.request('/logout',{});await DANBO_MULTIPLAYER.leave();DANBO_ACCOUNT.invalidate();
         localStorage.removeItem('danbo_metrics_visitor_v1');localStorage.removeItem('danbo_metrics_consent_v1');location.reload();
     });});
-    $('journey-open').addEventListener('click',function(){open();});
+    $('journey-open').addEventListener('click',function(){if(window.DANBO_MULTIPLAYER)DANBO_MULTIPLAYER.close();open();});
     $('journey-task').addEventListener('click',function(){
         if(window.DANBO_COOP&&DANBO_COOP.nearby&&DANBO_COOP.nearby()){DANBO_COOP.join();render();return;}
         open(coopTask);

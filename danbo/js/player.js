@@ -19,6 +19,40 @@ function _addStunDamage(egg,amount){
     }
     return false;
 }
+// A hurt NPC must cancel its old attack just as the player does. Otherwise the
+// physics dash/roll pose overwrites the new hit velocity on the very next frame.
+function _interruptHurtAction(egg){
+    if(!egg||!egg.mesh)return;
+    if(egg.holding){var held=egg.holding;held.heldBy=null;egg.holding=null;_removeEggStruggleBar(held);egg.grabCD=20;}
+    if(egg.holdingProp){egg.holdingProp.grabbed=false;egg.holdingProp=null;egg.grabCD=20;}
+    if(egg.holdingObs){egg.holdingObs._grabbed=false;egg.holdingObs=null;egg.grabCD=20;}
+    var victim=egg._piledriverTarget||egg._npcPiledriver;
+    if(victim){victim._piledriverLocked=false;if(victim.heldBy===egg)victim.heldBy=null;}
+    egg._piledriverTarget=null;egg._npcPiledriver=null;egg._npcBodySlam=null;egg._bodySlamTarget=null;
+    egg._piledriverPhase=0;egg._npcPdPhase=0;egg._bodySlam=false;
+    egg._tatsuActive=0;egg._npcTatsuActive=0;egg._shoryuActive=0;egg._npcShoryuActive=false;
+    egg._npcSpinTimer=0;egg._npcCombo=0;egg._comboCount=0;egg._comboTimer=0;
+    egg._hondaDash=0;egg._dashDirX=undefined;egg._dashDirZ=undefined;egg._dashFaceY=undefined;egg._blankaRoll=false;
+    egg._blankaSpinTimer=0;egg._blankaSpinFalling=false;egg._blankaSpinDirX=undefined;egg._blankaSpinDirZ=undefined;
+    egg._guileSomersault=0;egg._guileSomFwdX=undefined;egg._guileSomFwdZ=undefined;egg._guileArcLaunched=false;
+    egg._blankaShock=0;egg._hyakuretsuTimer=0;egg._hyakuretsuKickTimer=0;egg._yogaFlame=0;egg._atkAnim=0;
+    if(egg._elecParticles)egg._elecParticles.forEach(function(p){p.visible=false;});
+    var ud=egg.mesh.userData;
+    ['rightArm','leftArm','rightLeg','leftLeg'].forEach(function(key){if(ud[key])ud[key].visible=false;});
+    if(ud.body)ud.body.rotation.x=0;
+    if(egg.mesh.scale.y<0)egg.mesh.scale.y=Math.abs(egg.mesh.scale.y);
+}
+function _applyBasicMeleeHit(target,kind,dx,dz,heavy,aerial){
+    var kick=kind==='kick',data=kick?COMBAT.kick:COMBAT.punch,d=Math.hypot(dx,dz);
+    if(d<.001){dx=0;dz=1;d=1;}
+    _interruptHurtAction(target);
+    var force=heavy?(kick?.5:.4)+(aerial?(kick?.25:.2):0):(kick?.12:.08);
+    target.vx+=dx/d*force;target.vz+=dz/d*force;
+    if(heavy){target.vy=kick?(aerial?.3:.25):(aerial?.25:.2);target.squash=data.squash;
+        target.throwTimer=data.throwTimer;target._throwTotal=data.throwTimer;target._bounces=data.bounces;
+    }else{target.squash=kick?.75:.78;target._hitStun=kick?15:12;}
+    _addStunDamage(target,aerial?data.aerialStunDmg:data.stunDmg);
+}
 function handlePlayerInput(){
     try{
     if(!playerEgg||!playerEgg.alive)return;
@@ -738,17 +772,7 @@ function handlePlayerInput(){
             var _aHit=DANBO_WASM.arcHit2D(_adx,_adz,_atkDir,2.5*playerEgg._extendedRange,0.01,Math.PI/3);
             var _ad=_aHit[0];
             if(_aHit[3]){
-                    if(_isFinisher||_isAerial){
-                        var _kf=0.4+(_isAerial?0.2:0);
-                        _ae.vx+=_adx/_ad*_kf;_ae.vz+=_adz/_ad*_kf;
-                        _ae.vy=_isAerial?0.25:0.2;
-                        _ae.squash=COMBAT.punch.squash;_ae.throwTimer=COMBAT.punch.throwTimer;_ae._bounces=COMBAT.punch.bounces;
-                        _addStunDamage(_ae,_isAerial?COMBAT.punch.aerialStunDmg:COMBAT.punch.stunDmg);
-                    } else {
-                        _ae.vx+=_adx/_ad*0.08;_ae.vz+=_adz/_ad*0.08;
-                        _ae.squash=0.78;_ae._hitStun=12;
-                        _addStunDamage(_ae,COMBAT.punch.stunDmg);
-                    }
+                    _applyBasicMeleeHit(_ae,'punch',_adx,_adz,_isFinisher||_isAerial,_isAerial);
                     _dropNpcStolenCoins(_ae);playHitSound();
             }
         }
@@ -859,17 +883,7 @@ function handlePlayerInput(){
             var _kHit=DANBO_WASM.arcHit2D(_kdx,_kdz,_kDir,3.0*playerEgg._extendedRange,0.01,Math.PI/3);
             var _kd=_kHit[0];
             if(_kHit[3]){
-                    if(_kFinisher||_kAerial){
-                        var _kkf=0.5+(_kAerial?0.25:0);
-                        _ke.vx+=_kdx/_kd*_kkf;_ke.vz+=_kdz/_kd*_kkf;
-                        _ke.vy=_kAerial?0.3:0.25;
-                        _ke.squash=COMBAT.kick.squash;_ke.throwTimer=COMBAT.kick.throwTimer;_ke._bounces=COMBAT.kick.bounces;
-                        _addStunDamage(_ke,_kAerial?COMBAT.kick.aerialStunDmg:COMBAT.kick.stunDmg);
-                    } else {
-                        _ke.vx+=_kdx/_kd*0.12;_ke.vz+=_kdz/_kd*0.12;
-                        _ke.squash=0.72;_ke._hitStun=15;
-                        _addStunDamage(_ke,COMBAT.kick.stunDmg);
-                    }
+                    _applyBasicMeleeHit(_ke,'kick',_kdx,_kdz,_kFinisher||_kAerial,_kAerial);
                     _dropNpcStolenCoins(_ke);playHitSound();
                 }
             }

@@ -220,6 +220,7 @@ function _interiorCheckExit(){
 // E key: enter (near door, in city) or leave (inside). Shop interior is handled
 // by cosmetics.js (E near keeper = browse), so skip generic exit there.
 window.addEventListener('keydown',function(e){
+    if(_isTextInputEvent(e))return;
     if(e.code!=='KeyE'&&e.key!=='e'&&e.key!=='E')return;
     if(typeof gameState==='undefined'||gameState!=='city')return;
     if(window._worldMapOpen||window._shopOpen)return;

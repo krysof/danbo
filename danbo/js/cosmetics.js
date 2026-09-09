@@ -838,6 +838,7 @@ function _showShopPrompt(show,mode){
 // expose update + E key (enter shop at door / browse near keeper inside)
 Cosmetics.update=_cosUpdate;
 window.addEventListener('keydown',function(e){
+    if(_isTextInputEvent(e))return;
     if(e.code!=='KeyE'&&e.key!=='e'&&e.key!=='E')return;
     if(window._shopOpen)return;
     if(typeof gameState==='undefined'||gameState!=='city'||window._worldMapOpen)return;

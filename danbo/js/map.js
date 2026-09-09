@@ -47,6 +47,7 @@ function _layoutMapFloatingButtons(){
     }
     var lb=document.getElementById('lb-btn');
     if(lb){
+        lb.style.zIndex='5';
         lb.style.top=(compact?top:top+size+btn+18)+'px';lb.style.right=(right+(compact?size+btn+20:4))+'px';
         lb.style.width=btn+'px';lb.style.height=btn+'px';lb.style.lineHeight=btn+'px';
         lb.style.background='rgba(255,255,255,0.85)';lb.style.border='2px solid #FFD86B';lb.style.color='#B8860B';
@@ -58,7 +59,7 @@ function _initMapUI(){
     _miniSize=_mapMiniSize();
     // mini-map
     var wrap=document.createElement('div');wrap.id='minimap-wrap';wrap.title='Mini Map · North Up';
-    wrap.style.cssText='position:fixed;top:'+_mapMiniTop()+'px;right:'+(_isMobileMap()?8:10)+'px;z-index:54;width:'+_miniSize+'px;height:'+_miniSize+'px;'+
+    wrap.style.cssText='position:fixed;top:'+_mapMiniTop()+'px;right:'+(_isMobileMap()?8:10)+'px;z-index:4;width:'+_miniSize+'px;height:'+_miniSize+'px;'+
         'border-radius:50%;box-sizing:border-box;box-shadow:0 10px 28px rgba(20,31,45,.35),0 2px 7px rgba(0,0,0,.30),inset 0 2px 2px rgba(255,255,255,.85);'+
         'border:3px solid rgba(255,250,232,.96);background:linear-gradient(145deg,#F7E7B4 0%,#B47B3B 48%,#603A25 100%);cursor:pointer;overflow:hidden;';
     var cv=document.createElement('canvas');cv.style.cssText='width:100%;height:100%;display:block;border-radius:50%;';
@@ -73,7 +74,7 @@ function _initMapUI(){
     // buttons (stacked under the mini-map): world map + reuse leaderboard
     var mb=document.createElement('div');mb.id='map-btn';mb.innerHTML='<span style="display:block;font-size:14px;line-height:15px;margin-top:5px;">\u25C8</span><span style="display:block;font-size:8px;font-weight:900;line-height:10px;letter-spacing:.4px;">MAP</span>';
     var btn=_mapButtonSize();
-    mb.style.cssText='position:fixed;top:'+(_mapMiniTop()+_miniSize+10)+'px;right:'+(_isMobileMap()?14:12)+'px;z-index:55;width:'+btn+'px;height:'+btn+'px;border-radius:12px;'+
+    mb.style.cssText='position:fixed;top:'+(_mapMiniTop()+_miniSize+10)+'px;right:'+(_isMobileMap()?14:12)+'px;z-index:5;width:'+btn+'px;height:'+btn+'px;border-radius:12px;'+
         'background:linear-gradient(145deg,#FFF9E8,#E9C77A);border:2px solid #8B5D2F;color:#5D3B24;font-size:17px;line-height:'+btn+'px;text-align:center;cursor:pointer;user-select:none;'+
         'box-shadow:0 5px 12px rgba(22,30,40,.26),inset 0 2px 2px rgba(255,255,255,.9);font-family:system-ui,Segoe UI,sans-serif;';
     mb.onclick=_toggleWorldMap;document.body.appendChild(mb);
@@ -509,6 +510,7 @@ function _drawWorldMap(){
 
 // keyboard: M toggles world map
 window.addEventListener('keydown',function(e){
+    if(_isTextInputEvent(e))return;
     if((e.code==='KeyM'||e.key==='m'||e.key==='M')&&typeof gameState!=='undefined'&&gameState==='city'){
         e.preventDefault();_toggleWorldMap();
     }

@@ -47,8 +47,9 @@ function _collideGroundProp(egg,prop){
         }
         var inward=egg.vx*nx+egg.vz*nz;if(inward<0){egg.vx-=inward*nx;egg.vz-=inward*nz;}return;
     }
-    var distance=Math.hypot(dx,dz),limit=prop.radius+egg.radius;
-    if(distance>=limit)return;
+    var limit=prop.radius+egg.radius;
+    if(dx*dx+dz*dz>=limit*limit)return;
+    var distance=Math.hypot(dx,dz);
     var top=g.position.y+(prop.type==='bench'?.7:prop.type==='tree'?1.5:2.5);
     if(p.y>top+.3||p.y+1.8<g.position.y)return;
     if(p.y>top-.3&&egg.vy<=0){p.y=top+.01;egg.vy=0;egg.onGround=true;return;}
@@ -70,6 +71,7 @@ function updateEggPhysics(egg, isCity){
     }
     if(egg.heldBy)return;
     if(!egg.alive) return;
+    if((egg.throwTimer>0||egg._stunTimer>0||egg._hitStun>0)&&typeof _interruptHurtAction==='function')_interruptHurtAction(egg);
     // ---- Normal flat physics (used for all cities including moon) ----
     var grav=GRAVITY;
     egg.vy -= grav;

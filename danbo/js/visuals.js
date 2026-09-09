@@ -120,8 +120,12 @@ function _visualCanopyGeometry(variant){
 function _visualPolishWater(material){
     if(!material||material.userData.danboWater)return material;
     material.userData.danboWater=true;
+    material.userData.noAO=true;
     material.transmission=0;
     material.forceSinglePass=true;
+    // Water needs one reflective lobe, not an extra automotive clear-coat BRDF.
+    // Keep the HDR reflection and animated normal/caustics at every quality.
+    if(material.isMeshPhysicalMaterial)material.clearcoat=0;
     var previous=material.onBeforeCompile;
     material.onBeforeCompile=function(shader,renderer){
         if(previous)previous.call(this,shader,renderer);

@@ -116,6 +116,13 @@ iPhone：在 Safari 中点“分享 → 添加到主屏幕”。Android / PC：�
 复制接力链接¦複製接力連結¦引き継ぎリンクをコピー¦Copy transfer link
 接力码 10 分钟有效，领取后失效。它包含人物和当前进度，不含账号登录权限。长期保存请注册；接力卡不要公开分享。¦接力碼 10 分鐘有效，領取後失效。包含人物及目前進度，不含帳號登入權限。長期保存請註冊；接力卡請勿公開分享。¦引き継ぎコードは10分間有効、1回限りです。キャラと進行状況のみで、ログイン権限は含みません。長期保存には登録を。カードは公開しないでください。¦Transfer codes expire in 10 minutes and after one use. They contain character and progress, not account access. Register for long-term saves. Do not share the card publicly.
 设置¦設定¦設定¦Settings
+上一页¦上一頁¦前のページ¦Previous page
+下一页¦下一頁¦次のページ¦Next page
+输入文字¦輸入文字¦文字入力¦Enter text
+切换大小写¦切換大小寫¦大文字・小文字¦Upper/lowercase
+空格¦空格¦スペース¦Space
+删除¦刪除¦削除¦Delete
+完成¦完成¦完了¦Done
 允许匿名试玩统计（可选，保留 90 天；不含姓名、邮箱、聊天）¦允許匿名試玩統計（選填，保留 90 天；不含姓名、電子郵件、聊天）¦匿名プレイ統計を許可（任意・90日保存。名前、メール、チャットは含みません）¦Allow anonymous play statistics (optional, kept 90 days; no names, email or chat)
 愿意接收游戏更新邮件（可选，随时取消）¦願意接收遊戲更新郵件（選填，隨時取消）¦ゲーム更新メールを受け取る（任意・いつでも解除可）¦Receive game update emails (optional; unsubscribe anytime)
 展台：准备下一位游客¦展台：準備下一位遊客¦展示：次のゲストを迎える¦Booth: prepare for next guest`);

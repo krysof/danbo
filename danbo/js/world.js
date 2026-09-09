@@ -743,7 +743,7 @@ function _showLevelUp(lv){
 function _ensureLeaderboardBtn(){
     if(document.getElementById('lb-btn'))return;
     var b=document.createElement('div');b.id='lb-btn';b.textContent='\uD83C\uDFC6';
-    b.style.cssText='position:fixed;top:86px;right:12px;z-index:55;width:38px;height:38px;border-radius:10px;'+
+    b.style.cssText='position:fixed;top:86px;right:12px;z-index:5;width:38px;height:38px;border-radius:10px;'+
         'background:rgba(20,24,40,0.7);border:1px solid rgba(255,255,255,0.25);color:#FFD86B;font-size:21px;'+
         'line-height:38px;text-align:center;cursor:pointer;user-select:none;';
     b.onclick=_openLeaderboard;
@@ -1001,6 +1001,7 @@ function _prewarmCityShaders(){
     // moves program compilation into the remaining pipe-flight time instead of
     // making the first visible city frame pay the entire shader cost.
     if(typeof R==='undefined'||!R.compileAsync||typeof scene==='undefined'||typeof camera==='undefined')return;
+    if(typeof _prepareWaterForRendering==='function')_prepareWaterForRendering();
     var previousTarget=R.getRenderTarget();
     try{
         // Compile the variant actually used by RenderPass: linear offscreen

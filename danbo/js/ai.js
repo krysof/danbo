@@ -242,6 +242,7 @@ function updateObstacles(){
 // ============================================================
 function updateCityNPC(egg){if(egg.heldBy)return;
     if(!egg.alive)return;
+    if(egg.throwTimer>0||egg._stunTimer>0||egg._hitStun>0||egg._electrocuted>0||egg._elecFlying>0)_interruptHurtAction(egg);
     // Electrocuted NPCs cannot act
     if(egg._electrocuted>0||egg._elecFlying>0)return;
     // Thrown or stunned NPCs cannot act
@@ -448,17 +449,9 @@ function updateCityNPC(egg){if(egg.heldBy)return;
                 if(!egg._npcCombo)egg._npcCombo=0;
                 egg._npcCombo++;egg._npcAtkCD=10;
                 var _nIsHeavy=(egg._npcCombo>=3)||(!egg.onGround);
+                _applyBasicMeleeHit(closest,'punch',cdx2,cdz2,_nIsHeavy,!egg.onGround);
                 if(_nIsHeavy){
-                    // Knockdown
-                    var _nkf=0.35;
-                    closest.vx+=(cdx2/cd2)*_nkf;closest.vz+=(cdz2/cd2)*_nkf;
-                    closest.vy=0.2;closest.squash=0.4;
-                    closest.throwTimer=COMBAT.punch.throwTimer;closest._bounces=COMBAT.punch.bounces;_addStunDamage(closest,COMBAT.punch.stunDmg);
                     egg._npcCombo=0;egg._npcAtkCD=20;
-                } else {
-                    // Hitstun — flinch
-                    closest.vx+=(cdx2/cd2)*0.08;closest.vz+=(cdz2/cd2)*0.08;
-                    closest.squash=0.75;_addStunDamage(closest,COMBAT.punch.stunDmg);
                 }
                 _dropNpcStolenCoins(closest);
                 if(closest.isPlayer)playHitSound(egg.mesh.position.x,egg.mesh.position.z);

@@ -73,6 +73,23 @@ function _markNoAOEffects(){
     });
 }
 
+function _prepareWaterForRendering(){
+    // Called once per city BEFORE shader warm-up, never on first visibility.
+    // Transparent water must not write opaque normals/depth in GTAO's extra
+    // scene pass. Water tubes also only need one side of their transparent mesh.
+    var textures=new Set();
+    cityGroup.traverse(function(object){
+        var material=object.material;if(!material||Array.isArray(material))return;
+        if(material.userData.danboWater||/hope-fountain-(water|spout|arc-droplets)|canal-water/.test(object.name)){
+            object.userData.noAO=true;material.userData.noAO=true;
+            material.forceSinglePass=true;
+            if(material.isMeshPhysicalMaterial)material.clearcoat=0;
+            ['map','bumpMap','normalMap','roughnessMap'].forEach(function(key){if(material[key])textures.add(material[key]);});
+        }
+    });
+    if(R.initTexture)textures.forEach(function(texture){R.initTexture(texture);});
+}
+
 function _initCinematicPostFX(){
     if(_postFXComposer||typeof EffectComposer!=='function')return;
     var target=new THREE.WebGLRenderTarget(1,1,{
