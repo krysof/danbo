@@ -75,6 +75,13 @@
         return normalizeEndpoint(query||saved||declared);
     }
     function isPublicCode(code){return /^PUBLIC(?:[234])?$/.test(code);}
+    function serverPopulation(entry){
+        // Activity is everyone actually present, not occupied human seats. Older
+        // servers omit bots; never invent a count or trust a stale total field.
+        if(entry.status==='offline')return 0;
+        return (Number.isInteger(entry.players)&&entry.players>0?entry.players:0)+
+            (Number.isInteger(entry.bots)&&entry.bots>0?entry.bots:0);
+    }
     function displayServerName(entry){return /^DANBO [1-4] 服$/.test(entry.name)?UI_T('服务器 {n}',{n:entry.code==='PUBLIC'?'1':entry.code.slice(-1)}):entry.name;}
     function serverLabel(code){
         var entry=serverEntries.find(function(item){return item.code===code;});
@@ -113,7 +120,7 @@
         ui.serverList.textContent='';
         var address='';
         try{address=new URL(selectedServerEndpoint).host;}catch(_error){}
-        var recommended=serverEntries.filter(function(e){return e.status==='online'&&e.available>0;}).sort(function(a,b){return b.players-a.players||b.available-a.available;})[0];
+        var recommended=serverEntries.filter(function(e){return e.status==='online'&&e.available>0;}).sort(function(a,b){return b.players-a.players||serverPopulation(b)-serverPopulation(a)||b.available-a.available;})[0];
         if(!serverChosen&&recommended)selectedServerCode=recommended.code;
         serverEntries.forEach(function(entry){
             var button=document.createElement('button');
@@ -126,11 +133,12 @@
             button.querySelector('.server-main-copy small').textContent=address;
             if(recommended&&entry.code===recommended.code)button.querySelector('.server-region').textContent=UI_T('推荐同服');
             var metrics=button.querySelectorAll('.server-metric b');
-            metrics[0].textContent=entry.players+' / '+entry.capacity;
-            if(window.DANBO_COMPANIONS&&Number.isInteger(entry.bots)&&entry.bots>0){
-                metrics[0].textContent=(entry.players+entry.bots)+' '+DANBO_COMPANIONS.words().actors;
-                button.querySelector('.server-metric small').textContent=DANBO_COMPANIONS.detail(entry.players,entry.bots);
-                button.title=DANBO_COMPANIONS.detail(entry.players,entry.bots,entry.capacity);
+            metrics[0].textContent=entry.status==='offline'?UI_T('离线'):UI_T('在线 {n}',{n:serverPopulation(entry)});
+            button.querySelector('.server-metric small').textContent=UI_T('空位 {n}',{n:entry.status==='offline'?0:Math.max(0,Math.min(entry.capacity,Number(entry.available)||0))});
+            if(window.DANBO_COMPANIONS&&Number.isInteger(entry.bots)&&entry.bots>0&&entry.status!=='offline'){
+                // Keep the breakdown available on demand, not a prominent
+                // "0 players" subtitle underneath an otherwise active world.
+                button.title=DANBO_COMPANIONS.detail(entry.players,entry.bots,entry.capacity)+' ('+DANBO_COMPANIONS.words().seats+')';
             }
             metrics[1].textContent=ping+'ms';
             button.querySelector('.server-state-text').textContent=entry.status==='full'?UI_T('已满（含预留席位）'):entry.status==='online'?UI_T('可进入'):UI_T('离线');
@@ -242,17 +250,17 @@
             var count=room.state&&room.state.players?room.state.players.size:1;
             var capacity=Number(room.state&&room.state.capacity)||selectedCapacity;
             var code=normalizeCode(room.state&&room.state.code);
-            text=(isPublicCode(code)?UI_T('服务器 {n}',{n:code==='PUBLIC'?'1':code.slice(-1)})+' ':UI_T('在线 '))+count+'/'+(capacity||'--');online=true;
-            if(ui.capacity)ui.capacity.textContent=capacity?UI_T('最多 {n} 人',{n:capacity}):UI_T('读取容量中…');
             title=serverLabel(normalizeCode(room.state&&room.state.code||ui.code&&ui.code.value));
             if(window.DANBO_COMPANIONS){
                 var totals=DANBO_COMPANIONS.count(room.state);
+                count=totals.characters;
                 if(totals.bots){
-                    text=(isPublicCode(code)?(code==='PUBLIC'?'1':code.slice(-1))+' · ':'')+totals.characters+' '+DANBO_COMPANIONS.words().actors;
-                    title+=' · '+DANBO_COMPANIONS.detail(totals.players,totals.bots,capacity);
-                    if(ui.capacity)ui.capacity.textContent=DANBO_COMPANIONS.detail(totals.players,totals.bots,capacity)+' ('+DANBO_COMPANIONS.words().seats+')';
+                    title+=' · '+DANBO_COMPANIONS.detail(totals.players,totals.bots,capacity)+' ('+DANBO_COMPANIONS.words().seats+')';
                 }
             }
+            var populationText=UI_T('在线 {n}',{n:count});
+            text=(isPublicCode(code)?(code==='PUBLIC'?'1':code.slice(-1))+' · ':'')+populationText;online=true;
+            if(ui.capacity)ui.capacity.textContent=populationText+' · '+(capacity?UI_T('最多 {n} 人',{n:capacity}):UI_T('读取容量中…'));
         }else if(status==='joining'||status==='reconnecting'){
             text=UI_T('连接中');
         }

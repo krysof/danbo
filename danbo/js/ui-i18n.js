@@ -136,6 +136,8 @@ wss://你的服务器¦wss://你的伺服器¦wss://your-server¦wss://your-serv
 服务器¦伺服器¦サーバー¦Server
 服务器 {n}¦伺服器 {n}¦サーバー {n}¦Server {n}
 在线 ¦在線 ¦接続中 ¦Online 
+在线 {n}¦在線 {n}¦オンライン {n}¦Online {n}
+空位 {n}¦空位 {n}¦空き {n}¦Open slots {n}
 最多 {n} 人¦最多 {n} 人¦定員 {n} 人¦Up to {n} players
 读取容量中…¦讀取容量中…¦定員を確認中…¦Loading capacity…
 连接中¦連線中¦接続中¦Connecting
