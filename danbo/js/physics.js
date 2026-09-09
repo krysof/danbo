@@ -9,6 +9,7 @@ var MOON_CITY_SIZE=CITY_CONFIG.moonSize;
 // (spherical _moonOrient removed — moon is now flat city)
 
 function updateEggPhysics(egg, isCity){
+    if(egg._networkHeldBy)return; // Server-owned carry pose; do not apply local gravity/collisions.
     // Safety: auto-release piledriver lock after 5 seconds to prevent permanent freeze
     if(egg._piledriverLocked){
         if(!egg._piledriverLockTimer)egg._piledriverLockTimer=300;
@@ -531,10 +532,10 @@ function resolveEggCollisions(eggList){
     const protectedPlayer=window.DANBO_JOURNEY&&typeof playerEgg!=='undefined'&&DANBO_JOURNEY.protects(playerEgg)?playerEgg:null;
     for(let i=0;i<eggList.length;i++){
         const a=eggList[i];
-        if(!a.alive||a.heldBy||a._piledriverLocked)continue;
+        if(!a.alive||a.heldBy||a._networkHeldBy||a._piledriverLocked)continue;
         for(let j=i+1;j<eggList.length;j++){
             const b=eggList[j];
-            if(!b.alive||b.heldBy||b._piledriverLocked)continue;
+            if(!b.alive||b.heldBy||b._networkHeldBy||b._piledriverLocked)continue;
             const dx=b.mesh.position.x-a.mesh.position.x;
             const dz=b.mesh.position.z-a.mesh.position.z;
             const dy=b.mesh.position.y-a.mesh.position.y;

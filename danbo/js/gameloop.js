@@ -583,7 +583,7 @@ function updateCity(){
     // require a perfect onGround flag: on curved pipes, stairs, roofs, and
     // after tiny bounces it can be false for a few frames.
     var _nearGround=_danboPortalNearGround(playerEgg,py);
-    var _isVoluntary=playerEgg&&_nearGround&&!playerEgg.throwTimer&&!playerEgg._stunTimer&&!playerEgg.heldBy&&!playerEgg._piledriverLocked&&!playerEgg._hondaDash&&!playerEgg._blankaSpinTimer&&!playerEgg._blankaSpinFalling&&!playerEgg._tatsuActive&&!playerEgg._shoryuActive&&!playerEgg._guileSomersault&&!playerEgg._electrocuted&&!playerEgg._elecFlying;
+    var _isVoluntary=playerEgg&&!playerEgg._networkHeldBy&&!playerEgg._networkHolding&&!playerEgg._networkFlight&&_nearGround&&!playerEgg.throwTimer&&!playerEgg._stunTimer&&!playerEgg.heldBy&&!playerEgg._piledriverLocked&&!playerEgg._hondaDash&&!playerEgg._blankaSpinTimer&&!playerEgg._blankaSpinFalling&&!playerEgg._tatsuActive&&!playerEgg._shoryuActive&&!playerEgg._guileSomersault&&!playerEgg._electrocuted&&!playerEgg._elecFlying;
     var _portalAction=_nearP?_danboPortalAction(_nearD,PORTAL_CONFIG.triggerDist,PORTAL_CONFIG.confirmDist,_nearP._isWarpPipe,_isVoluntary):0;
     if(_nearP&&_portalAction>0){
         _portalPromptPortal=_nearP;
@@ -1992,7 +1992,7 @@ var _npcChatPhrases={
 };
 function _npcRandomChat(egg){
     if(Math.random()>0.0008)return; // very rare
-    if(egg.heldBy||!egg.alive)return;
+    if(egg.heldBy||egg._networkHeldBy||!egg.alive)return;
     if(egg._moveShoutTimer>0){egg._moveShoutTimer--;return;} // don't override move shout
     var phrases=_npcChatPhrases[_langCode]||_npcChatPhrases.en;
     _showChatBubble(egg,phrases[Math.floor(Math.random()*phrases.length)]);
@@ -2123,7 +2123,7 @@ function updateHeldEggs(){
         var best=null,bestD=1.5;
         for(var m=0;m<allEggs.length;m++){
             var target=allEggs[m];
-            if(target===npc||!target.alive||target.heldBy||target.holding)continue;
+            if(target===npc||!target.alive||target.heldBy||target._networkHeldBy||target.holding)continue;
             if(target.isPlayer&&window.DANBO_JOURNEY&&DANBO_JOURNEY.protects(target))continue;
             var ddx=target.mesh.position.x-npc.mesh.position.x;
             var ddz=target.mesh.position.z-npc.mesh.position.z;
@@ -2337,6 +2337,7 @@ function _updatePortalSel(){
     if(nb)nb.style.outline=_portalSel===1?'3px solid #FFD700':'none';
 }
 function showPortalConfirm(portal){
+    if(playerEgg&&(playerEgg._networkHeldBy||playerEgg._networkHolding||playerEgg._networkFlight))return;
     _portalConfirmOpen=true;
     // All confirm types now unified
     _portalConfirmRace=portal.raceIndex;

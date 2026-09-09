@@ -25,9 +25,10 @@ function handlePlayerInput(){
     if(_portalConfirmOpen)return;
     if(playerEgg.finished&&gameState==='racing')return;
     if(playerEgg._fallPenalty>0)return;
+    if(window.DANBO_INTERACTIONS&&DANBO_INTERACTIONS.heldInput(keys))return;
     if(playerEgg.heldBy)return;
     // Cannot control while thrown or stunned (except struggle when held)
-    if(playerEgg.throwTimer>0||playerEgg._stunTimer>0){
+    if(playerEgg.throwTimer>0||playerEgg._stunTimer>0||performance.now()<(playerEgg._networkHitUntil||0)){
         // Interrupt: drop held items and cancel ALL special moves
         if(playerEgg.holding){var _ih=playerEgg.holding;_ih.heldBy=null;playerEgg.holding=null;_removeEggStruggleBar(_ih);playerEgg.grabCD=20;}
         if(playerEgg.holdingProp){playerEgg.holdingProp.grabbed=false;playerEgg.holdingProp=null;playerEgg.grabCD=20;}
@@ -131,7 +132,7 @@ function handlePlayerInput(){
         }
     }
     // Sprint: hold F — gradual speed ramp (only when not holding something)
-    var _holdAnything=playerEgg.holding||playerEgg.holdingProp||playerEgg.holdingObs;
+    var _holdAnything=playerEgg._networkHolding||playerEgg.holding||playerEgg.holdingProp||playerEgg.holdingObs;
     var holdingF=keys['KeyF']&&!_portalConfirmOpen&&!_holdAnything;
     var sprintPct=_updateSprintBar(holdingF);
     var _powerBoost=(playerEgg._speedBoost>0)?2:1;
@@ -322,6 +323,7 @@ function handlePlayerInput(){
         if(_cap[3]&&!playerEgg._hondaDash){playerEgg.vx=_cap[0];playerEgg.vz=_cap[1];}
     }
     // Grab / Throw (F key)
+    if(window.DANBO_INTERACTIONS&&DANBO_INTERACTIONS.input(keys))return;
     if(playerEgg.grabCD>0) playerEgg.grabCD--;
     if(!playerEgg._fHoldFrames)playerEgg._fHoldFrames=0;
     if(!playerEgg._throwCharging)playerEgg._throwCharging=false;
@@ -700,6 +702,7 @@ function handlePlayerInput(){
             }}
         } else {
         // Normal punch combo
+        if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(playerEgg,'punch');
         playerEgg._comboCount++;playerEgg._comboTimer=(_ct==='cockroach')?MOVE_PARAMS.cockroach.comboTimerPunch:25;playerEgg._attackCD=(_ct==='cockroach')?MOVE_PARAMS.cockroach.punchCD:8;
         var _punchArm=(playerEgg._comboCount%2===1)?playerEgg.mesh.userData.rightArm:playerEgg.mesh.userData.leftArm;
         var _pArmZ=(_ct==='cockroach')?3.0:0.9;
@@ -829,6 +832,7 @@ function handlePlayerInput(){
             playJumpSound();
         } else {
         // Normal kick
+        if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(playerEgg,'kick');
         playerEgg._comboCount++;playerEgg._comboTimer=(_ct==='cockroach')?MOVE_PARAMS.cockroach.comboTimerKick:25;playerEgg._attackCD=(_ct==='cockroach')?MOVE_PARAMS.cockroach.kickCD:12;
         var _kickLeg=(playerEgg._comboCount%2===1)?playerEgg.mesh.userData.rightLeg:playerEgg.mesh.userData.leftLeg;
         var _kLegZ=(_ct==='cockroach')?2.5:0.7;

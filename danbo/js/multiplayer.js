@@ -1,7 +1,7 @@
 // multiplayer.js — four persistent public Colyseus shards plus private rooms.
 // The SDK is loaded only when a player joins, so single-player startup and FPS
-// are unchanged. Remote avatars live outside allEggs and never enter local NPC,
-// collision, reward or combat authority.
+// are unchanged. Remote avatars stay outside local NPC/reward authority;
+// network-interactions handles body blocking and server-confirmed carry/throw.
 (function(){
     'use strict';
 
@@ -460,6 +460,7 @@
         });
     }
     function cleanupRoom(){
+        if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.reset();
         room=null;lastSentCity=-1;lastSendAt=0;sequence=0;playerListSignature='';buttonSignature='';companionIds.clear();companionBudgetAt=0;removeAllRemotes();
         setStatus('offline','未连接');showSummary(UI_T('尚未连接联机房间。'),false);refreshPlayerList([]);
         if(ui.leave)ui.leave.disabled=true;if(ui.share)ui.share.disabled=true;
@@ -500,6 +501,8 @@
             }else room=await client.joinOrCreate(ROOM_NAME,options);
             room.reconnection.enabled=true;room.reconnection.maxRetries=8;room.reconnection.minDelay=350;room.reconnection.maxDelay=3500;
             room.onMessage('chat',receiveChat);
+            room.onMessage('interaction-result',function(message){if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.result(message);});
+            room.onMessage('combat',function(message){if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.event(message);});
             room.onMessage('coop-error',function(message){if(window.DANBO_COOP)DANBO_COOP.error(message&&message.code);});
             room.onDrop(function(){setStatus('reconnecting','重连中…');showSummary(UI_T('网络中断，正在保留席位并自动重连。'),false);});
             room.onReconnect(function(){setStatus('online','已重连');showSummary(UI_T('已恢复房间 ')+code+'。',false);});
@@ -524,7 +527,7 @@
         if(!playerEgg)return 'idle';
         if(typeof keys!=='undefined'&&keys['KeyR'])return 'punch';
         if(typeof keys!=='undefined'&&keys['KeyT'])return 'kick';
-        if(playerEgg.holding||playerEgg.holdingProp||playerEgg.holdingObs||(typeof keys!=='undefined'&&keys['KeyF']))return 'grab';
+        if(playerEgg._networkHolding||playerEgg.holding||playerEgg.holdingProp||playerEgg.holdingObs||(typeof keys!=='undefined'&&keys['KeyF']))return 'grab';
         if(!playerEgg.onGround||Math.abs(playerEgg.vy||0)>0.03)return 'jump';
         if(Math.hypot(playerEgg.vx||0,playerEgg.vz||0)>0.012)return 'walk';
         return 'idle';
@@ -541,7 +544,9 @@
         room.send('state',{
             sequence:sequence,city:city,x:p.x,y:p.y,z:p.z,rotation:playerEgg.mesh.rotation.y,
             vx:playerEgg.vx||0,vy:playerEgg.vy||0,vz:playerEgg.vz||0,action:detectAction(),teleport:teleport,language:typeof _langCode==='undefined'?'ja':_langCode
-            ,worldActive:!!playerEgg.onGround&&!playerEgg.heldBy&&!(playerEgg.throwTimer>0)&&!document.hidden&&!window._interiorActive&&!window._danboPluginTransition&&!window._journeyPanelOpen&&!window._accountPanelOpen&&!window._multiplayerPanelOpen&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())
+            ,interactive:!!(window.DANBO_INTERACTIONS&&DANBO_INTERACTIONS.interactive())
+            ,combatReady:!!(window.DANBO_INTERACTIONS&&DANBO_INTERACTIONS.combatReady())
+            ,worldActive:!!playerEgg.onGround&&!playerEgg.heldBy&&!playerEgg._networkHeldBy&&!(playerEgg.throwTimer>0)&&!document.hidden&&!window._interiorActive&&!window._danboPluginTransition&&!window._journeyPanelOpen&&!window._accountPanelOpen&&!window._multiplayerPanelOpen&&!(window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())
         });
     }
     function receiveChat(message){
@@ -569,10 +574,12 @@
     function update(dt){
         if(pendingAutoCode&&!joining&&!room&&gameState==='city'&&playerEgg){var code=pendingAutoCode;pendingAutoCode='';connectRoom(code);}
         if(room){
-            sendLocalState(false);syncRemotePlayers(dt||1/60);
+            syncRemotePlayers(dt||1/60);
+            if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.update();
+            sendLocalState(false);
             var now=performance.now();if(now-lastAppearanceAt>500&&window.DANBO_APPEARANCE){lastAppearanceAt=now;var selected=DANBO_APPEARANCE.selected();if(selected!==lastAppearance){lastAppearance=selected;room.send('profile',{appearance:selected});}}
         }
-        else if(remotes.size)removeAllRemotes();
+        else{if(remotes.size)removeAllRemotes();if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.reset();}
     }
 
     if(ui.button)ui.button.addEventListener('click',openPanel);
@@ -616,6 +623,8 @@
         coop:function(action){if(!room||status!=='online')return false;sendLocalState(true);room.send('coop',{action:action});return true;},
         isConnected:function(){return !!room&&status==='online';},
         getRoom:function(){return room;},
+        getRemoteActor:function(id){return remotes.get(id)||null;},
+        flushState:function(){sendLocalState(true);},
         getEndpoint:function(){return normalizeEndpoint(ui.endpoint&&ui.endpoint.value||configuredEndpoint());},
         getStatus:function(){return{status:status,text:UI_T(statusText),roomCode:room&&room.state?room.state.code:null,remoteCount:remotes.size,population:window.DANBO_COMPANIONS?DANBO_COMPANIONS.count(room&&room.state):null};}
     };

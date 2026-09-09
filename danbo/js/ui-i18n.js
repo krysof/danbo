@@ -26,6 +26,11 @@
         ['aria-label','placeholder','title'].forEach(function(attr){document.querySelectorAll('[data-ui-'+attr+']').forEach(function(el){el.setAttribute(attr,text(el.getAttribute('data-ui-'+attr)));});});
     }
     root.UI_T=text;root.UI_HTML=html;root.DANBO_UI_I18N={text:text,html:html,refresh:refresh,add:add,locales:locales,table:table};
+    add(`被抓住了 · 连按方向或跳跃挣脱¦被抓住了 · 連按方向或跳躍掙脫¦つかまれた！方向かジャンプを連打して脱出¦Grabbed! Tap directions or Jump to escape
+已抓起 · 再按抓取投掷，长按蓄力¦已抓起 · 再按抓取投擲，長按蓄力¦持ち上げた！つかむボタンで投げる・長押しでためる¦Carrying · Press Grab again to throw; hold to charge
+蓄力中 · 松开投掷¦蓄力中 · 放開投擲¦ため中 · 離して投げる¦Charging · Release to throw
+抓取中…¦抓取中…¦つかみ中…¦Grabbing…
+暂时无法抓取，靠近后再试¦暫時無法抓取，靠近後再試¦今はつかめません。近づいて再試行¦Cannot grab now. Move closer and try again`);
     add(`旅行装扮¦旅行裝扮¦旅の装い¦Expedition outfit
 日常装扮¦日常裝扮¦いつもの装い¦Everyday outfit
 旅装¦旅裝¦旅装¦Travel`);

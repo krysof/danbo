@@ -68,6 +68,7 @@ function _createYogaFireGroup(){
 // type: 'normal' | 'sonicBoom' | 'yogaFire'
 // params: {speed, life, color, ringColor, burns, isPlayer, type}
 function MoveProjectile_execute(egg, dir, params){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,'projectile',dir);
     var type=params.type||'normal';
     var spd=params.speed;
     var life=params.life;
@@ -115,6 +116,7 @@ function MoveProjectile_execute(egg, dir, params){
         vz:Math.cos(dir)*spd,
         life:life,
         owner:egg,
+        networkVisualOnly:!!params.networkVisualOnly,
         burns:!!params.burns,
         isSonicBoom:(type==='sonicBoom'),
         isYogaFire:(type==='yogaFire'),
@@ -167,7 +169,7 @@ function MoveProjectile_update(proj){
     if(proj.ring&&proj.ring.material)proj.ring.material.opacity=Math.min(0.6,proj.life/30);
 
     // Hit detection
-    var hit=_moveHitDetect(proj.owner, proj.ball.position, 1.5, function(target){
+    var hit=!proj.networkVisualOnly&&_moveHitDetect(proj.owner, proj.ball.position, 1.5, function(target){
         target.vx+=proj.vx*COMBAT.projectile.knockbackMul;
         target.vz+=proj.vz*COMBAT.projectile.knockbackMul;
         target.vy=COMBAT.projectile.vy;
@@ -209,6 +211,7 @@ function MoveProjectile_cleanup(proj){
 // ============================================================
 
 function MoveSpin_execute(egg, dir, params){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,'spin',dir);
     var ct=egg.mesh.userData._charType||'egg';
     egg._tatsuActive=params.duration;
     egg._tatsuDir=dir;
@@ -348,6 +351,7 @@ function MoveSpin_end(egg){
 // ============================================================
 
 function MoveUppercut_execute(egg, dir, params){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,'uppercut',dir);
     var ct=egg.mesh.userData._charType||'egg';
     egg._shoryuActive=params.duration;
     egg.vy=JUMP_FORCE*params.jumpMul;
@@ -483,6 +487,7 @@ function MoveUppercut_end(egg){
 // ============================================================
 
 function MoveDash_execute(egg, dir, params){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,'dash',dir);
     if(params.isDash){
         // Honda headbutt
         egg.vx=Math.sin(dir)*MAX_SPEED*params.speed;
@@ -511,6 +516,7 @@ function MoveDash_execute(egg, dir, params){
 // ============================================================
 
 function MoveRapidHit_execute(egg, limbType){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,limbType==='kick'?'kick':'punch');
     if(limbType==='punch'){
         egg._hyakuretsuTimer=60;
         egg._hyakuretsuTick=0;
@@ -607,11 +613,13 @@ function MoveRapidHit_end(egg, limbType){
 // ============================================================
 
 function MoveElectric_execute(egg, params){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,'electric');
     egg._blankaShock=params.duration||60;
     egg.squash=0.6;
 }
 
 function MoveYogaFlame_execute(egg, dir, params){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,'flame',dir);
     egg._yogaFlame=params.duration;
     egg._yogaFlameDir=dir;
     egg.squash=0.85;
@@ -622,6 +630,7 @@ function MoveYogaFlame_execute(egg, dir, params){
 // ============================================================
 
 function MoveSomersault_execute(egg, dir, params){
+    if(window.DANBO_INTERACTIONS)DANBO_INTERACTIONS.attack(egg,'somersault',dir);
     egg.vy=JUMP_FORCE*params.jumpMul;
     egg.vx=Math.sin(dir)*0.15;
     egg.vz=Math.cos(dir)*0.15;
