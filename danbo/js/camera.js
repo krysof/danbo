@@ -194,6 +194,7 @@ document.addEventListener('touchmove',function(e){
 },{passive:true});
 document.addEventListener('touchend',function(e){_moonTouchOrbit=false;},{passive:true});
 function updateCamera(){
+    if(gameState==='raceIntro'&&window._raceBifrostCamera)return;
     if(!playerEgg)return;
     if(gameState!=='city'&&playerEgg.mesh&&!playerEgg.mesh.visible)playerEgg.mesh.visible=true;
     // Spectator mode — free camera on moon

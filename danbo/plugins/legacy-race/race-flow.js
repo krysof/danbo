@@ -2,6 +2,7 @@
 // Moved from js/gameloop.js so the race minigame's start/result/HUD flow belongs to the plugin.
 
 function enterRace(raceIndex){
+    var _bfCameraPosition=camera.position.clone(),_bfCameraRotation=camera.quaternion.clone();
     if(typeof _resetViewMode==='function')_resetViewMode();
     currentRaceIndex=raceIndex;
     finishedEggs=[]; playerFinished=false;
@@ -64,12 +65,12 @@ function enterRace(raceIndex){
         _rEgg.mesh.visible=false;
     }
 
-    camera.position.set(0, 12, 11);
-    camera.lookAt(0, 0, -5);
+    camera.position.copy(_bfCameraPosition);camera.quaternion.copy(_bfCameraRotation);
     camera.up.set(0,1,0); // reset from moon spherical camera
 
     // ---- Bifrost Rainbow Bridge transition (3D in Three.js scene) ----
     gameState='raceIntro';
+    window._raceBifrostCamera=true;
     stopBGM();
     const race=RACES[raceIndex];
     // Show overlay but keep it transparent so 3D scene is visible
@@ -201,15 +202,16 @@ function enterRace(raceIndex){
     }
 
     // --- Animation loop ---
-    var _bfStart=Date.now();
+    var _bfStart=performance.now();
     var _bfDuration=10000; // 2s descend + 4s suck up + 4s arrive
     var _bfAnimId=null;
     var _bfCityHidden=false;
 
     function _animateBifrost3D(){
-        var elapsed=Date.now()-_bfStart;
+        var elapsed=performance.now()-_bfStart;
         var t=elapsed/_bfDuration;
-        if(t>=1){
+        if(t>=1||gameState!=='raceIntro'){
+            window._raceBifrostCamera=false;
             // --- Cleanup ---
             if(_bfAnimId)cancelAnimationFrame(_bfAnimId);
             // Remove all bifrost meshes
@@ -223,6 +225,7 @@ function enterRace(raceIndex){
             if(_bfFlash.geometry)_bfFlash.geometry.dispose();
             if(_bfFlash.material)_bfFlash.material.dispose();
             scene.remove(_bfFlash);
+            if(gameState!=='raceIntro')return;
             // Reset player position to race start
             playerEgg.mesh.position.set(0,_bfPlayerY,-2);
             // Reset camera to race view
@@ -262,7 +265,8 @@ function enterRace(raceIndex){
             for(var _rn2=0;_rn2<_bfRunes.length;_rn2++){_bfRunes[_rn2].scale.set(0.01,0.01,0.01);}
             // Camera looks up at descending light
             camera.position.x=_bfCamStartX;camera.position.y=_bfCamStartY;camera.position.z=_bfCamStartZ;
-            camera.lookAt(_bfPlayerX,_bfPlayerY+20+p1*30,_bfPlayerZ);
+            camera.lookAt(_bfPlayerX,_bfPlayerY+5,_bfPlayerZ);
+            camera.quaternion.slerp(_bfCameraRotation,1-p1*p1*(3-2*p1));
             // Particles rain down along pillars
             for(var _pp3=0;_pp3<_bfParticles.length;_pp3++){
                 var ptc=_bfParticles[_pp3];ptc.mesh.visible=true;
@@ -276,6 +280,7 @@ function enterRace(raceIndex){
         // --- Phase 2: Rings lock on + Player sucked up (0.2 - 0.6 = 4s) ---
         else if(t<0.6){
             var p2=(t-0.2)/0.4;
+            p2=p2*p2*(3-2*p2);
             // Full pillars from ground to sky, pulsing
             for(var _pp2=0;_pp2<_bfPillars.length;_pp2++){
                 var spiralAngle2=elapsed*0.003+_pp2*(Math.PI*2/_bfPillarCount);
@@ -320,8 +325,7 @@ function enterRace(raceIndex){
                 ptc2.mesh.position.set(_bfPlayerX+Math.cos(ptc2.angle)*ptcR3,ptc2.y,_bfPlayerZ+Math.sin(ptc2.angle)*ptcR3);
                 ptc2.mesh.material.opacity=0.5+Math.sin(elapsed*0.01+_pp4)*0.4;
             }
-            // Camera shake intensifies
-            camera.position.x+=Math.sin(elapsed*0.06)*0.15*p2;
+            // The transition owns the camera; no per-frame horizontal shake.
         }
         // --- Phase 3: Reverse Phase 2 then Phase 1 at race track (0.6 - 1.0 = 4s) ---
         else{
@@ -479,11 +483,13 @@ function enterRace(raceIndex){
                 // Runes hidden
                 for(var _rn5=0;_rn5<_bfRunes.length;_rn5++)_bfRunes[_rn5].visible=false;
                 // Camera settles at race start view
-                camera.position.set(0,12+8*(1-rp1),14+6*(1-rp1));
+                camera.position.set(0,12+8*(1-rp1),11+3*(1-rp1));
                 camera.lookAt(0,0+5*(1-rp1),-5*rp1);
             }
         }
 
+        // Position the flash AFTER the camera move so the scene cut is covered.
+        if(_bfFlash.material.opacity>0){_bfFlash.position.copy(camera.position);_bfFlash.quaternion.copy(camera.quaternion);_bfFlash.translateZ(-1);}
         // The shared game loop renders raceIntro continuously. Rendering again
         // here doubled GPU work and made the portal transition stutter.
         _bfAnimId=requestAnimationFrame(_animateBifrost3D);
