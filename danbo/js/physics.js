@@ -35,6 +35,7 @@ function _collideGroundProp(egg,prop){
         if(p.y>box.max.y+.3||p.y+1.8<box.min.y)return;
         var nx=p.x-Math.max(box.min.x,Math.min(box.max.x,p.x)),nz=p.z-Math.max(box.min.z,Math.min(box.max.z,p.z)),d=Math.hypot(nx,nz);
         if(d>=r)return;
+        if(prop._animal&&typeof _noticeAnimalContact==='function')_noticeAnimalContact(prop,egg);
         if(p.y>=box.max.y-.3&&egg.vy<=0){p.y=box.max.y+.01;egg.vy=0;egg.onGround=true;return;}
         if(d>.001){nx/=d;nz/=d;var overlap=r-d;p.x+=nx*overlap;p.z+=nz*overlap;}
         else{

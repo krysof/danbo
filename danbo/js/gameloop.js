@@ -43,6 +43,92 @@ function _animalAttentionChance(seconds){
     // sixty seconds. This is not a roll every frame, nor a guaranteed collapse.
     return seconds<10?0:Math.min(0.5,0.05+(seconds-10)*0.009);
 }
+function _noticeAnimalContact(prop,egg){
+    if(!prop._animal||prop.grabbed||prop.throwTimer>0||!egg||!egg.mesh)return;
+    var contact=prop._animalScare||(prop._animalScare={});
+    contact.x=egg.mesh.position.x;contact.z=egg.mesh.position.z;contact.at=_animalClock();
+}
+function _scareAnimalsInArc(egg,range,heading){
+    if(typeof gameState==='undefined'||gameState!=='city')return;
+    for(var i=0;i<cityProps.length;i++){
+        var prop=cityProps[i];if(!prop._animal||prop.grabbed||prop.throwTimer>0)continue;
+        var dx=prop.group.position.x-egg.mesh.position.x,dz=prop.group.position.z-egg.mesh.position.z;
+        if(Math.abs(egg.mesh.position.y-_propRestY(prop))>2)continue;
+        if(dx*dx+dz*dz<=range*range&&(dx*Math.sin(heading)+dz*Math.cos(heading))>=Math.hypot(dx,dz)*0.5)_noticeAnimalContact(prop,egg);
+    }
+}
+function _startAnimalFlee(prop,x,z,now){
+    if(!prop._animal||prop.grabbed||prop.throwTimer>0)return;
+    var fleeing=prop._animalFlee;
+    if(fleeing){fleeing.x=x;fleeing.z=z;fleeing.until=now+4000;return;}
+    delete prop._animalDown;_standAnimalProp(prop);
+    prop._animalFlee={x:x,z:z,started:now,last:now,until:now+4000,phase:0,turn:Math.random()<0.5?-1:1};
+}
+function _animalFleeClear(prop,x,z){
+    var p=prop.group.position,r=Math.min(1.1,prop.radius||0.5),bound=CITY_SIZE-5;
+    if(Math.abs(x)>bound||Math.abs(z)>bound)return false;
+    var bottom=_propRestY(prop),height=prop.type==='deer'?2.6:prop.type==='rabbit'?1.3:0.6;
+    for(var i=0;i<cityColliders.length;i++){
+        var c=cityColliders[i];if((c.y||0)>bottom+height||(c.y||0)+(c.h||0)<bottom+0.1)continue;
+        var hw=c.hw+r,hd=c.hd+r,depth=Math.min(hw-Math.abs(x-c.x),hd-Math.abs(z-c.z));
+        if(depth<=0)continue;
+        // Existing animal spawns may be inside a footprint. Permit movement
+        // toward the nearest exit, but never enter/deepen another solid wall.
+        var oldDepth=Math.min(hw-Math.abs(p.x-c.x),hd-Math.abs(p.z-c.z));
+        if(oldDepth<=0||depth>=oldDepth-0.00001)return false;
+    }
+    return true;
+}
+var _animalEscapeTurns=[0,0.55,-0.55,1.05,-1.05,1.57,-1.57,2.1,-2.1,Math.PI];
+function _updateAnimalFlee(prop){
+    if(!prop||!prop._animal)return false;
+    if(prop.grabbed||prop.throwTimer>0){delete prop._animalFlee;delete prop._animalScare;return false;}
+    var now=_animalClock(),contact=prop._animalScare;
+    if(contact){delete prop._animalScare;if(now>=contact.at&&now-contact.at<=500)_startAnimalFlee(prop,contact.x,contact.z,now);}
+    // A close approach is different from quietly watching from 2–4 metres.
+    // Direct stepping/bumping is reported by physics, including atop a deer.
+    if(now>=(prop._animalScareCheck||0)||now<prop._animalScareCheck-200){
+        prop._animalScareCheck=now+200;_animalNearVisitor(prop,now);
+        var p=prop.group.position,closest=null,best=1.5*1.5;
+        for(var i=0;i<_animalVisitors.length;i++){
+            var visitor=_animalVisitors[i],dx=p.x-visitor.x,dz=p.z-visitor.z,d=dx*dx+dz*dz;
+            if(d<best&&Math.abs(visitor.y-_propRestY(prop))<=1.8){best=d;closest=visitor;}
+        }
+        if(closest)_startAnimalFlee(prop,closest.x,closest.z,now);
+    }
+    var f=prop._animalFlee;if(!f)return false;
+    var a=prop._animal,g=prop.group,dx=g.position.x-f.x,dz=g.position.z-f.z,distance=Math.hypot(dx,dz);
+    if(now>=f.until||(now-f.started>=1500&&distance>7)){
+        delete prop._animalFlee;_standAnimalProp(prop);return true;
+    }
+    var dt=Math.min(0.05,Math.max(0,(now-f.last)/1000));f.last=now;
+    if(!dt)return true;
+    var away=distance>0.001?Math.atan2(dx,dz):g.rotation.y+Math.PI;
+    var speed=a.type==='deer'?5.4:a.type==='rabbit'?7.2:3.6,step=speed*dt;
+    for(var ti=0;ti<_animalEscapeTurns.length;ti++){
+        var heading=away+_animalEscapeTurns[ti]*f.turn,x=g.position.x+Math.sin(heading)*step,z=g.position.z+Math.cos(heading)*step;
+        if(_animalFleeClear(prop,x,z)){g.position.x=x;g.position.z=z;a.moveDir=heading;break;}
+    }
+    f.phase+=dt*(a.type==='rabbit'?20:16);var wave=Math.sin(f.phase),parts=g.userData.animalParts;
+    g.position.y=_propRestY(prop)+(a.type==='rabbit'?Math.abs(wave)*0.32:0);
+    g.rotation.set(0,a.moveDir,a.type==='duck'?wave*0.12:0);
+    if(parts){
+        if(parts.head&&parts.headBaseY!==undefined)parts.head.position.y=parts.headBaseY+wave*0.04;
+        if(a.type==='deer'&&parts.legs)parts.legs.forEach(function(leg){leg.rotation.x=wave*0.65*leg.userData.diagonalPhase;leg.position.y=leg.userData.baseY;});
+        if(a.type==='rabbit'){
+            if(parts.body)parts.body.scale.set(0.84,0.82-Math.abs(wave)*0.10,1.08+Math.abs(wave)*0.12);
+            if(parts.ears)parts.ears.forEach(function(ear){ear.rotation.x=-0.2-Math.abs(wave)*0.3;});
+        }
+        if(a.type==='duck'){
+            parts.body.position.y=0.15+wave*0.015;
+            parts.wings.forEach(function(wing){wing.rotation.z=wing.userData._side*(0.3+Math.abs(wave)*0.4);});
+            parts.feet.forEach(function(foot,index){foot.rotation.x=wave*(index?-0.6:0.6);});
+        }
+    }
+    a.x=prop.x=g.position.x;a.y=g.position.y;a.z=prop.z=g.position.z;
+    if(prop._occupancy)prop._occupancy.frame=-1;
+    return true;
+}
 function _resetAnimalAttention(prop){
     var now=_animalClock();
     prop._animalAttention={last:now,near:false,seconds:0,next:now+3000,cooldownUntil:now+20000};
@@ -98,7 +184,7 @@ function _updateAnimalDown(prop){
 }
 function _placeHeldProp(prop,holder){
     var animal=_isAnimalProp(prop),mesh=prop.group;
-    if(animal)delete prop._animalDown;
+    if(animal){delete prop._animalDown;delete prop._animalFlee;delete prop._animalScare;}
     if(animal&&!prop._carryPose){
         // Preserve Euler angles too: quaternion -> Euler canonicalization can
         // introduce PI on X/Z; the animal AI replaces Z with a waddle later.
@@ -122,6 +208,7 @@ function _restoreReleasedAnimals(){
     }
 }
 function _standAnimalProp(prop){
+    delete prop._animalFlee;delete prop._animalScare;
     _resetAnimalAttention(prop);
     prop.group.position.y=_propRestY(prop);prop.x=prop.group.position.x;prop.z=prop.group.position.z;
     prop.group.rotation.set(0,prop.group.rotation.y,0);
@@ -131,6 +218,10 @@ function _standAnimalProp(prop){
         a.state=a.type==='duck'?'swim':'idle';a.stateTimer=30;a.hopPhase=0;a.walkPhase=0;a.moveDir=prop.group.rotation.y;
         var parts=prop.group.userData.animalParts;
         if(parts&&parts.bodyBaseScale)parts.body.scale.copy(parts.bodyBaseScale);
+        if(parts&&parts.headBaseY!==undefined)parts.head.position.y=parts.headBaseY;
+        if(parts&&parts.ears)parts.ears.forEach(function(ear){ear.rotation.x=0;});
+        if(parts&&parts.wings)parts.wings.forEach(function(wing){wing.rotation.z=0;});
+        if(parts&&parts.feet)parts.feet.forEach(function(foot){foot.rotation.x=0;});
         if(parts&&parts.legs)parts.legs.forEach(function(leg){leg.rotation.x=0;leg.position.y=leg.userData.baseY;});
     }
     if(prop._fishRef){
@@ -154,7 +245,7 @@ function _landThrownProp(prop){
 
 function _advanceThrownProp(prop){
     if(!(prop.throwTimer>0))return false;
-    delete prop._animalDown;
+    delete prop._animalDown;delete prop._animalFlee;delete prop._animalScare;
     // The timer bounds the powered throw, not gravity. Keeping it at 1 must
     // still integrate motion, including after a wall hit or a high drop.
     prop.throwTimer=Math.max(1,prop.throwTimer-1);prop.grabbed=false;
@@ -1046,6 +1137,7 @@ function updateCity(){
             var a=window._cityAnimals[_ai2];
             // Skip AI when animal is grabbed as prop
             if(a._propRef&&(a._propRef.grabbed||a._propRef.throwTimer>0))continue;
+            if(_updateAnimalFlee(a._propRef))continue;
             if(_updateAnimalDown(a._propRef))continue;
             if(_updateAnimalAttention(a._propRef))continue;
             var _animalBaseY=a._propRef?_propRestY(a._propRef):0;

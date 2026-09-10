@@ -921,6 +921,7 @@ function handlePlayerInput(){
                     _dropNpcStolenCoins(_ae);playHitSound();
             }
         }
+        if(typeof _scareAnimalsInArc==='function')_scareAnimalsInArc(playerEgg,2.5*playerEgg._extendedRange,_atkDir);
         playerEgg.squash=_isFinisher?0.75:0.88;
         // Punch swing sound
         if(sfxEnabled){var _pCtx=ensureAudio();if(_pCtx){var _pt2=_pCtx.currentTime;
@@ -1034,6 +1035,7 @@ function handlePlayerInput(){
                 }
             }
         playerEgg.squash=_kFinisher?0.7:0.82;
+        if(typeof _scareAnimalsInArc==='function')_scareAnimalsInArc(playerEgg,3.0*playerEgg._extendedRange,_kDir);
         // Kick swing sound
         if(sfxEnabled){var _kCtx=ensureAudio();if(_kCtx){var _kt2=_kCtx.currentTime;
             var _ko=_kCtx.createOscillator();var _kg2=_kCtx.createGain();
