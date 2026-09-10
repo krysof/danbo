@@ -14,8 +14,39 @@ function _propRestY(prop){
     // body/tail. Never use a carried/airborne position as the resting height.
     return (typeof currentCityStyle!=='undefined'&&currentCityStyle===7?3.01:0.01)+(prop._fishRef?0.2:0);
 }
+function _animalClock(){return performance.now();}
+function _groundDownAnimal(prop,roll){
+    var down=prop._animalDown,g=prop.group;
+    if(down.appliedRoll===roll)return;
+    g.rotation.set(0,down.heading,roll);
+    // Exact visible geometry, not the upright origin/oversized rotated AABB.
+    // Traverse only on landing and during the short get-up, never every frame
+    // throughout the 15–60 second rest. Reuse the same box without allocations.
+    g.updateWorldMatrix(true,true);down.box.setFromObject(g,true);
+    if(!down.box.isEmpty())g.position.y+=(typeof currentCityStyle!=='undefined'&&currentCityStyle===7?3.01:0.01)-down.box.min.y;
+    down.appliedRoll=roll;
+    if(prop._occupancy)prop._occupancy.frame=-1;
+}
+function _startAnimalDown(prop){
+    var now=_animalClock(),duration=15000+Math.floor(Math.random()*45001);
+    prop._animalDown={started:now,until:now+duration,getUpAt:now+Math.max(15000,duration-650),
+        heading:prop.group.rotation.y,roll:Math.random()<0.5?-Math.PI/2:Math.PI/2,box:new THREE.Box3(),appliedRoll:null};
+    _groundDownAnimal(prop,prop._animalDown.roll);
+}
+function _updateAnimalDown(prop){
+    var down=prop&&prop._animalDown;if(!down)return false;
+    // Re-grabs and new impacts own the pose/physics until the next landing.
+    if(prop.grabbed||prop.throwTimer>0){delete prop._animalDown;return false;}
+    var now=_animalClock();
+    if(now>=down.until){delete prop._animalDown;_standAnimalProp(prop);return false;}
+    var progress=now<=down.getUpAt?0:(now-down.getUpAt)/(down.until-down.getUpAt);
+    progress=progress*progress*(3-2*progress);
+    _groundDownAnimal(prop,down.roll*(1-progress));
+    return true;
+}
 function _placeHeldProp(prop,holder){
     var animal=_isAnimalProp(prop),mesh=prop.group;
+    if(animal)delete prop._animalDown;
     if(animal&&!prop._carryPose){
         // Preserve Euler angles too: quaternion -> Euler canonicalization can
         // introduce PI on X/Z; the animal AI replaces Z with a waddle later.
@@ -38,30 +69,39 @@ function _restoreReleasedAnimals(){
         delete prop._carryPose;_carriedAnimals.splice(i,1);
     }
 }
+function _standAnimalProp(prop){
+    prop.group.position.y=_propRestY(prop);prop.x=prop.group.position.x;prop.z=prop.group.position.z;
+    prop.group.rotation.set(0,prop.group.rotation.y,0);
+    var a=prop._animal;
+    if(a){
+        a.x=prop.x;a.y=prop.group.position.y;a.z=prop.z;a.vx=0;a.vy=0;a.vz=0;
+        a.state=a.type==='duck'?'swim':'idle';a.stateTimer=30;a.hopPhase=0;a.walkPhase=0;a.moveDir=prop.group.rotation.y;
+        var parts=prop.group.userData.animalParts;
+        if(parts&&parts.bodyBaseScale)parts.body.scale.copy(parts.bodyBaseScale);
+        if(parts&&parts.legs)parts.legs.forEach(function(leg){leg.rotation.x=0;leg.position.y=leg.userData.baseY;});
+    }
+    if(prop._fishRef){
+        var fish=prop._fishRef;fish.grabbed=false;fish.jumping=false;fish.jumpVy=0;
+        // After the timed rest, fish flop back to water instead of walking.
+        fish._thrownRecovery=60;
+    }
+    if(prop._occupancy)prop._occupancy.frame=-1;
+}
 function _landThrownProp(prop){
     prop.throwTimer=0;prop.grabbed=false;prop.throwVx=0;prop.throwVy=0;prop.throwVz=0;prop._bounces=0;delete prop._chargeDrag;
+    // A low throw may land before the following updateCity. Do not let an old
+    // carry record interpret this landing as another drop and restart the clock.
+    var carryIndex=_carriedAnimals.indexOf(prop);if(carryIndex>=0)_carriedAnimals.splice(carryIndex,1);delete prop._carryPose;
     prop.group.position.y=_propRestY(prop);prop.x=prop.group.position.x;prop.z=prop.group.position.z;
     if(_isAnimalProp(prop)){
-        prop.group.rotation.set(0,prop.group.rotation.y,0);
-        var a=prop._animal;
-        if(a){
-            a.x=prop.x;a.y=prop.group.position.y;a.z=prop.z;a.vx=0;a.vy=0;a.vz=0;
-            a.state=a.type==='duck'?'swim':'idle';a.stateTimer=30;a.hopPhase=0;a.walkPhase=0;a.moveDir=prop.group.rotation.y;
-            var parts=prop.group.userData.animalParts;
-            if(parts&&parts.bodyBaseScale)parts.body.scale.copy(parts.bodyBaseScale);
-            if(parts&&parts.legs)parts.legs.forEach(function(leg){leg.rotation.x=0;leg.position.y=leg.userData.baseY;});
-        }
-        if(prop._fishRef){
-            var fish=prop._fishRef;fish.grabbed=false;fish.jumping=false;fish.jumpVy=0;
-            // Flop back immediately, rather than looking dead for 3–8 seconds.
-            fish._thrownRecovery=60;
-        }
+        _standAnimalProp(prop);_startAnimalDown(prop);
     }
     else prop.group.rotation.set(Math.PI/2*(Math.random()*0.4+0.8)*(Math.random()<0.5?1:-1),Math.random()*Math.PI*2,0);
 }
 
 function _advanceThrownProp(prop){
     if(!(prop.throwTimer>0))return false;
+    delete prop._animalDown;
     // The timer bounds the powered throw, not gravity. Keeping it at 1 must
     // still integrate motion, including after a wall hit or a high drop.
     prop.throwTimer=Math.max(1,prop.throwTimer-1);prop.grabbed=false;
@@ -441,6 +481,7 @@ function updateCity(){
             if(fish.grabbed)continue;
             // Skip animation while being thrown — let prop physics handle it
             if(_fishProp&&_fishProp.throwTimer>0)continue;
+            if(_updateAnimalDown(_fishProp))continue;
             // Post-throw recovery: visibly flop back, never freeze on land.
             if(fish._thrownRecovery>0){
                 fish._thrownRecovery--;
@@ -952,6 +993,7 @@ function updateCity(){
             var a=window._cityAnimals[_ai2];
             // Skip AI when animal is grabbed as prop
             if(a._propRef&&(a._propRef.grabbed||a._propRef.throwTimer>0))continue;
+            if(_updateAnimalDown(a._propRef))continue;
             var _animalBaseY=a._propRef?_propRestY(a._propRef):0;
             if(a._propRef)a.y=_animalBaseY;
             a.stateTimer--;
