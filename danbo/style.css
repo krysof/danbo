@@ -458,3 +458,15 @@ h1{font-size:clamp(32px,8vw,56px);color:#fff;text-shadow:3px 3px 0 #FF8800,6px 6
 .journey-popover .journey-fold>summary{min-height:28px}
 .journey-popover .coop-card{padding:0;border:0;background:none;margin:8px 0}
 .journey-popover .journey-actions button{min-width:0;padding:7px;font-size:12px!important}
+
+/* Cinematic playback owns the viewport; it never leaves a hidden game running. */
+.opening-overlay{position:fixed;inset:0;z-index:20000;background:#07101d;display:flex;align-items:center;justify-content:center;isolation:isolate;overscroll-behavior:none}
+.opening-overlay.hidden{display:none}
+.opening-overlay video{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.opening-message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;pointer-events:none;color:#fff5df;text-shadow:0 2px 8px #000;font:600 15px/1.5 system-ui,sans-serif}
+.opening-message p:empty{display:none}
+.opening-overlay button{pointer-events:auto;min-height:44px;padding:11px 19px;border:1px solid #e1edd477;border-radius:24px;background:#142c3de8;color:#fff5df;font:600 15px/1.4 system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
+.opening-overlay button:focus-visible,.opening-overlay button.danbo-nav-focus{outline:3px solid #ffd68c;outline-offset:4px}
+.opening-actions{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center}
+.opening-playing #sound-controls,.opening-playing #touch-controls{visibility:hidden!important}
+@media(max-width:480px){.opening-overlay button{font-size:14px;padding:10px 16px}.opening-message{font-size:14px}.opening-actions{right:max(12px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom))}}

@@ -37,6 +37,13 @@
 蓄力中 · 松开投掷¦蓄力中 · 放開投擲¦ため中 · 離して投げる¦Charging · Release to throw
 抓取中…¦抓取中…¦つかみ中…¦Grabbing…
 暂时无法抓取，靠近后再试¦暫時無法抓取，靠近後再試¦今はつかめません。近づいて再試行¦Cannot grab now. Move closer and try again`);
+    add(`片头动画¦片頭動畫¦オープニング¦Opening movie
+播放片头¦播放片頭¦オープニングを再生¦Play opening
+跳过片头 →¦跳過片頭 →¦スキップ →¦Skip opening →
+片头加载中…¦片頭載入中…¦オープニングを読み込み中…¦Loading opening…
+点击播放，也可直接跳过¦點擊播放，也可直接跳過¦再生するか、スキップできます¦Play the opening, or skip ahead
+静音¦靜音¦ミュート¦Mute
+开启声音¦開啟聲音¦音声をオン¦Turn sound on`);
     add(`发送¦傳送¦送信¦Send
 旅行装扮¦旅行裝扮¦旅の装い¦Expedition outfit
 日常装扮¦日常裝扮¦いつもの装い¦Everyday outfit

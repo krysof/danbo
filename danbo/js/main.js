@@ -131,6 +131,13 @@ async function _confirmCharacter(reuse){
     }
     playMenuConfirm();
     stopSelectBGM();
+    // Both new selections and Continue pass through the same skippable opening.
+    // Names/accounts are confirmed first; cancelled forms must not start a film.
+    if(window.DANBO_OPENING){
+        showScreen(null);
+        try{await DANBO_OPENING.play();}catch(_movieError){console.warn('Opening unavailable; entering game.');}
+        showScreen('select-screen');
+    }
     var _selCh=CHARACTERS[selectedChar];
     var _enterSelectedCharacter=function(){
         showScreen(null);

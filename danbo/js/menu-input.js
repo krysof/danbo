@@ -8,6 +8,7 @@
     var typing=null,keyboardBox=null,upper=false;
     function visible(n){return !!(n&&!n.disabled&&!n.hidden&&!n.closest('[hidden],.hidden')&&n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden');}
     function context(){
+        if(window._openingMovieOpen)return $('opening-overlay');
         if(keyboardBox)return keyboardBox;
         var dialogs=['character-name-overlay','character-resume-overlay','account-overlay','multiplayer-overlay'];
         for(var i=0;i<dialogs.length;i++){var n=$(dialogs[i]);if(n&&!n.classList.contains('hidden'))return n;}
@@ -49,7 +50,7 @@
         var restored=lastCode?list.find(function(n){return n.dataset.code===lastCode;}):lastId?list.find(function(n){return n.id===lastId;}):list.indexOf(lastFocus)>=0?lastFocus:null;
         if(!restored&&lastKey)restored=list.find(function(n){return n.dataset.navKey===lastKey;});
         if(restored)return restored;
-        var preferred=root.id==='start-screen'?(_introCompleted?'start-btn':'intro-start'):root.id==='character-resume-overlay'?'character-resume-play':root.id==='character-name-overlay'?'character-name-input':root.id==='server-select-screen'?'server-list-enter':null;
+        var preferred=root.id==='opening-overlay'?(visible($('opening-play'))?'opening-play':'opening-skip'):root.id==='start-screen'?(_introCompleted?'start-btn':'intro-start'):root.id==='character-resume-overlay'?'character-resume-play':root.id==='character-name-overlay'?'character-name-input':root.id==='server-select-screen'?'server-list-enter':null;
         return list.find(function(n){return n.id===preferred;})||list.find(function(n){return n.classList.contains('selected');})||list[0];
     }
     function move(direction,tab){
@@ -92,6 +93,7 @@
     }
     function back(){
         var root=context();if(!root)return false;
+        if(root.id==='opening-overlay'){DANBO_OPENING.skip();return true;}
         if(root===keyboardBox){closeKeyboard();return true;}
         if(root===window._langMenu){_closeLangMenu();focus($('lang-btn'));return true;}
         if(root.id==='chat-input-bar'){_closeChatInput();return true;}

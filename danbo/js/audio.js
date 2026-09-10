@@ -2,7 +2,7 @@
 // ---- Audio System (procedural, no files needed) ----
 let audioCtx=null, soundEnabled=true, sfxEnabled=true, _audioUnlocked=false;
 function _danboPluginBusyForAudio(){
-    return !!(window._danboPluginTransition||(window.DANBO_PLUGIN_HOST&&window.DANBO_PLUGIN_HOST.getActive&&window.DANBO_PLUGIN_HOST.getActive()));
+    return !!(window._openingMovieOpen||window._danboPluginTransition||(window.DANBO_PLUGIN_HOST&&window.DANBO_PLUGIN_HOST.getActive&&window.DANBO_PLUGIN_HOST.getActive()));
 }
 // iOS 17+ audio session hint
 try{if(navigator.audioSession)navigator.audioSession.type='transient';}catch(e){}
@@ -19,6 +19,7 @@ document.addEventListener('visibilitychange',function(){
                 if(audioCtx)audioCtx.resume();
                 // Restart appropriate BGM after resume
                 setTimeout(function(){
+                    if(window._openingMovieOpen)return;
                     if(!_danboPluginBusyForAudio())window._sfxMuted=false;
                     if(gameState==='city'&&!_danboPluginBusyForAudio())startBGM();
                     else if(gameState==='menu')startTitleBGM();
@@ -518,6 +519,7 @@ function _playMoonBGMLoop(ctx){
 // Select screen BGM — intense fighting game style
 let selectBgmPlaying=false, selectBgmGain=null, selectBgmNodes=[], selectBgmTimer=null;
 function startSelectBGM(){
+    if(window._openingMovieOpen)return;
     if(selectBgmPlaying||!soundEnabled)return;
     stopBGM(); // stop main BGM
     var ctx=ensureAudio();
@@ -609,6 +611,7 @@ function stopSelectBGM(){selectBgmPlaying=false;if(selectBgmTimer){clearTimeout(
 // ============================================================
 var titleBgmPlaying=false, titleBgmGain=null, titleBgmNodes=[], titleBgmTimer=null;
 function startTitleBGM(){
+    if(window._openingMovieOpen)return;
     if(titleBgmPlaying||!soundEnabled)return;
     var ctx=ensureAudio();
     if(!ctx)return;
