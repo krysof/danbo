@@ -9,12 +9,17 @@ var _cityFrameNo=0;
 // Only carried animals are tracked; ordinary props keep their original pose.
 var _carriedAnimals=[];
 function _isAnimalProp(prop){return !!(prop&&(prop._animal||prop._fishRef));}
+function _propRestY(prop){
+    // Land animals have feet at their model origin; fish are centred on the
+    // body/tail. Never use a carried/airborne position as the resting height.
+    return (typeof currentCityStyle!=='undefined'&&currentCityStyle===7?3.01:0.01)+(prop._fishRef?0.2:0);
+}
 function _placeHeldProp(prop,holder){
     var animal=_isAnimalProp(prop),mesh=prop.group;
     if(animal&&!prop._carryPose){
         // Preserve Euler angles too: quaternion -> Euler canonicalization can
         // introduce PI on X/Z; the animal AI replaces Z with a waddle later.
-        prop._carryPose={rotation:mesh.rotation.clone(),groundY:mesh.position.y};
+        prop._carryPose={rotation:mesh.rotation.clone()};
         _carriedAnimals.push(prop);
     }
     mesh.position.copy(holder.mesh.position);mesh.position.y+=animal?3:1.8;
@@ -24,17 +29,59 @@ function _restoreReleasedAnimals(){
     for(var i=_carriedAnimals.length-1;i>=0;i--){
         var prop=_carriedAnimals[i];
         if(prop.grabbed&&!(prop.throwTimer>0)&&prop.group.parent)continue;
-        prop.group.rotation.copy(prop._carryPose.rotation);
+        prop.group.rotation.set(0,prop._carryPose.rotation.y,0);
         if(!(prop.throwTimer>0)){
-            prop.group.position.y=prop._carryPose.groundY;
-            if(prop._animal)prop._animal.y=prop.group.position.y;
+            // A holder interrupted by a hit drops the animal from its current
+            // height. The same gravity/landing path handles player and NPC drops.
+            prop.throwTimer=1;prop.throwVx=0;prop.throwVy=0;prop.throwVz=0;prop._bounces=0;
         }
         delete prop._carryPose;_carriedAnimals.splice(i,1);
     }
 }
 function _landThrownProp(prop){
-    if(_isAnimalProp(prop))prop.group.rotation.set(0,prop.group.rotation.y,0);
+    prop.throwTimer=0;prop.grabbed=false;prop.throwVx=0;prop.throwVy=0;prop.throwVz=0;prop._bounces=0;delete prop._chargeDrag;
+    prop.group.position.y=_propRestY(prop);prop.x=prop.group.position.x;prop.z=prop.group.position.z;
+    if(_isAnimalProp(prop)){
+        prop.group.rotation.set(0,prop.group.rotation.y,0);
+        var a=prop._animal;
+        if(a){
+            a.x=prop.x;a.y=prop.group.position.y;a.z=prop.z;a.vx=0;a.vy=0;a.vz=0;
+            a.state=a.type==='duck'?'swim':'idle';a.stateTimer=30;a.hopPhase=0;a.walkPhase=0;a.moveDir=prop.group.rotation.y;
+            var parts=prop.group.userData.animalParts;
+            if(parts&&parts.bodyBaseScale)parts.body.scale.copy(parts.bodyBaseScale);
+            if(parts&&parts.legs)parts.legs.forEach(function(leg){leg.rotation.x=0;leg.position.y=leg.userData.baseY;});
+        }
+        if(prop._fishRef){
+            var fish=prop._fishRef;fish.grabbed=false;fish.jumping=false;fish.jumpVy=0;
+            // Flop back immediately, rather than looking dead for 3–8 seconds.
+            fish._thrownRecovery=60;
+        }
+    }
     else prop.group.rotation.set(Math.PI/2*(Math.random()*0.4+0.8)*(Math.random()<0.5?1:-1),Math.random()*Math.PI*2,0);
+}
+
+function _advanceThrownProp(prop){
+    if(!(prop.throwTimer>0))return false;
+    // The timer bounds the powered throw, not gravity. Keeping it at 1 must
+    // still integrate motion, including after a wall hit or a high drop.
+    prop.throwTimer=Math.max(1,prop.throwTimer-1);prop.grabbed=false;
+    prop.group.position.x+=prop.throwVx;
+    prop.group.position.y+=prop.throwVy;
+    prop.group.position.z+=prop.throwVz;
+    prop.throwVy=Math.max(-0.5,prop.throwVy-0.012*(prop.weight||1));
+    var drag=prop._chargeDrag||0.92;prop.throwVx*=drag;prop.throwVz*=drag;
+    prop.group.rotation.x+=0.25;prop.group.rotation.z+=0.2;
+    return true;
+}
+function _settleThrownProp(prop){
+    var floor=_propRestY(prop);
+    if(prop.group.position.y>floor||prop.throwVy>=0)return false;
+    prop.group.position.y=floor;
+    if(prop._bounces>0&&Math.abs(prop.throwVy)>0.06){
+        prop._bounces--;prop.throwVy=Math.abs(prop.throwVy)*0.45;prop.throwVx*=0.7;prop.throwVz*=0.7;
+        playHitSound(prop.group.position.x,prop.group.position.z);
+    }else _landThrownProp(prop);
+    return true;
 }
 
 function _danboPortalDist2D(px,pz,tx,tz){
@@ -393,17 +440,10 @@ function updateCity(){
             if(_fishProp)fish.grabbed=_fishProp.grabbed;
             if(fish.grabbed)continue;
             // Skip animation while being thrown — let prop physics handle it
-            if(_fishProp&&_fishProp.throwTimer>0){fish._thrownRecovery=180+Math.floor(Math.random()*300);continue;}
-            // Post-throw recovery: lie still then flop back
+            if(_fishProp&&_fishProp.throwTimer>0)continue;
+            // Post-throw recovery: visibly flop back, never freeze on land.
             if(fish._thrownRecovery>0){
                 fish._thrownRecovery--;
-                if(fish.group.position.y>0.2){fish.group.position.y-=0.05;if(fish.group.position.y<0.2)fish.group.position.y=0.2;}
-                if(fish._thrownRecovery>60){
-                    // Lying still on ground (stunned)
-                    fish.group.rotation.z=Math.PI/2*0.8;
-                    fish.group.position.y=0.15+Math.abs(Math.sin(Date.now()*0.008))*0.05;
-                    continue;
-                }
                 // Flop toward nearest water (center pool)
                 var _ftpx=-fish.group.position.x;var _ftpz=-fish.group.position.z;
                 var _ftpd=DANBO_WASM.len2D(_ftpx,_ftpz)||1;
@@ -911,8 +951,9 @@ function updateCity(){
         for(var _ai2=0;_ai2<window._cityAnimals.length;_ai2++){
             var a=window._cityAnimals[_ai2];
             // Skip AI when animal is grabbed as prop
-            if(a._propRef&&a._propRef.grabbed){a.x=a.group.position.x;a.y=a.group.position.y;a.z=a.group.position.z;continue;}
-            if(a._propRef&&a._propRef.throwTimer>0){a.x=a.group.position.x;a.y=a.group.position.y;a.z=a.group.position.z;continue;}
+            if(a._propRef&&(a._propRef.grabbed||a._propRef.throwTimer>0))continue;
+            var _animalBaseY=a._propRef?_propRestY(a._propRef):0;
+            if(a._propRef)a.y=_animalBaseY;
             a.stateTimer--;
             if(a.type==='pigeon'){
                 a.flapPhase+=0.3;
@@ -960,7 +1001,7 @@ function updateCity(){
                         a.moveDir+=((Math.random()-0.5)*1.5);a.vx=Math.sin(a.moveDir)*0.08;a.vz=Math.cos(a.moveDir)*0.08;}
                 } else if(a.state==='hop'){
                     a.hopPhase+=0.15;a.x+=a.vx;a.z+=a.vz;
-                    a.y=Math.abs(Math.sin(a.hopPhase))*0.4;
+                    a.y=_animalBaseY+Math.abs(Math.sin(a.hopPhase))*0.4;
                     a.group.rotation.y=a.moveDir;
                     // Body stretch during hop
                     var _hpct=Math.sin(a.hopPhase);
@@ -971,7 +1012,7 @@ function updateCity(){
                     if(_rParts&&_rParts.ears)for(var _rbi=0;_rbi<_rParts.ears.length;_rbi++)_rParts.ears[_rbi].rotation.x=-_hpct*0.24;
                     // Tail bounce
                     if(_rParts&&_rParts.tail)_rParts.tail.position.y=_rParts.tailBaseY+Math.abs(_hpct)*0.06;
-                    if(a.stateTimer<=0){a.state='idle';a.stateTimer=60+Math.floor(Math.random()*120);a.y=0;
+                    if(a.stateTimer<=0){a.state='idle';a.stateTimer=60+Math.floor(Math.random()*120);a.y=_animalBaseY;
                         if(_rParts&&_rParts.body)_rParts.body.scale.copy(_rParts.bodyBaseScale);}
                 }
                 if(Math.abs(a.x)>_bound2){a.moveDir+=Math.PI;a.x=Math.sign(a.x)*(_bound2-1);}
@@ -1058,6 +1099,7 @@ function updateCity(){
                 a.group.position.set(a.x,a.y,a.z);
             } else if(a.type==='duck'){
                 // Duck — waddle near fountain, head bob, occasional wing flap
+                var _dkParts=a.group.userData.animalParts;
                 a.waddlePhase+=0.1;
                 if(a.state==='swim'){
                     a.x+=Math.sin(a.moveDir)*0.02;a.z+=Math.cos(a.moveDir)*0.02;
@@ -1065,23 +1107,21 @@ function updateCity(){
                     // Waddle side-to-side
                     a.group.rotation.z=Math.sin(a.waddlePhase)*0.12;
                     // Body bob up/down
-                    a.group.children[0].position.y=Math.sin(a.waddlePhase*0.8)*0.03;
+                    if(_dkParts)_dkParts.body.position.y=0.15+Math.sin(a.waddlePhase*0.8)*0.015;
                     // Head bob + look around
-                    if(a.group.children[1]){a.group.children[1].position.y=0.3+Math.sin(a.waddlePhase*2)*0.04;a.group.children[1].rotation.y=Math.sin(a.waddlePhase*0.5)*0.2;}
+                    if(_dkParts){_dkParts.head.position.y=0.3+Math.sin(a.waddlePhase*2)*0.04;_dkParts.head.rotation.y=Math.sin(a.waddlePhase*0.5)*0.2;}
                     // Tail wag
-                    if(a.group.children[5])a.group.children[5].rotation.y=Math.sin(a.waddlePhase*3)*0.3;
+                    if(_dkParts)_dkParts.tail.rotation.y=Math.sin(a.waddlePhase*3)*0.3;
                     // Feet paddle
-                    if(a.group.children[6])a.group.children[6].rotation.x=Math.sin(a.waddlePhase*2)*0.4;
-                    if(a.group.children[7])a.group.children[7].rotation.x=Math.sin(a.waddlePhase*2+Math.PI)*0.4;
+                    if(_dkParts)for(var _dkfi=0;_dkfi<_dkParts.feet.length;_dkfi++)_dkParts.feet[_dkfi].rotation.x=Math.sin(a.waddlePhase*2+_dkfi*Math.PI)*0.25;
                     if(a.stateTimer<=0){
                         if(Math.random()<0.3){a.state='flap';a.stateTimer=20;}
                         else{a.state='swim';a.stateTimer=80+Math.floor(Math.random()*120);a.moveDir+=(Math.random()-0.5)*1.5;}
                     }
                 } else if(a.state==='flap'){
                     // Wing flap animation
-                    for(var _dwi=0;_dwi<a.group.children.length;_dwi++){
-                        var dwc=a.group.children[_dwi];
-                        if(dwc.userData._side)dwc.rotation.z=dwc.userData._side*Math.sin(a.waddlePhase*3)*0.7;
+                    if(_dkParts)for(var _dwi=0;_dwi<_dkParts.wings.length;_dwi++){
+                        var dwc=_dkParts.wings[_dwi];dwc.rotation.z=dwc.userData._side*Math.sin(a.waddlePhase*3)*0.7;
                     }
                     if(a.stateTimer<=0){a.state='swim';a.stateTimer=80+Math.floor(Math.random()*120);a.moveDir+=(Math.random()-0.5)*1.0;}
                 }
@@ -2237,23 +2277,7 @@ function updateHeldEggs(){
     // Thrown city prop physics
     for(var tpi=0;tpi<cityProps.length;tpi++){
         var tp=cityProps[tpi];
-        if(tp.throwTimer<=0)continue;
-        tp.throwTimer--;
-        if(tp.throwTimer<=0){
-            // Throw ended — reset grabbed state
-            tp.grabbed=false;
-            tp.x=tp.group.position.x;tp.z=tp.group.position.z;
-            if(tp.group.position.y>0.01){tp.throwVy=-0.05;tp.throwTimer=1;} // still in air, keep falling
-            else{_landThrownProp(tp);}
-            continue;
-        }
-        tp.group.position.x+=tp.throwVx;
-        tp.group.position.y+=tp.throwVy;
-        tp.group.position.z+=tp.throwVz;
-        tp.throwVy-=0.012*(tp.weight||1);
-        var _tpDrag=tp._chargeDrag||0.92;
-        tp.throwVx*=_tpDrag; tp.throwVz*=_tpDrag;
-        tp.group.rotation.x+=0.25; tp.group.rotation.z+=0.2;
+        if(!_advanceThrownProp(tp))continue;
         // Building collision for thrown props
         for(var _tpci=0;_tpci<cityColliders.length;_tpci++){
             var _tpc=cityColliders[_tpci];
@@ -2271,10 +2295,8 @@ function updateHeldEggs(){
         if(tp.group.position.x<-_pb){tp.group.position.x=-_pb;tp.throwVx=Math.abs(tp.throwVx)*0.4;}
         if(tp.group.position.z>_pb){tp.group.position.z=_pb;tp.throwVz=-Math.abs(tp.throwVz)*0.4;}
         if(tp.group.position.z<-_pb){tp.group.position.z=-_pb;tp.throwVz=Math.abs(tp.throwVz)*0.4;}
-        if(tp.group.position.y<0.01&&tp.throwVy<0){
-            if(tp._bounces>0){tp._bounces--;tp.throwVy=Math.abs(tp.throwVy)*0.45;tp.throwVx*=0.7;tp.throwVz*=0.7;tp.group.position.y=0.01;playHitSound(tp.group.position.x,tp.group.position.z);}
-            else{tp.group.position.y=0.01;tp.throwTimer=0;tp.grabbed=false;_landThrownProp(tp);tp.x=tp.group.position.x;tp.z=tp.group.position.z;}
-        }
+        _settleThrownProp(tp);
+        if(!(tp.throwTimer>0))continue;
         // Hit eggs
         for(var tpe=0;tpe<allEggs.length;tpe++){
             var tpeg=allEggs[tpe];
@@ -2283,7 +2305,7 @@ function updateHeldEggs(){
             var tpdx=tpeg.mesh.position.x-tp.group.position.x;
             var tpdz=tpeg.mesh.position.z-tp.group.position.z;
             var tpd=DANBO_WASM.len2D(tpdx,tpdz);
-            if(tpd>0.001&&tpd<tp.radius+0.8){
+            if(tpd>0.001&&tpd<tp.radius+0.8&&Math.abs(tpeg.mesh.position.y-tp.group.position.y)<1.8){
                 var impW=tp.weight||1;tpeg.vx+=tpdx/tpd*0.4*impW;tpeg.vz+=tpdz/tpd*0.4*impW;tpeg.vy=0.3+0.12*impW;tpeg.squash=COMBAT.propImpact.squash;tpeg.throwTimer=COMBAT.propImpact.throwTimer;tpeg._bounces=COMBAT.propImpact.bounces;
                 if(tpeg.isPlayer)playHitSound(tpeg.mesh.position.x,tpeg.mesh.position.z);
                 _dropNpcStolenCoins(tpeg);
@@ -2291,15 +2313,17 @@ function updateHeldEggs(){
         }
         // Hit other props
         for(var tpp=0;tpp<cityProps.length;tpp++){
-            if(tpp===tpi||cityProps[tpp].grabbed)continue;
+            if(tpp===tpi||cityProps[tpp].grabbed||cityProps[tpp].throwTimer>0)continue;
             var op=cityProps[tpp];
             var opdx=op.group.position.x-tp.group.position.x;
             var opdz=op.group.position.z-tp.group.position.z;
             var opd=DANBO_WASM.len2D(opdx,opdz);
-            if(opd<tp.radius+op.radius&&opd>0.01){
+            if(opd<tp.radius+op.radius&&opd>0.01&&Math.abs(op.group.position.y-tp.group.position.y)<1.5){
                 op.group.position.x+=opdx/opd*0.8;
                 op.group.position.z+=opdz/opd*0.8;
-                op.group.position.y+=0.3;
+                if(_isAnimalProp(op)){
+                    op.throwTimer=20;op.throwVx=opdx/opd*0.12;op.throwVz=opdz/opd*0.12;op.throwVy=0.12;op._bounces=0;
+                }else op.group.position.y+=0.3;
             }
         }
     }

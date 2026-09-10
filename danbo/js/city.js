@@ -1980,24 +1980,26 @@ function* _buildCitySteps() {
         });
         var dkbeak=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.1,4),toon(0xFF8800));
         dkbeak.position.set(0,0.26,0.32);dkbeak.rotation.x=-Math.PI/2;dkg.add(dkbeak);
+        var _dkWings=[],_dkFeet=[];
         [-1,1].forEach(function(s){
             var dkwing=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.03,0.2),toon(0x7A5B10));
-            dkwing.position.set(s*0.2,0.18,0);dkwing.userData._side=s;dkg.add(dkwing);
+            dkwing.position.set(s*0.2,0.18,0);dkwing.userData._side=s;dkg.add(dkwing);_dkWings.push(dkwing);
         });
         var dktail=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.06,0.12),toon(0x8B6914));
         dktail.position.set(0,0.18,-0.28);dktail.rotation.x=0.3;dkg.add(dktail);
         [-1,1].forEach(function(s){
             var dkfoot=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.02,0.1),toon(0xFF6600));
-            dkfoot.position.set(s*0.08,0.02,0.05);dkg.add(dkfoot);
+            dkfoot.position.set(s*0.08,0.02,0.05);dkg.add(dkfoot);_dkFeet.push(dkfoot);
         });
+        dkg.userData.animalParts={body:dkbody,head:dkhead,tail:dktail,wings:_dkWings,feet:_dkFeet};
         var dkx=(Math.random()-0.5)*30,dkz=(Math.random()-0.5)*30;
-        dkg.position.set(dkx,0.3,dkz);
+        dkg.position.set(dkx,0.01,dkz);
         cityGroup.add(dkg);
-        var _dkAnimal={group:dkg,type:'duck',x:dkx,y:0.3,z:dkz,
+        var _dkAnimal={group:dkg,type:'duck',x:dkx,y:0.01,z:dkz,
             vx:0,vy:0,vz:0,state:'swim',stateTimer:80+Math.floor(Math.random()*120),
             waddlePhase:Math.random()*Math.PI*2,moveDir:Math.random()*Math.PI*2};
         window._cityAnimals.push(_dkAnimal);
-        var _dkProp={group:dkg,x:dkx,z:dkz,radius:0.6,type:'duck',grabbed:false,origY:0.3,throwVx:0,throwVy:0,throwVz:0,throwTimer:0,weight:0.4,_animal:_dkAnimal};
+        var _dkProp={group:dkg,x:dkx,z:dkz,radius:0.6,type:'duck',grabbed:false,origY:0.01,throwVx:0,throwVy:0,throwVz:0,throwTimer:0,weight:0.4,_animal:_dkAnimal};
         _dkAnimal._propRef=_dkProp;
         cityProps.push(_dkProp);
     }
