@@ -15,6 +15,58 @@ function _propRestY(prop){
     return (typeof currentCityStyle!=='undefined'&&currentCityStyle===7?3.01:0.01)+(prop._fishRef?0.2:0);
 }
 function _animalClock(){return performance.now();}
+var _animalVisitors=[],_animalVisitorsAt=-Infinity;
+function _animalNearVisitor(prop,now){
+    // Cache only real players, never the ambient NPC/BOT population. Nearby
+    // actors use live position references; no scene raycasts or per-frame scan.
+    if(now-_animalVisitorsAt>=500||now<_animalVisitorsAt){
+        _animalVisitorsAt=now;_animalVisitors.length=0;
+        if(typeof gameState!=='undefined'&&gameState==='city'&&!window._interiorActive&&!window._pipeTraveling&&!(window.document&&document.hidden)){
+            if(typeof playerEgg!=='undefined'&&playerEgg&&playerEgg.alive&&playerEgg.mesh.visible&&!playerEgg.heldBy&&!playerEgg._networkHeldBy)_animalVisitors.push(playerEgg.mesh.position);
+            var net=window.DANBO_MULTIPLAYER,room=net&&net.isConnected()&&net.getRoom();
+            if(room&&room.state&&room.state.players)room.state.players.forEach(function(actor,id){
+                if(id===room.sessionId||actor.city!==currentCityStyle||actor.heldBy)return;
+                var remote=net.getRemoteActor(id);
+                if(remote&&remote.root&&remote.root.visible)_animalVisitors.push(remote.root.position);
+            });
+        }
+    }
+    var p=prop.group.position;
+    for(var i=0;i<_animalVisitors.length;i++){
+        var visitor=_animalVisitors[i],dx=visitor.x-p.x,dz=visitor.z-p.z;
+        if(dx*dx+dz*dz<=16&&Math.abs(visitor.y-p.y)<=1.8)return true;
+    }
+    return false;
+}
+function _animalAttentionChance(seconds){
+    // After ten nearby seconds: 5% per three-second check, rising to 50% at
+    // sixty seconds. This is not a roll every frame, nor a guaranteed collapse.
+    return seconds<10?0:Math.min(0.5,0.05+(seconds-10)*0.009);
+}
+function _resetAnimalAttention(prop){
+    var now=_animalClock();
+    prop._animalAttention={last:now,near:false,seconds:0,next:now+3000,cooldownUntil:now+20000};
+}
+function _updateAnimalAttention(prop){
+    // Swimming fish and flying birds keep their natural locomotion; this
+    // defensive behaviour belongs to the grabbable land animals.
+    if(!prop||!prop._animal)return false;
+    var now=_animalClock(),s=prop._animalAttention;
+    if(!s){s=prop._animalAttention={last:now,near:_animalNearVisitor(prop,now),seconds:0,next:now+3000,cooldownUntil:0};return false;}
+    var elapsed=now-s.last;if(elapsed>=0&&elapsed<500)return false;s.last=now;
+    if(elapsed<0||elapsed>2000||prop.grabbed||prop.throwTimer>0||prop._animalDown){
+        // Do not count hidden-tab/paused time as somebody actively lingering.
+        s.seconds=Math.max(0,s.seconds-Math.max(0,elapsed)/1000);s.near=false;s.next=now+3000;return false;
+    }
+    var near=_animalNearVisitor(prop,now);
+    s.seconds=near&&s.near?Math.min(60,s.seconds+elapsed/1000):Math.max(0,s.seconds-elapsed/1000);
+    s.near=near;
+    if(now<s.next)return false;s.next=now+3000;
+    if(!near||now<s.cooldownUntil||Math.abs(prop.group.position.y-_propRestY(prop))>0.1)return false;
+    var chance=_animalAttentionChance(s.seconds);
+    if(chance>0&&Math.random()<chance){_standAnimalProp(prop);_startAnimalDown(prop);return true;}
+    return false;
+}
 function _groundDownAnimal(prop,roll){
     var down=prop._animalDown,g=prop.group;
     if(down.appliedRoll===roll)return;
@@ -70,6 +122,7 @@ function _restoreReleasedAnimals(){
     }
 }
 function _standAnimalProp(prop){
+    _resetAnimalAttention(prop);
     prop.group.position.y=_propRestY(prop);prop.x=prop.group.position.x;prop.z=prop.group.position.z;
     prop.group.rotation.set(0,prop.group.rotation.y,0);
     var a=prop._animal;
@@ -994,6 +1047,7 @@ function updateCity(){
             // Skip AI when animal is grabbed as prop
             if(a._propRef&&(a._propRef.grabbed||a._propRef.throwTimer>0))continue;
             if(_updateAnimalDown(a._propRef))continue;
+            if(_updateAnimalAttention(a._propRef))continue;
             var _animalBaseY=a._propRef?_propRestY(a._propRef):0;
             if(a._propRef)a.y=_animalBaseY;
             a.stateTimer--;
