@@ -37,7 +37,8 @@
         if(typeof stopSelectBGM==='function')stopSelectBGM();if(typeof stopTitleBGM==='function')stopTitleBGM();if(typeof stopBGM==='function')stopBGM();if(typeof stopRaceBGM==='function')stopRaceBGM();
         video.muted=typeof soundEnabled==='boolean'&&!soundEnabled;mutedLabel();playButton.textContent=UI_T('播放片头');skipButton.textContent=UI_T('跳过片头 →');overlay.setAttribute('aria-label',UI_T('片头动画'));
         lastTime=0;idle=0;skipButton.focus({preventScroll:true});
-        try{video.src='assets/video/opening-short-v2.mp4';video.load();start();}catch(_mediaLoadError){finish('error');}
+        // Instrumental is the default; the original vocal MP4 remains published.
+        try{video.src='assets/video/opening-instrumental-v3.mp4';video.load();start();}catch(_mediaLoadError){finish('error');}
         if(!pending)return result;
         // No decoded progress for 20 visible seconds must not trap a slow or
         // offline player. A browser asking for a gesture is not a network error.
