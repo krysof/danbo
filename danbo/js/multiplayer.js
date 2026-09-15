@@ -140,7 +140,9 @@
                 // Keep the breakdown available on demand, not a prominent
                 // "0 players" subtitle underneath an otherwise active world.
                 button.title=DANBO_COMPANIONS.detail(entry.players,entry.bots||0,entry.capacity,npcs)+' ('+DANBO_COMPANIONS.words().seats+')';
-                button.querySelector('.server-main-copy small').textContent=DANBO_COMPANIONS.detail(entry.players,entry.bots||0,0,npcs);
+                // The always-visible population is the combined character count.
+                // Do not repeat the human-only count here as "0 players".
+                // Keep connection/capacity diagnostics in the tooltip only.
             }
             metrics[1].textContent=ping+'ms';
             button.querySelector('.server-state-text').textContent=entry.status==='full'?UI_T('已满（含预留席位）'):entry.status==='online'?UI_T('可进入'):UI_T('离线');
