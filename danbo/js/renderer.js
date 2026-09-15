@@ -13,9 +13,13 @@ try{
     var _visualQualityQuery=new URLSearchParams(location.search).get('quality');
     if(['low','balanced','high','auto'].indexOf(_visualQualityQuery)>=0)_visualQualityPref=_visualQualityQuery;
 }catch(e){}
+// The online Windows/Steam host injects this metadata before any page script.
+// Its existing EXE therefore gets the highest preset without an installer update
+// or overwriting the independent browser's saved quality preference.
+if(window.DANBO_DESKTOP)_visualQualityPref='high';
 var _visualQualityCoarse=!!(window.matchMedia&&matchMedia('(pointer: coarse)').matches);
 var _visualQualityAnyFine=!!(window.matchMedia&&matchMedia('(any-pointer: fine)').matches);
-var _visualQualityMobile=_visualQualityCoarse&&!_visualQualityAnyFine;
+var _visualQualityMobile=!window.DANBO_DESKTOP&&_visualQualityCoarse&&!_visualQualityAnyFine;
 var _visualQualityHasMemory=typeof navigator.deviceMemory==='number'&&navigator.deviceMemory>0;
 var _visualQualityMemory=_visualQualityHasMemory?Number(navigator.deviceMemory):0;
 var _visualQualityCores=Number(navigator.hardwareConcurrency||4);

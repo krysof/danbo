@@ -18,9 +18,40 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260915.3">
+<link rel="stylesheet" href="style.css?v=20260915.4">
+<!-- The browser notice must work even when engine scripts or the main CSS fail. -->
+<style id="browser-open-style">
+#browser-open-notice[hidden],#browser-open-link[hidden],#game-container[hidden]{display:none!important}
+#browser-open-notice{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;box-sizing:border-box;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(32px,env(safe-area-inset-bottom));background:radial-gradient(ellipse at top,#234b57,#0d222e 75%);color:#eefcf9;font:14px/1.5 system-ui,'PingFang SC','Microsoft YaHei',sans-serif;touch-action:manipulation}
+.browser-open-card{box-sizing:border-box;width:100%;max-width:380px;padding:24px;border:1px solid #72c8c759;border-radius:24px;background:#143440}
+.browser-open-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.browser-open-badge{color:#8be3bf;font-weight:800;letter-spacing:2px}
+#engine-browser-help{pointer-events:auto;border:1px solid #81c6c370;border-radius:12px;padding:10px 16px;background:#143440;color:#d5f4ee;font:14px system-ui;cursor:pointer;touch-action:manipulation}#engine-browser-help[hidden]{display:none!important}
+#browser-open-language{font:inherit;color:#eefcf9;border:1px solid #81c6c370;border-radius:10px;background:#163e4a;padding:6px;max-width:60%}
+#browser-open-title{font-size:22px;line-height:1.3;margin:0 0 12px;letter-spacing:0;text-shadow:none;color:#fff}
+#browser-open-help{margin:0 0 20px;color:#c7e5e5}
+#browser-open-external,.browser-open-actions button{box-sizing:border-box;display:block;border-radius:14px;text-decoration:none;text-align:center;font:inherit;font-weight:700;cursor:pointer;touch-action:manipulation}
+#browser-open-external{padding:13px 12px;color:#102f39;background:linear-gradient(110deg,#80e4c8,#58c6cf);border:1px solid #a4f0dd}
+.browser-open-actions{display:flex;gap:10px;margin-top:12px}.browser-open-actions button{flex:1;min-width:0;padding:10px 6px;color:#d5f4ee;background:transparent;border:1px solid #81c6c370}.browser-open-actions button:disabled{opacity:.5;cursor:default}
+#browser-open-status{margin:10px 0 0;font-size:12px;min-height:18px;color:#b7dbdb}
+#browser-open-link{box-sizing:border-box;width:100%;margin-top:8px;padding:8px;border:1px solid #8ecfcf;border-radius:8px;background:#0b232e;color:#fff;font:16px system-ui;user-select:text;-webkit-user-select:text;touch-action:auto}
+#browser-open-notice :focus-visible{outline:3px solid #ffdb8e;outline-offset:3px}
+@media(max-height:540px){#browser-open-notice{padding:10px;padding-bottom:64px}.browser-open-card{padding:16px;border-radius:18px}.browser-open-toolbar{margin-bottom:8px}#browser-open-title{font-size:20px;margin-bottom:8px}#browser-open-help{margin-bottom:12px}}
+@media(max-height:390px) and (orientation:landscape){#browser-open-notice{padding:8px}.browser-open-card{max-width:640px;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;padding:14px}.browser-open-toolbar{grid-column:1}#browser-open-title,#browser-open-help{grid-column:1}#browser-open-external{grid-column:2;grid-row:1/3;align-self:center}.browser-open-actions{grid-column:2;grid-row:3;margin-top:0}#browser-open-status,#browser-open-link{grid-column:1/-1}}
+</style>
 </head>
 <body>
+<section id="browser-open-notice" hidden aria-labelledby="browser-open-title">
+  <div class="browser-open-card">
+    <div class="browser-open-toolbar"><span id="browser-open-app" class="browser-open-badge">Browser</span><select id="browser-open-language" aria-label="Language"><option value="zhs">简体中文</option><option value="zht">繁體中文</option><option value="ja">日本語</option><option value="en">English</option></select></div>
+    <h1 id="browser-open-title">Open in your browser</h1>
+    <p id="browser-open-help">LINE may not load the game correctly. Open this page in your default browser using LINE’s menu.</p>
+    <a id="browser-open-external" href="#">Open in browser ↗</a>
+    <div class="browser-open-actions"><button id="browser-open-copy" type="button">Copy link</button><button id="browser-open-continue" type="button" disabled>Try in LINE</button></div>
+    <p id="browser-open-status" role="status" aria-live="polite"></p>
+    <input id="browser-open-link" type="text" readonly hidden aria-label="Game URL" spellcheck="false">
+  </div>
+</section>
 <div id="game-container">
   <div id="three-root"></div>
   <div id="world-label-layer" aria-hidden="true" hidden></div>
@@ -126,6 +157,7 @@
       <div class="engine-loader-egg">🥚</div>
       <div id="engine-loader-text" class="engine-loader-text">Loading...</div>
       <div class="engine-loader-bar"><span id="engine-loader-fill"></span></div>
+      <button id="engine-browser-help" type="button" hidden>Open in your browser</button>
     </div>
     <button id="intro-start" class="intro-start" type="button" hidden>点击开始</button>
     <div id="intro-ui" hidden style="position:absolute;bottom:12%;left:0;right:0;text-align:center;z-index:2;">
@@ -362,6 +394,101 @@
   </div>
 </div>
 
+<script id="browser-open-script">
+(function(){
+  'use strict';
+  // Positive app identifiers only; no blanket WebView, referrer or query-string
+  // sniffing. Native Steam/EXE metadata takes priority over every app signal.
+  var ua=navigator.userAgent||'',desktop=!!window.DANBO_DESKTOP,app='';
+  if(!desktop){
+    if(/(?:^|[\s;(])Line\/[\d.]+/i.test(ua))app='LINE';
+    else if(/\bMicroMessenger\//i.test(ua)||window.WeixinJSBridge)app='WeChat';
+    else if(/\bTelegram(?:-Android|-iOS)?(?:[\/\s]|$)/i.test(ua)||(window.TelegramWebviewProxy&&typeof window.TelegramWebviewProxy.postEvent==='function')||(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData))app='Telegram';
+    else if(/\bQQ\/[\d.]+/i.test(ua))app='QQ';
+    else if(/\b(?:FBAN|FBAV|FB_IAB)\//i.test(ua))app='Facebook';
+    else if(/\bInstagram(?:[\/\s]|$)/i.test(ua))app='Instagram';
+  }
+  var isLine=app==='LINE',mobile=/Android|iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var startEngine=null,continued=false;
+  var notice=document.getElementById('browser-open-notice');
+  var game=document.getElementById('game-container');
+  var language=document.getElementById('browser-open-language');
+  var status=document.getElementById('browser-open-status');
+  var field=document.getElementById('browser-open-link');
+  var go=document.getElementById('browser-open-continue');
+  var external=document.getElementById('browser-open-external');
+  var copy=document.getElementById('browser-open-copy');
+  var lang='en',url=location.href;
+  var words={
+    zhs:{title:'请用系统浏览器打开',help:'{app} 内可能加载失败。请从右上角或底部菜单选择「在浏览器中打开」，也可复制网址。',generic:'若在微信、LINE、Telegram 等应用内打开，请从菜单选择「在浏览器中打开」。',open:'用系统浏览器打开 ↗',guide:'查看打开方法 ↗',copy:'复制网址',stay:'继续尝试',copied:'已复制，请粘贴到系统浏览器。',manual:'请长按下方网址，复制到系统浏览器。',menu:'请使用应用的菜单 →「在浏览器中打开」。',url:'游戏网址'},
+    zht:{title:'請用系統瀏覽器開啟',help:'{app} 內可能載入失敗。請從右上角或底部選單選擇「在瀏覽器中開啟」，也可複製網址。',generic:'若在微信、LINE、Telegram 等應用程式內開啟，請從選單選擇「在瀏覽器中開啟」。',open:'用系統瀏覽器開啟 ↗',guide:'查看開啟方法 ↗',copy:'複製網址',stay:'繼續嘗試',copied:'已複製，請貼到系統瀏覽器。',manual:'請長按下方網址，複製到系統瀏覽器。',menu:'請使用應用程式選單 →「在瀏覽器中開啟」。',url:'遊戲網址'},
+    ja:{title:'標準ブラウザで開いてね',help:'{app} 内では読み込めない場合があります。右上や下部のメニューから「ブラウザで開く」を選ぶか、URL をコピーしてください。',generic:'LINE・WeChat・Telegram などのアプリ内なら、メニューから「ブラウザで開く」を選んでください。',open:'標準ブラウザで開く ↗',guide:'開き方を見る ↗',copy:'URL をコピー',stay:'このまま試す',copied:'コピーしました。ブラウザに貼り付けてください。',manual:'下の URL を長押ししてコピーしてください。',menu:'アプリのメニュー →「ブラウザで開く」を選んでください。',url:'ゲームの URL'},
+    en:{title:'Open in your browser',help:'{app} may not load the game correctly. Choose “Open in browser” from its top or bottom menu, or copy the link.',generic:'If you are inside LINE, WeChat, Telegram or another app, choose “Open in browser” from its menu.',open:'Open in browser ↗',guide:'How to open ↗',copy:'Copy link',stay:'Try anyway',copied:'Copied. Paste the link into your browser.',manual:'Press and hold the URL below to copy it.',menu:'Use the app’s menu → “Open in browser”.',url:'Game URL'}
+  };
+  function refresh(){
+    var w=words[lang];
+    notice.lang=lang==='zhs'?'zh-CN':lang==='zht'?'zh-TW':lang;
+    document.getElementById('browser-open-title').textContent=w.title;
+    var appName=app==='WeChat'?(lang==='zhs'?'微信':lang==='zht'?'微信':'WeChat'):app;
+    document.getElementById('browser-open-app').textContent=appName||'Browser';
+    document.getElementById('browser-open-help').textContent=app?w.help.replace('{app}',appName):w.generic;
+    external.textContent=isLine?w.open:w.guide;copy.textContent=w.copy;go.textContent=w.stay;
+    field.setAttribute('aria-label',w.url);language.value=lang;
+    status.textContent='';field.hidden=true;
+  }
+  // Register independently of import maps, WebGL and all fetched game scripts.
+  // Even a failed engine load cannot erase the external-browser instructions.
+  window.DANBO_BROWSER_GATE={run:function(start){
+    startEngine=start;go.disabled=false;
+    if(!app){continued=true;start();}
+  },offerHelp:function(){
+    // Some Telegram/iOS versions use Safari's unmodified UA. Do not guess and
+    // block real Safari: offer a manual way out only after a mobile load fails.
+    if(desktop||!mobile)return;
+    var help=document.getElementById('engine-browser-help');help.textContent=words[lang].open;help.hidden=false;
+    help.onclick=function(){refresh();notice.hidden=false;game.hidden=true;};
+  }};
+  if(desktop)return;
+  try{lang=localStorage.getItem('danbo_lang')||'auto';}catch(e){lang='auto';}
+  if(!Object.prototype.hasOwnProperty.call(words,lang)){
+    var locale=(navigator.language||navigator.userLanguage||'en').toLowerCase();
+    lang=/^zh-(tw|hk|mo|hant)/.test(locale)?'zht':/^zh/.test(locale)?'zhs':/^ja/.test(locale)?'ja':'en';
+  }
+  // LINE's documented external-browser parameter. Keep the current origin,
+  // Pages subpath, bookmark version, invite/server parameters and fragment.
+  // https://developers.line.biz/en/docs/line-login/using-line-url-scheme/#opening-url-in-external-browser
+  if(isLine)try{var target=new URL(url);target.searchParams.set('openExternalBrowser','1');url=target.href;}catch(e){}
+  external.href=url;field.value=url;
+  language.addEventListener('change',function(){
+    if(!Object.prototype.hasOwnProperty.call(words,language.value))return;
+    lang=language.value;try{localStorage.setItem('danbo_lang',lang);}catch(e){}refresh();
+  });
+  external.addEventListener('click',function(e){
+    if(!isLine){e.preventDefault();field.hidden=false;}
+    status.textContent=words[lang].menu;
+  });
+  function fallbackCopy(){
+    field.hidden=false;field.focus();field.select();field.setSelectionRange(0,field.value.length);
+    var copied=false;try{copied=document.execCommand('copy');}catch(e){}
+    if(copied){field.hidden=true;copy.focus();}
+    status.textContent=words[lang][copied?'copied':'manual'];
+  }
+  copy.addEventListener('click',function(){
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(url).then(function(){status.textContent=words[lang].copied;},fallbackCopy);return;
+      }
+    }catch(e){}
+    fallbackCopy();
+  });
+  go.addEventListener('click',function(){
+    if(!startEngine)return;
+    notice.hidden=true;game.hidden=false;
+    if(!continued){continued=true;startEngine();}
+  });
+  refresh();if(app){game.hidden=true;notice.hidden=false;}
+})();
+</script>
 <script>
 (function(){
   // Map-editor previews must always load the city JS that was just generated.
@@ -369,7 +496,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260915.3';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260915.4';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -467,6 +594,7 @@
     var btn=document.getElementById('start-btn');
     if(btn)btn.textContent=loaderText(text);
     setEngineLoading(text,100);
+    if(text==='loadFail'&&window.DANBO_BROWSER_GATE)window.DANBO_BROWSER_GATE.offerHelp();
   }
   function loadScript(src,onload,onerror){
     var s=document.createElement('script');
@@ -608,11 +736,15 @@
     setEngineLoading('loading',30);
     loadManifestThenGame();
   }
-  setEngineLoading('loading',4);
-  loadThree180().catch(function(err){
-    console.error('Failed to load Three.js r180 modules',err);
-    setStartText('loadFail');
-  });
+  function beginEngineLoading(){
+    setEngineLoading('loading',4);
+    loadThree180().catch(function(err){
+      console.error('Failed to load Three.js r180 modules',err);
+      setStartText('loadFail');
+    });
+  }
+  if(window.DANBO_BROWSER_GATE)window.DANBO_BROWSER_GATE.run(beginEngineLoading);
+  else beginEngineLoading();
 })();
 </script>
 </body>

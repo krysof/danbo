@@ -83,11 +83,17 @@ function _initMapUI(){
 }
 
 // ---- per-frame mini map draw ----
+function _miniHeadingAngle(ry){
+    // The model faces +Z at yaw 0: world forward is (sin(yaw), cos(yaw)).
+    // North-up projects +Z DOWN; the canvas arrow is drawn pointing UP.
+    // A raw ctx.rotate(yaw) mirrors north/south. Convert the projected vector.
+    return _miniFollow?0:Math.atan2(Math.sin(ry),-Math.cos(ry));
+}
 function _miniProject(dx,dz,ry,ppm,cx,cy){
     var sx,sy;
     if(_miniFollow){
         var ahead=dx*Math.sin(ry)+dz*Math.cos(ry);
-        var side =dx*Math.cos(ry)-dz*Math.sin(ry);
+        var side =-dx*Math.cos(ry)+dz*Math.sin(ry);
         sx=cx+side*ppm; sy=cy-ahead*ppm;
     } else { sx=cx+dx*ppm; sy=cy+dz*ppm; }
     return [sx,sy];
@@ -175,7 +181,7 @@ function _updateMiniMapLegacy(){
 
     // player arrow (green) at centre
     ctx.save();ctx.translate(cx,cy);
-    if(!_miniFollow)ctx.rotate(ry); // north-up: arrow shows heading
+    ctx.rotate(_miniHeadingAngle(ry));
     ctx.fillStyle='#2ECC71';ctx.strokeStyle='#fff';ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(0,-9);ctx.lineTo(6,7);ctx.lineTo(0,3);ctx.lineTo(-6,7);ctx.closePath();ctx.fill();ctx.stroke();
     ctx.restore();
@@ -313,7 +319,7 @@ function _updateMiniMap(){
     var mapShop=typeof _shopDefinition==='function'?_shopDefinition():null;
     if(mapShop&&(!mapShop.shop||mapShop.shop.showMapIcon!==false))plotIcon(mapShop.x,mapShop.z,'shop',true);
 
-    ctx.save();ctx.translate(cx,cy+1);if(!_miniFollow)ctx.rotate(ry);
+    ctx.save();ctx.translate(cx,cy+1);ctx.rotate(_miniHeadingAngle(ry));
     ctx.shadowColor='rgba(20,28,38,.55)';ctx.shadowBlur=5;ctx.shadowOffsetY=2;ctx.fillStyle='#FFF8DF';ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(9,8);ctx.lineTo(0,4);ctx.lineTo(-9,8);ctx.closePath();ctx.fill();
     ctx.shadowColor='transparent';ctx.fillStyle=theme.accent;ctx.beginPath();ctx.moveTo(0,-8.5);ctx.lineTo(5.4,4.2);ctx.lineTo(0,1.5);ctx.lineTo(-5.4,4.2);ctx.closePath();ctx.fill();ctx.strokeStyle=theme.ink;ctx.lineWidth=1.2;ctx.stroke();ctx.restore();
     ctx.restore();
