@@ -1,674 +1,148 @@
-// platformer-core.js — Legacy platformer runtime loaded by plugins/legacy-platformer
-// Source moved from js/platformer.js so this minigame lives under plugins/.
-// ============================================================
-//  platformer.js — Side-scrolling adventure using existing city engine
-//  Creates a new long narrow map with side-view camera
-// ============================================================
-var _pfActive=false;
-var _pfSavedCity=-1;
-var _pfTile=4;
-function _pfWasm(){return window.DANBO_MINIGAME_WASM&&window.DANBO_MINIGAME_WASM.platformer;}
-
-function _pfStart(){try{
-    if(typeof _resetViewMode==='function')_resetViewMode();
-    _pfSavedCity=currentCityStyle;
-    // Use the same enterRace flow — hide city, clear state, build level
-    cityGroup.visible=false;
-    for(var _ci2=0;_ci2<cityNPCs.length;_ci2++)cityNPCs[_ci2].mesh.visible=false;
-    // Clear player states
-    if(playerEgg){
-        if(playerEgg.holding){playerEgg.holding.heldBy=null;playerEgg.holding=null;}
-        if(playerEgg.heldBy){playerEgg.heldBy.holding=null;playerEgg.heldBy=null;}
-        playerEgg._piledriverLocked=false;playerEgg.throwTimer=0;playerEgg._stunTimer=0;
-        if(playerEgg.holdingProp){playerEgg.holdingProp.grabbed=false;playerEgg.holdingProp=null;}
-        if(playerEgg.holdingObs){playerEgg.holdingObs._grabbed=false;playerEgg.holdingObs=null;}
-        scene.remove(playerEgg.mesh);
-        var _pidx=allEggs.indexOf(playerEgg);if(_pidx!==-1)allEggs.splice(_pidx,1);
-        playerEgg=null;
+// Egg Trail runs in an isolated scene: city/NPC/coin arrays are never mutated.
+(function(){
+    'use strict';
+    var Rules=window.DanboPlatformRules;
+    var COPY={
+        zhs:{title:'蛋宝冒险',sub:'穿过林间、晶洞和云端',start:'出发',exit:'返回城市',jump:'跳跃',pause:'暂停',resume:'继续',retry:'从路标重试',again:'再玩一次',complete:'抵达星光花园！',checkpoint:'路标已点亮',respawn:'从最近的路标继续',help:'← → / A D 移动 · 空格跳跃 · 按住跳得更远',touch:'左右移动 · 按住跳跃跳得更远',zones:['林间小径','晶光洞穴','云端花园'],best:'最佳记录',time:'用时',ready:'随时可以从路标重试',left:'向左',right:'向右'},
+        zht:{title:'蛋寶冒險',sub:'穿過林間、晶洞和雲端',start:'出發',exit:'返回城市',jump:'跳躍',pause:'暫停',resume:'繼續',retry:'從路標重試',again:'再玩一次',complete:'抵達星光花園！',checkpoint:'路標已點亮',respawn:'從最近的路標繼續',help:'← → / A D 移動 · 空白鍵跳躍 · 按住跳得更遠',touch:'左右移動 · 按住跳躍跳得更遠',zones:['林間小徑','晶光洞穴','雲端花園'],best:'最佳紀錄',time:'用時',ready:'隨時可以從路標重試',left:'向左',right:'向右'},
+        ja:{title:'たまごの冒険',sub:'森と水晶の洞窟を抜け、雲の庭へ',start:'出発',exit:'街へ戻る',jump:'ジャンプ',pause:'一時停止',resume:'つづける',retry:'道しるべから再開',again:'もう一度',complete:'星の庭に到着！',checkpoint:'道しるべを灯した！',respawn:'近くの道しるべから再開',help:'← → / A D で移動 · Space でジャンプ · 長押しで遠くへ',touch:'左右で移動 · 長押しで遠くへジャンプ',zones:['森の小道','水晶の洞窟','雲の庭'],best:'ベスト',time:'タイム',ready:'いつでも道しるべからやり直せます',left:'左へ',right:'右へ'},
+        en:{title:'Egg Trail',sub:'Through the woods and crystal caves, into the clouds',start:'Let’s go',exit:'Back to town',jump:'Jump',pause:'Pause',resume:'Continue',retry:'Retry checkpoint',again:'Play again',complete:'Welcome to the Star Garden!',checkpoint:'Checkpoint lit!',respawn:'Back at your last checkpoint',help:'← → / A D to move · Space to jump · Hold to leap further',touch:'Move left / right · Hold Jump to leap further',zones:['Woodland Path','Crystal Grotto','Cloud Garden'],best:'Best',time:'Time',ready:'Retry from a checkpoint whenever you like',left:'Left',right:'Right'}
+    };
+    function Trail(ctx){
+        this.ctx=ctx;this.copy=COPY[window._langCode]||COPY.en;this.level=Rules.level();this.sim=Rules.create();this.state='title';this.keys={};this.pointers={};this.listeners=[];this.acc=0;this.running=true;
+        this.art=DanboMinigameArt.create();this.root=document.createElement('div');this.root.className='pf-root';
+        this.root.innerHTML='<style>'+
+            '.pf-root{position:absolute;inset:0;overflow:hidden;background:#c8e5da;color:#244754;font:600 15px/1.4 system-ui,sans-serif;touch-action:none}.pf-root *{box-sizing:border-box}.pf-root canvas{display:block;width:100%;height:100%}'+
+            '.pf-root button{border:1px solid #b3d4c8;border-radius:18px;background:#fff8e7;color:#244754;font:750 15px system-ui,sans-serif;padding:12px 16px;min-height:46px;cursor:pointer}.pf-root button:focus-visible,.pf-root .danbo-nav-focus{outline:3px solid #368e80;outline-offset:2px}.pf-root button:active{background:#a9e0ce}'+
+            '.pf-panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90%,500px);padding:24px;border:1px solid #fffdf2;border-radius:28px;background:linear-gradient(150deg,#fffcf2f7,#def4eaf5);box-shadow:0 16px 50px #24475422;display:grid;gap:12px;text-align:center}.pf-panel[hidden],.pf-root [hidden]{display:none!important}.pf-panel h1{margin:0;font-size:clamp(22px,4vw,30px);line-height:1.2}.pf-panel p{margin:0;font-size:13px;color:#527871}.pf-panel .pf-primary{background:#8ddcc5}.pf-panel footer{display:flex;gap:10px}.pf-panel footer button{flex:1}'+
+            '.pf-hud{position:absolute;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));display:flex;align-items:flex-start;gap:8px;pointer-events:none}.pf-badge{border:1px solid #fff9ee;background:#fffcf0ee;border-radius:17px;padding:9px 12px;min-width:0;font-size:13px}.pf-badge progress{display:block;width:100%;height:5px;margin-top:5px;accent-color:#55b69b}.pf-hud button{margin-left:auto;pointer-events:auto}.pf-notice{position:absolute;top:88px;left:12px;right:12px;text-align:center;pointer-events:none;color:#244754;text-shadow:0 1px #fff;font-size:14px}'+
+            '.pf-touch{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));left:max(16px,env(safe-area-inset-left));right:max(16px,env(safe-area-inset-right));display:flex;gap:12px;pointer-events:none}.pf-touch button{pointer-events:auto;width:64px;height:64px;border-radius:50%;background:#fff8e7df;font-size:24px;touch-action:none;user-select:none}.pf-touch [data-control=jump]{margin-left:auto;width:78px;font-size:16px}.pf-touch [aria-pressed=true]{background:#8ddcc5}.pf-root .pf-instructions{position:absolute;bottom:18px;left:12px;right:12px;text-align:center;pointer-events:none;font-size:12px;color:#244754;text-shadow:0 1px #fff}'+
+            '@media(max-height:430px){.pf-panel{padding:14px;gap:8px;width:min(88%,520px)}.pf-panel button{padding:8px;min-height:40px}.pf-panel h1{font-size:22px}.pf-touch{bottom:max(8px,env(safe-area-inset-bottom))}.pf-touch button{width:54px;height:54px}.pf-notice{top:68px}.pf-hud{top:8px}.pf-badge{padding:6px 10px}}'+
+            '</style><canvas aria-hidden="true"></canvas><div class="pf-hud" hidden><div class="pf-badge"><span data-zone></span><progress max="323" value="0"></progress></div><div class="pf-badge" data-score></div><button data-action="pause"></button></div><div class="pf-notice" role="status"></div><div class="pf-instructions"></div><section class="pf-panel" role="region"></section><div class="pf-touch" hidden><button data-control="left">←</button><button data-control="right">→</button><button data-control="jump"></button></div>';
+        ctx.mount.appendChild(this.root);this.panel=this.root.querySelector('.pf-panel');this.hud=this.root.querySelector('.pf-hud');this.touch=this.root.querySelector('.pf-touch');this.notice=this.root.querySelector('.pf-notice');this.instructions=this.root.querySelector('.pf-instructions');
+        this.root.querySelector('[data-control=jump]').textContent=this.copy.jump;this.root.querySelector('[data-action=pause]').textContent=this.copy.pause;
+        this.root.querySelector('[data-control=left]').setAttribute('aria-label',this.copy.left);this.root.querySelector('[data-control=right]').setAttribute('aria-label',this.copy.right);
+        this.touchMode=!!(navigator.maxTouchPoints>0||window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+        try{this.init3D();this.bind();this.showPanel('title');this.last=performance.now();var self=this;this.raf=requestAnimationFrame(function(t){self.loop(t);});}
+        catch(e){this.dispose();throw e;}
     }
-    // Build platformer in raceGroup (same as race tracks)
-    raceGroup.visible=true;
-    currentCityStyle=99;
-    _pfBuildLevel();
-    // Spawn player
-    var ch=CHARACTERS[selectedChar];
-    playerEgg=createEgg(4,0,ch.color,ch.accent,true,undefined,ch.type);
-    playerEgg.mesh.position.set(4,2,0);
-    // Spawn 3 NPC companions
-    var npcPool=[];
-    for(var ci=0;ci<CHARACTERS.length;ci++){if(ci!==selectedChar)npcPool.push(ci);}
-    for(var si=npcPool.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var t=npcPool[si];npcPool[si]=npcPool[sj];npcPool[sj]=t;}
-    var _pfw=_pfWasm();
-    var total=_pfw?_pfw.partySize():4;
-    for(var ni=1;ni<total;ni++){
-        var nch=CHARACTERS[npcPool[(ni-1)%npcPool.length]];
-        var npc=createEgg(2+ni*3,0,nch.color,nch.accent,false,undefined,nch.type);
-        npc.mesh.position.set(2+ni*3,2,(ni-1)*2);
-        npc.grabCD=99999;
-    }
-    _pfActive=true;
-    window._pfGoalReached=false;
-    finishedEggs=[];playerFinished=false;
-    // Use racing state + race HUD (same back button)
-    gameState='racing';
-    scene.fog=null;
-    if(R)R.setClearColor(0x87CEEB);
-    stopBGM();startRaceBGM(0);
-    document.getElementById('city-hud').classList.add('hidden');
-    document.getElementById('race-hud').classList.remove('hidden');
-    if('ontouchstart' in window||_touchVisible){if(typeof _setTouchControlsVisible==='function')_setTouchControlsVisible(true);else document.getElementById('touch-controls').classList.remove('hidden');}
-}catch(e){console.error('_pfStart ERROR:',e);alert('Start error: '+e.message);}}
-
-function _pfBuildLevel(){try{
-    var _pfw=_pfWasm();
-    var T=_pfw?_pfw.tileSize():_pfTile;_pfTile=T;
-    var L=_pfw?_pfw.levelLength():200,D=_pfw?_pfw.depth(T):T*3;
-    var W=_pfw?_pfw.width(T,L):T*L;
-    // Global arrays for dynamic elements
-    window._pfMovingPlatforms=[];
-    window._pfCrumblePlatforms=[];
-    window._pfHasKey=false;
-    window._pfKeyMesh=null;
-    window._pfDoorCollider=null;
-    window._pfDoorMesh=null;
-    window._pfMushroomColliders=[];
-    window._pfLavaColliders=[];
-    window._pfWindZones=[];
-    window._pfRotatingPlatforms=[];
-    window._pfFallingRocks=[];
-    window._pfFallingRockTriggers=[];
-
-    // Helper: build ground segment
-    function addGround(sx,sw,color,dirtColor){
-        var gnd=new THREE.Mesh(new THREE.BoxGeometry(sw,1,D),toon(color));
-        gnd.position.set(sx+sw/2,-0.5,0);gnd.receiveShadow=true;raceGroup.add(gnd);
-        var drt=new THREE.Mesh(new THREE.BoxGeometry(sw,3,D),toon(dirtColor));
-        drt.position.set(sx+sw/2,-2.5,0);raceGroup.add(drt);
-        cityColliders.push({x:sx+sw/2,z:0,hw:sw/2,hd:D/2,h:1,y:0});
-    }
-
-    // ================================================================
-    //  ZONE 1: FOREST (segments 0-65)
-    // ================================================================
-    var z1Gaps=[[15,18],[35,38],[55,58]];
-    var z1GapSet={};
-    for(var gi=0;gi<z1Gaps.length;gi++)for(var gx=z1Gaps[gi][0];gx<z1Gaps[gi][1];gx++)z1GapSet[gx]=true;
-    // Forest ground
-    var segStart=0,inSeg=false;
-    for(var tx=0;tx<=65;tx++){
-        var solid=!z1GapSet[tx]&&tx<65;
-        if(solid&&!inSeg){segStart=tx;inSeg=true;}
-        if(!solid&&inSeg){
-            addGround(segStart*T,(tx-segStart)*T,0x44AA44,0x8B5E3C);
-            inSeg=false;
-        }
-    }
-    // Invisible floor under gaps (catches falling NPCs, player respawns via lava/pit check)
-    for(var _gwi=0;_gwi<z1Gaps.length;_gwi++){
-        var _gfx1=z1Gaps[_gwi][0]*T, _gfx2=z1Gaps[_gwi][1]*T, _gfw=_gfx2-_gfx1;
-        cityColliders.push({x:_gfx1+_gfw/2,z:0,hw:_gfw/2,hd:D/2,h:1,y:-4,_gapFloor:true});
-    }
-    // Grass tufts on forest ground
-    for(var gt=0;gt<65;gt++){
-        if(z1GapSet[gt])continue;
-        if(Math.random()>0.3)continue;
-        var tuft=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.8,5),toon(0x33BB33));
-        tuft.position.set(gt*T+(Math.random()-0.5)*T*0.8,0.4,(Math.random()-0.5)*D*0.6);
-        raceGroup.add(tuft);
-    }
-    // Spike pits in forest gaps
-    for(var sgi=0;sgi<z1Gaps.length;sgi++){
-        var sgx1=z1Gaps[sgi][0]*T,sgx2=z1Gaps[sgi][1]*T,sgw=sgx2-sgx1;
-        var pitBg=new THREE.Mesh(new THREE.BoxGeometry(sgw,5,D),toon(0x111111));
-        pitBg.position.set(sgx1+sgw/2,-3,0);raceGroup.add(pitBg);
-        // Red spikes at bottom
-        for(var sp=0;sp<6;sp++){
-            var spike=new THREE.Mesh(new THREE.ConeGeometry(0.4,1.5,6),toon(0xCC2222));
-            spike.position.set(sgx1+1+sp*(sgw-2)/5,-1.5,(Math.random()-0.5)*D*0.5);
-            raceGroup.add(spike);
-        }
-    }
-    // Floating log platforms (some crumble)
-    var logPlats=[[5,8,3,false],[12,14,5,true],[22,26,4,false],[30,33,6,true],[42,45,4,false],[48,51,5,true],[60,63,3,false]];
-    for(var li=0;li<logPlats.length;li++){
-        var lx1=logPlats[li][0]*T,lx2=logPlats[li][1]*T,lh=logPlats[li][2],lCrumble=logPlats[li][3];
-        var lw=lx2-lx1;
-        var logMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,lw,10),toon(0x8B6914));
-        logMesh.rotation.z=Math.PI/2;
-        logMesh.position.set(lx1+lw/2,lh,0);raceGroup.add(logMesh);
-        var logCol={x:lx1+lw/2,z:0,hw:lw/2,hd:D/2,h:lh+0.6,y:lh-0.6};
-        cityColliders.push(logCol);
-        if(lCrumble){
-            logCol._crumble=true;
-            window._pfCrumblePlatforms.push({mesh:logMesh,collider:logCol,triggered:false,timer:120});
-        }
-    }
-    // Mushroom bounce pads
-    var mushrooms=[[10,0],[25,0],[40,0],[53,0]];
-    for(var mi=0;mi<mushrooms.length;mi++){
-        var mx=mushrooms[mi][0]*T,my=mushrooms[mi][1];
-        // Stick
-        var stick=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,2,6),toon(0xEEDDCC));
-        stick.position.set(mx,1+my,0);raceGroup.add(stick);
-        // Red cap with white spots
-        var cap=new THREE.Mesh(new THREE.SphereGeometry(1.2,10,8,0,Math.PI*2,0,Math.PI/2),toon(0xDD2222));
-        cap.position.set(mx,2+my,0);raceGroup.add(cap);
-        // White spots
-        for(var ws=0;ws<4;ws++){
-            var spot=new THREE.Mesh(new THREE.SphereGeometry(0.2,6,4),toon(0xFFFFFF));
-            var sa=ws*Math.PI/2;
-            spot.position.set(mx+Math.cos(sa)*0.7,2.3+my,Math.sin(sa)*0.7);
-            raceGroup.add(spot);
-        }
-        var mCol={x:mx,z:0,hw:1.2,hd:1.2,h:2.5+my,y:my,_mushroom:true};
-        cityColliders.push(mCol);
-        window._pfMushroomColliders.push(mCol);
-    }
-    // Hidden cave at segment 30
-    var caveX=30*T;
-    var caveOuter=new THREE.Mesh(new THREE.BoxGeometry(T*5,T*3,D),toon(0x333333));
-    caveOuter.position.set(caveX,T*1.5,-D*0.3);raceGroup.add(caveOuter);
-    var caveInner=new THREE.Mesh(new THREE.BoxGeometry(T*4,T*2.5,D*0.8),toon(0x111111));
-    caveInner.position.set(caveX,T*1.25,-D*0.3);raceGroup.add(caveInner);
-    // Opening arch
-    var caveArch=new THREE.Mesh(new THREE.BoxGeometry(T*2,T*2.2,1),toon(0x222222));
-    caveArch.position.set(caveX,T*1.1,D*0.2);raceGroup.add(caveArch);
-    // 10 bonus coins inside cave
-    for(var cvi=0;cvi<10;cvi++){
-        var cvx=caveX-T*1.5+cvi*(T*3)/9;
-        var cc=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
-            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        cc.position.set(cvx,1.5,-D*0.3);
-        raceGroup.add(cc);
-        cityCoins.push({mesh:cc,collected:false});
-    }
-    // Background trees (decorative, behind Z=-10)
-    for(var bti=0;bti<25;bti++){
-        var btx=Math.random()*65*T;
-        var trunkH=4+Math.random()*4;
-        var trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.5,trunkH,6),toon(0x6B4226));
-        trunk.position.set(btx,trunkH/2,-10-Math.random()*5);raceGroup.add(trunk);
-        var crown=new THREE.Mesh(new THREE.SphereGeometry(2+Math.random()*1.5,8,6),toon(0x228B22));
-        crown.position.set(btx,trunkH+1,-10-Math.random()*5);raceGroup.add(crown);
-    }
-    // 2 patrolling enemies in Zone 1
-    var enemyPositions=[[20,2],[50,2]];
-    for(var ei=0;ei<enemyPositions.length;ei++){
-        var ex=enemyPositions[ei][0]*T,ey=enemyPositions[ei][1];
-        var enemy=createEgg(ex,0,0xCC3333,0x880000,false,scene,'egg');
-        enemy.mesh.position.set(ex,ey,0);
-        enemy.cityNPC=true;enemy.grabCD=99999; // enemies don't grab in platformer
-        enemy._patrolBaseX=ex;enemy._patrolRange=T*4;enemy._patrolSpeed=0.03;enemy._patrolPhase=Math.random()*Math.PI*2;
-        cityNPCs.push(enemy);
-        allEggs.push(enemy);
-    }
-
-    // ================================================================
-    //  ZONE 2: UNDERGROUND / CAVE (segments 65-130)
-    // ================================================================
-    var z2Gaps=[[75,78],[95,98],[115,118]];
-    var z2GapSet={};
-    for(var g2i=0;g2i<z2Gaps.length;g2i++)for(var g2x=z2Gaps[g2i][0];g2x<z2Gaps[g2i][1];g2x++)z2GapSet[g2x]=true;
-    // Stone ground
-    segStart=0;inSeg=false;
-    for(var tx2=65;tx2<=130;tx2++){
-        var solid2=!z2GapSet[tx2]&&tx2<130;
-        if(solid2&&!inSeg){segStart=tx2;inSeg=true;}
-        if(!solid2&&inSeg){
-            addGround(segStart*T,(tx2-segStart)*T,0x444444,0x333333);
-            inSeg=false;
-        }
-    }
-    // Ceiling for cave zone
-    var ceilMesh=new THREE.Mesh(new THREE.BoxGeometry(65*T,2,D*1.5),toon(0x333333));
-    ceilMesh.position.set(65*T+65*T/2,22,0);raceGroup.add(ceilMesh);
-    // Stalactites hanging from ceiling
-    for(var sti=0;sti<30;sti++){
-        var stx=65*T+Math.random()*65*T;
-        var stLen=1.5+Math.random()*3;
-        var stal=new THREE.Mesh(new THREE.ConeGeometry(0.4+Math.random()*0.3,stLen,6),toon(0x555555));
-        stal.rotation.x=Math.PI;
-        stal.position.set(stx,21-stLen/2,(Math.random()-0.5)*D);
-        raceGroup.add(stal);
-    }
-    // Lava pools in gaps
-    // Invisible floor under lava gaps
-    for(var _g2wi=0;_g2wi<z2Gaps.length;_g2wi++){
-        var _g2x1=z2Gaps[_g2wi][0]*T, _g2x2=z2Gaps[_g2wi][1]*T, _g2w=_g2x2-_g2x1;
-        cityColliders.push({x:_g2x1+_g2w/2,z:0,hw:_g2w/2,hd:D/2,h:1,y:-4,_gapFloor:true});
-    }
-    for(var lgi=0;lgi<z2Gaps.length;lgi++){
-        var lgx1=z2Gaps[lgi][0]*T,lgx2=z2Gaps[lgi][1]*T,lgw=lgx2-lgx1;
-        var lava=new THREE.Mesh(new THREE.PlaneGeometry(lgw,D),toon(0xFF4400,{emissive:0xFF2200,emissiveIntensity:0.8}));
-        lava.rotation.x=-Math.PI/2;
-        lava.position.set(lgx1+lgw/2,-2,0);raceGroup.add(lava);
-        // Lava glow
-        var lavaGlow=new THREE.Mesh(new THREE.PlaneGeometry(lgw+2,D+2),toon(0xFF6600,{emissive:0xFF4400,emissiveIntensity:0.5}));
-        lavaGlow.rotation.x=-Math.PI/2;
-        lavaGlow.position.set(lgx1+lgw/2,-2.1,0);raceGroup.add(lavaGlow);
-        window._pfLavaColliders.push({x:lgx1+lgw/2,z:0,hw:lgw/2,hd:D/2,y:-2});
-    }
-    // 4 moving platforms in cave
-    var mpDefs=[[70,5,8,0.02,0],[85,4,6,0.015,1],[105,6,10,0.025,2],[125,4,7,0.018,3]];
-    for(var mpi=0;mpi<mpDefs.length;mpi++){
-        var mpSeg=mpDefs[mpi][0],mpH=mpDefs[mpi][1],mpRange=mpDefs[mpi][2],mpSpd=mpDefs[mpi][3],mpPh=mpDefs[mpi][4];
-        var mpX=mpSeg*T;
-        var mpMesh=new THREE.Mesh(new THREE.BoxGeometry(T*2,0.8,D),toon(0x6666AA));
-        mpMesh.position.set(mpX,mpH,0);raceGroup.add(mpMesh);
-        var mpCol={x:mpX,z:0,hw:T,hd:D/2,h:mpH+0.4,y:mpH-0.4};
-        cityColliders.push(mpCol);
-        window._pfMovingPlatforms.push({mesh:mpMesh,collider:mpCol,baseX:mpX,range:mpRange,speed:mpSpd,phase:mpPh});
-    }
-    // Crystal collectibles (worth 3 coins each)
-    for(var cri=0;cri<12;cri++){
-        var crx=65*T+5+Math.random()*60*T;
-        var inGapCr=false;
-        for(var gcri=0;gcri<z2Gaps.length;gcri++){if(crx/T>=z2Gaps[gcri][0]&&crx/T<z2Gaps[gcri][1])inGapCr=true;}
-        if(inGapCr)continue;
-        var crystal=new THREE.Mesh(new THREE.OctahedronGeometry(0.5,0),toon(0x00FFFF,{emissive:0x00AAAA,emissiveIntensity:0.5}));
-        crystal.position.set(crx,1.5+Math.random()*2,0);
-        raceGroup.add(crystal);
-        // Crystals are worth 3 coins, push 3 coin entries for same mesh
-        cityCoins.push({mesh:crystal,collected:false});
-        cityCoins.push({mesh:crystal,collected:false,_linked:true});
-        cityCoins.push({mesh:crystal,collected:false,_linked:true});
-    }
-    // Torch lights on walls every 20 segments
-    for(var tli=65;tli<130;tli+=20){
-        var tlx=tli*T;
-        for(var tside=-1;tside<=1;tside+=2){
-            var torch=new THREE.Mesh(new THREE.SphereGeometry(0.5,8,6),toon(0xFF8800,{emissive:0xFF6600,emissiveIntensity:0.9}));
-            torch.position.set(tlx,3,tside*D*0.5);raceGroup.add(torch);
-            // Torch bracket
-            var bracket=new THREE.Mesh(new THREE.BoxGeometry(0.2,1.5,0.2),toon(0x444444));
-            bracket.position.set(tlx,2,tside*D*0.5);raceGroup.add(bracket);
-        }
-    }
-    // Golden key at segment 90
-    var keyX=90*T;
-    var keyMesh=new THREE.Group();
-    var keyHead=new THREE.Mesh(new THREE.TorusGeometry(0.6,0.15,8,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.6}));
-    keyMesh.add(keyHead);
-    var keyShaft=new THREE.Mesh(new THREE.BoxGeometry(0.15,1.2,0.15),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.6}));
-    keyShaft.position.y=-1;keyMesh.add(keyShaft);
-    var keyBit1=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.15,0.15),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.6}));
-    keyBit1.position.set(0.2,-1.4,0);keyMesh.add(keyBit1);
-    var keyBit2=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.15,0.15),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.6}));
-    keyBit2.position.set(0.15,-1.2,0);keyMesh.add(keyBit2);
-    keyMesh.position.set(keyX,3,0);
-    raceGroup.add(keyMesh);
-    window._pfKeyMesh=keyMesh;
-    // Locked door at segment 120
-    var doorX=120*T;
-    var lockDoor=new THREE.Mesh(new THREE.BoxGeometry(T*1.5,T*4,D),toon(0x884422));
-    lockDoor.position.set(doorX,T*2,0);raceGroup.add(lockDoor);
-    // Lock icon on door
-    var lockIcon=new THREE.Mesh(new THREE.TorusGeometry(0.8,0.2,8,8),toon(0xFFDD00));
-    lockIcon.position.set(doorX,T*2.5,D*0.51);raceGroup.add(lockIcon);
-    var doorCol={x:doorX,z:0,hw:T*0.75,hd:D/2,h:T*4,y:0,_door:true};
-    cityColliders.push(doorCol);
-    window._pfDoorCollider=doorCol;
-    window._pfDoorMesh=lockDoor;
-    window._pfDoorLockIcon=lockIcon;
-    // Falling rocks (triggered when player passes)
-    var rockSegs=[72,82,100,110,122];
-    for(var ri=0;ri<rockSegs.length;ri++){
-        var rx=rockSegs[ri]*T;
-        var rockMesh=new THREE.Mesh(new THREE.DodecahedronGeometry(1.2,0),toon(0x666666));
-        rockMesh.position.set(rx,20,(Math.random()-0.5)*D*0.4);
-        raceGroup.add(rockMesh);
-        window._pfFallingRocks.push({mesh:rockMesh,triggerX:rx,triggered:false,falling:false,vy:0});
-    }
-
-    // ================================================================
-    //  ZONE 3: SKY CASTLE (segments 130-200)
-    // ================================================================
-    // No ground -- all floating cloud platforms
-    // Cloud-style platforms at varying heights
-    var skyPlats=[
-        [131,134,7],[135,137,9],[138,141,6],[142,144,11],[145,148,8],
-        [149,151,13],[152,155,7],[156,158,10],[159,162,12],[163,165,8],
-        [166,169,14],[170,172,9],[173,176,11],[177,179,7],[180,183,13]
-    ];
-    for(var ski=0;ski<skyPlats.length;ski++){
-        var skx1=skyPlats[ski][0]*T,skx2=skyPlats[ski][1]*T,skh=skyPlats[ski][2];
-        var skw=skx2-skx1;
-        // Cloud platform (white fluffy)
-        var cloudBase=new THREE.Mesh(new THREE.BoxGeometry(skw,1.5,D),toon(0xEEEEFF));
-        cloudBase.position.set(skx1+skw/2,skh,0);raceGroup.add(cloudBase);
-        // Fluffy top
-        for(var cf=0;cf<3;cf++){
-            var puff=new THREE.Mesh(new THREE.SphereGeometry(1+Math.random()*0.8,8,6),toon(0xFFFFFF));
-            puff.position.set(skx1+skw/2+(cf-1)*skw*0.3,skh+0.8,(Math.random()-0.5)*D*0.3);
-            raceGroup.add(puff);
-        }
-        cityColliders.push({x:skx1+skw/2,z:0,hw:skw/2,hd:D/2,h:skh+0.75,y:skh-0.75});
-    }
-    // Chain of small precision platforms (1-segment wide, spaced 5 apart)
-    var chainStart=184;
-    for(var chi=0;chi<5;chi++){
-        var chSeg=chainStart+chi*5;
-        var chx=chSeg*T,chh=8+Math.sin(chi*0.8)*3;
-        var chPlat=new THREE.Mesh(new THREE.BoxGeometry(T,0.6,D*0.7),toon(0xDDDDFF));
-        chPlat.position.set(chx,chh,0);raceGroup.add(chPlat);
-        cityColliders.push({x:chx,z:0,hw:T/2,hd:D*0.35,h:chh+0.3,y:chh-0.3});
-    }
-    // Wind gust zones (visual + effect)
-    var windZones=[[135,150,0.03],[160,175,-0.025],[185,195,0.035]];
-    for(var wi=0;wi<windZones.length;wi++){
-        var wz1=windZones[wi][0]*T,wz2=windZones[wi][1]*T,wForce=windZones[wi][2];
-        window._pfWindZones.push({x1:wz1,x2:wz2,force:wForce});
-        // Wind visual: streaks
-        for(var wvi=0;wvi<8;wvi++){
-            var streak=new THREE.Mesh(new THREE.BoxGeometry(3,0.05,0.05),toon(0xCCDDFF,{transparent:true,opacity:0.4}));
-            streak.position.set(wz1+Math.random()*(wz2-wz1),5+Math.random()*12,(Math.random()-0.5)*D);
-            raceGroup.add(streak);
-        }
-    }
-    // Rotating platforms (4 platforms orbiting center points)
-    var rotCenters=[[145,10],[160,12],[175,9],[190,11]];
-    for(var rci=0;rci<rotCenters.length;rci++){
-        var rcx=rotCenters[rci][0]*T,rcy=rotCenters[rci][1];
-        // Center post (decorative)
-        var post=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,1,6),toon(0x888888));
-        post.position.set(rcx,rcy,0);raceGroup.add(post);
-        // Rotating platform arm
-        var armMesh=new THREE.Mesh(new THREE.BoxGeometry(T*2,0.6,D*0.6),toon(0xAAAADD));
-        armMesh.position.set(rcx+T*2,rcy,0);raceGroup.add(armMesh);
-        var armCol={x:rcx+T*2,z:0,hw:T,hd:D*0.3,h:rcy+0.3,y:rcy-0.3};
-        cityColliders.push(armCol);
-        window._pfRotatingPlatforms.push({mesh:armMesh,collider:armCol,centerX:rcx,centerY:rcy,radius:T*2,angle:rci*Math.PI/2,speed:0.008+rci*0.002});
-    }
-    // Boss arena (large flat platform segments 190-198)
-    var bossX1=190*T,bossX2=198*T,bossW=bossX2-bossX1;
-    var bossPlat=new THREE.Mesh(new THREE.BoxGeometry(bossW,2,D*1.5),toon(0x8888AA));
-    bossPlat.position.set(bossX1+bossW/2,6,0);raceGroup.add(bossPlat);
-    cityColliders.push({x:bossX1+bossW/2,z:0,hw:bossW/2,hd:D*0.75,h:7,y:5});
-    // Boss arena pillars
-    for(var bpi=-1;bpi<=1;bpi+=2){
-        var bPillar=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,8,8),toon(0x666688));
-        bPillar.position.set(bossX1+bossW/2+bpi*(bossW/2-2),11,0);raceGroup.add(bPillar);
-    }
-    // Boss enemy (larger NPC, scale 1.5)
-    var bossEnemy=createEgg(bossX1+bossW/2,0,0xFF2222,0x880000,false,scene,'egg');
-    bossEnemy.mesh.position.set(bossX1+bossW/2,8,0);
-    bossEnemy.mesh.scale.set(1.5,1.5,1.5);
-    bossEnemy.cityNPC=true;bossEnemy.grabCD=99999;
-    bossEnemy._patrolBaseX=bossX1+bossW/2;bossEnemy._patrolRange=bossW/2-4;bossEnemy._patrolSpeed=0.02;bossEnemy._patrolPhase=0;
-    cityNPCs.push(bossEnemy);
-    allEggs.push(bossEnemy);
-    // Final castle (bigger version)
-    var castleX=_pfw?_pfw.castleX(T,L):(L-3)*T;
-    var castle=new THREE.Mesh(new THREE.BoxGeometry(T*10,T*8,D*2),toon(0xAA8866));
-    castle.position.set(castleX,T*4,0);raceGroup.add(castle);
-    cityColliders.push({x:castleX,z:0,hw:T*5,hd:D,h:T*8,y:0});
-    var cdoor=new THREE.Mesh(new THREE.BoxGeometry(T*2,T*3.5,1),toon(0x442200));
-    cdoor.position.set(castleX,T*1.75,D);raceGroup.add(cdoor);
-    // 4 turrets
-    for(var cti=-1;cti<=1;cti+=2){
-        for(var ctj=-1;ctj<=1;ctj+=2){
-            var turret=new THREE.Mesh(new THREE.CylinderGeometry(T*0.8,T*1,T*3,8),toon(0x998877));
-            turret.position.set(castleX+cti*T*4,T*9.5,ctj*D*0.6);raceGroup.add(turret);
-            var tcone=new THREE.Mesh(new THREE.ConeGeometry(T*1,T*2,8),toon(0xCC4444));
-            tcone.position.set(castleX+cti*T*4,T*12,ctj*D*0.6);raceGroup.add(tcone);
-        }
-    }
-    // Flag pole at castle
-    var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,T*14,6),toon(0x888888));
-    pole.position.set(castleX,T*7+T*7,0);raceGroup.add(pole);
-    var flag=new THREE.Mesh(new THREE.PlaneGeometry(T*3,T*1.5),new THREE.MeshBasicMaterial({color:0xFF4444,side:THREE.DoubleSide}));
-    flag.position.set(castleX+T*1.5,T*13,0);raceGroup.add(flag);
-    // Goal trigger zone — touching the flag pole = victory
-    window._pfGoalX=_pfw?_pfw.goalX(T,L):(castleX-T*3); // trigger zone starts before the castle
-
-    // ================================================================
-    //  SKY + CLOUDS (shared across all zones)
-    // ================================================================
-    var sky=new THREE.Mesh(new THREE.PlaneGeometry(W+200,200),new THREE.MeshBasicMaterial({color:0x87CEEB,side:THREE.DoubleSide}));
-    sky.position.set(W/2,50,-D*3);raceGroup.add(sky);
-    // Cave background for Zone 2
-    var caveBg=new THREE.Mesh(new THREE.PlaneGeometry(65*T+20,60),new THREE.MeshBasicMaterial({color:0x111118,side:THREE.DoubleSide}));
-    caveBg.position.set(65*T+65*T/2,10,-D*2);raceGroup.add(caveBg);
-    // Clouds (more for sky zone)
-    for(var ci2=0;ci2<30;ci2++){
-        var cloud=new THREE.Group();
-        for(var ccp=0;ccp<3;ccp++){
-            var cb=new THREE.Mesh(new THREE.SphereGeometry(2+Math.random()*2,8,6),toon(0xFFFFFF));
-            cb.position.set(ccp*2.5-2.5,Math.random()*0.5,0);cloud.add(cb);
-        }
-        cloud.position.set(Math.random()*W,25+Math.random()*25,-D*2-Math.random()*10);
-        raceGroup.add(cloud);
-    }
-
-    // ================================================================
-    //  COINS (40 total redistributed across zones + cave bonus already added)
-    // ================================================================
-    // Zone 1: 15 coins
-    for(var c1i=0;c1i<15;c1i++){
-        var c1x=4+Math.random()*60*T;
-        var c1InGap=false;
-        for(var c1g=0;c1g<z1Gaps.length;c1g++){if(c1x/T>=z1Gaps[c1g][0]&&c1x/T<z1Gaps[c1g][1])c1InGap=true;}
-        if(c1InGap){c1i--;continue;}
-        var c1=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
-            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        c1.position.set(c1x,1.2+Math.random()*3,0);
-        raceGroup.add(c1);
-        cityCoins.push({mesh:c1,collected:false});
-    }
-    // Zone 2: 10 coins (+ crystals already added above)
-    for(var c2i=0;c2i<10;c2i++){
-        var c2x=65*T+4+Math.random()*60*T;
-        var c2InGap=false;
-        for(var c2g=0;c2g<z2Gaps.length;c2g++){if(c2x/T>=z2Gaps[c2g][0]&&c2x/T<z2Gaps[c2g][1])c2InGap=true;}
-        if(c2InGap){c2i--;continue;}
-        var c2=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
-            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        c2.position.set(c2x,1.2+Math.random()*2,0);
-        raceGroup.add(c2);
-        cityCoins.push({mesh:c2,collected:false});
-    }
-    // Zone 3: 15 coins floating near platforms
-    for(var c3i=0;c3i<15;c3i++){
-        var c3idx=Math.floor(Math.random()*skyPlats.length);
-        var c3p=skyPlats[c3idx];
-        var c3x=c3p[0]*T+Math.random()*(c3p[1]-c3p[0])*T;
-        var c3=(typeof _makeCinematicCoinMesh==='function')?_makeCinematicCoinMesh(0.94):
-            new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.08,12),toon(0xFFDD00,{emissive:0xFFAA00,emissiveIntensity:0.3}));
-        c3.position.set(c3x,c3p[2]+2+Math.random()*2,0);
-        raceGroup.add(c3);
-        cityCoins.push({mesh:c3,collected:false});
-    }
-}catch(e){console.error('_pfBuildLevel ERROR:',e);alert('Level build error: '+e.message);}}
-
-// ---- Moving / dynamic platform updates ----
-function _pfUpdateMoving(){try{
-    if(!_pfActive)return;
-    // Moving platforms
-    if(window._pfMovingPlatforms){
-        for(var i=0;i<window._pfMovingPlatforms.length;i++){
-            var mp=window._pfMovingPlatforms[i];
-            mp.phase+=mp.speed;
-            var _pfw=_pfWasm();
-            var newX=_pfw?_pfw.movingX(mp.baseX,mp.phase,mp.range):(mp.baseX+Math.sin(mp.phase)*mp.range);
-            mp.mesh.position.x=newX;
-            mp.collider.x=newX;
-        }
-    }
-    // Rotating platforms
-    if(window._pfRotatingPlatforms){
-        for(var ri=0;ri<window._pfRotatingPlatforms.length;ri++){
-            var rp=window._pfRotatingPlatforms[ri];
-            rp.angle+=rp.speed;
-            var _pfw2=_pfWasm();
-            var _rxy=_pfw2?_pfw2.rotatingXY(rp.centerX,rp.centerY,rp.radius,rp.angle):null;
-            var nx=_rxy?_rxy[0]:(rp.centerX+Math.cos(rp.angle)*rp.radius);
-            var ny=_rxy?_rxy[1]:(rp.centerY+Math.sin(rp.angle)*rp.radius*0.3);
-            rp.mesh.position.x=nx;
-            rp.mesh.position.y=ny;
-            rp.collider.x=nx;
-            rp.collider.h=ny+0.3;
-            rp.collider.y=ny-0.3;
-        }
-    }
-    // Crumbling platforms
-    if(window._pfCrumblePlatforms){
-        for(var j=window._pfCrumblePlatforms.length-1;j>=0;j--){
-            var cp=window._pfCrumblePlatforms[j];
-            if(cp.triggered){
-                cp.timer--;
-                cp.mesh.position.y-=0.01;
-                cp.mesh.rotation.z+=0.02;
-                if(cp.timer<=0){
-                    raceGroup.remove(cp.mesh);
-                    var idx=cityColliders.indexOf(cp.collider);
-                    if(idx!==-1)cityColliders.splice(idx,1);
-                    window._pfCrumblePlatforms.splice(j,1);
-                }
+    Trail.prototype.on=function(target,event,fn,capture){target.addEventListener(event,fn,capture);this.listeners.push(function(){target.removeEventListener(event,fn,capture);});};
+    Trail.prototype.init3D=function(){
+        var a=this.art;this.scene=new THREE.Scene();this.scene.background=new THREE.Color(0xc8e5da);this.scene.fog=new THREE.Fog(0xc8e5da,45,130);
+        this.camera=new THREE.OrthographicCamera(-18,18,12,-12,.1,200);this.camera.position.set(10,10,32);this.camera.lookAt(10,5,0);
+        this.renderer=new THREE.WebGLRenderer({canvas:this.root.querySelector('canvas'),antialias:true,alpha:false,powerPreference:'high-performance'});
+        this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.1;
+        this.scene.add(new THREE.HemisphereLight(0xfffcf1,0x668e94,1.7));var sun=new THREE.DirectionalLight(0xffefce,2);sun.position.set(-15,30,20);this.scene.add(sun);
+        this.platformMeshes=[];this.starMeshes=[];this.checkpoints=[];this.decor=[];
+        var tops=[0x89bf98,0xb9abd4,0xfaf5eb],bases=[0xc9af91,0x8198aa,0xc7dadd],self=this;
+        this.level.platforms.forEach(function(p){
+            var g=new THREE.Group(),w=p.x2-p.x1;g.position.set((p.x1+p.x2)/2,p.y,0);self.scene.add(g);
+            a.box(g,w,1.1,5.8,bases[p.zone],0,-.75,0);a.box(g,w,.4,6,tops[p.zone],0,-.2,0);
+            if(!p.moving){
+                a.soft(g,bases[p.zone],0,-1.6,-.4,w*.47,1.2,2.4);
+                // Flowers/crystals grow on the rear rim, away from the playable lane.
+                [-.3,.26].forEach(function(f){var fx=w*f;
+                    if(p.zone===1){var crystal=a.mesh(g,a.geometry('small-crystal',function(){return new THREE.OctahedronGeometry(1,0);}),0x85cbd5,fx,.6,-2);crystal.scale.set(.32,.85,.32);}
+                    else{a.box(g,.06,.6,.06,0x619b78,fx,.3,-2);for(var fi=0;fi<5;fi++){var angle=fi*Math.PI*2/5;a.soft(g,p.id%2?0xeaa9ba:0xf8dca2,fx+Math.cos(angle)*.19,.68+Math.sin(angle)*.19,-2,.14,.14,.08);}a.soft(g,0xffd176,fx,.68,-1.9,.12,.12,.08);}
+                });
             }
+            if(p.zone===2){[-.32,0,.32].forEach(function(k){a.soft(g,0xfffcf3,w*k,-1.2,-1,2.6,1.3,2.6);});}
+            if(p.moving)a.box(g,w*.6,.07,.24,0xf5cb7c,0,.05,2.1);
+            self.platformMeshes.push(g);
+            if(p.checkpoint){var marker=new THREE.Group();marker.position.set(p.x1+2,p.y,-1.5);self.scene.add(marker);a.box(marker,.16,2.3,.16,0xd9c5a7,0,1.15,0);var lamp=a.soft(marker,0xffd784,0,2.5,0,.35,.48,.35);self.checkpoints.push({id:p.id,mesh:lamp});}
+        });
+        var starShape=new THREE.Shape();for(var i=0;i<10;i++){var angle=i*Math.PI/5+Math.PI/2,r=i%2?.2:.43;if(i===0)starShape.moveTo(Math.cos(angle)*r,Math.sin(angle)*r);else starShape.lineTo(Math.cos(angle)*r,Math.sin(angle)*r);}starShape.closePath();
+        var starGeo=a.geometry('star',function(){return new THREE.ExtrudeGeometry(starShape,{depth:.12,bevelEnabled:true,bevelThickness:.035,bevelSize:.025,bevelSegments:1,steps:1});});
+        this.level.stars.forEach(function(c){self.starMeshes.push(a.mesh(self.scene,starGeo,0xffd377,c.x,c.y,0));});
+        // Background silhouettes do not cover the next landing. No expensive
+        // water or postprocessing pass, and only nearby scenery is drawn.
+        for(var d=0;d<45;d++){
+            var x=d*8-8,zone=x<84?0:x<150?1:2,g=new THREE.Group();g.position.set(x,zone===2?5:0,-10-(d%3)*4);this.scene.add(g);this.decor.push(g);
+            if(zone===0){a.soft(g,0x9fc29d,0,-1.4,0,5,2,4);a.box(g,.6,4,.6,0xbb9e83,0,1,0);a.soft(g,d%2?0x81b99a:0xa7cfa8,0,3.5+d%3*.5,0,2.6,2.5+d%3*.4,2);a.soft(g,0xc4d9b3,1.3,3.4,.5,1.8,1.8,1.7);}
+            else if(zone===1){var crystal=a.mesh(g,a.geometry('crystal',function(){return new THREE.OctahedronGeometry(1,0);}),d%2?0x96d4dc:0xc3afd6,0,3,0);crystal.scale.set(2,4+d%3,2);a.soft(g,0x849daa,0,0,0,4,1,3);}
+            else{a.soft(g,0xfff9ed,0,d%4*2,0,3.5,1.5,2);a.soft(g,0xeee8ef,2,1+d%4*2,0,2,1.8,1.5);}
         }
-    }
-    // Falling rocks
-    if(window._pfFallingRocks&&playerEgg){
-        for(var fri=window._pfFallingRocks.length-1;fri>=0;fri--){
-            var fr=window._pfFallingRocks[fri];
-            if(!fr.triggered&&DANBO_WASM.absDeltaWithin(playerEgg.mesh.position.x,fr.triggerX,_pfTile*2)){
-                fr.triggered=true;fr.falling=true;fr.vy=0;
-            }
-            if(fr.falling){
-                var _pfw3=_pfWasm();
-                var _frs=_pfw3?_pfw3.fallingRockStep(fr.mesh.position.y,fr.vy,0.008,-5):null;
-                if(_frs){fr.mesh.position.y=_frs[0];fr.vy=_frs[1];}
-                else {fr.vy-=0.008;fr.mesh.position.y+=fr.vy;}
-                fr.mesh.rotation.x+=0.03;fr.mesh.rotation.z+=0.02;
-                if(fr.mesh.position.y<-5){
-                    raceGroup.remove(fr.mesh);
-                    window._pfFallingRocks.splice(fri,1);
-                }
-            }
+        // Distant, low-contrast silhouettes give the floating route a horizon.
+        for(var hi=0;hi<15;hi++){var hill=a.soft(this.scene,hi%2?0xb1cdc4:0xc5d9cb,hi*26,-2,-38,18,7+hi%3*2,8);this.decor.push(hill);}
+        // The finish is an OPEN flower arch behind the lane, never a solid box.
+        var goal=new THREE.Group();goal.position.set(this.level.goal.x,this.level.goal.y,-1.8);this.scene.add(goal);
+        a.mesh(goal,a.geometry('arch',function(){return new THREE.TorusGeometry(3,.23,8,40,Math.PI);}),0xaad2c4,0,1.5,0);
+        [-1,1].forEach(function(side){a.box(goal,.45,1.5,.45,0xaad2c4,side*3,.75,0);for(var k=0;k<5;k++){var ang=k*Math.PI*2/5;a.soft(goal,0xefb2bd,side*3+Math.cos(ang)*.35,1.8+Math.sin(ang)*.35,.2,.25,.25,.12);}a.soft(goal,0xffd377,side*3,1.8,.38,.18,.18,.1);});
+        var ch=this.ctx.character,style=ch.style||{};
+        this.hero=createEggMesh(style.color||0xf5f5f0,style.accent||0xf49aaa,ch.key||'egg','cinematic',false,false);this.hero.rotation.y=.6;this.scene.add(this.hero);
+        // Star/crystal motifs use a main-world geometry cache. Clone only those
+        // shared buffers before giving this independent renderer ownership.
+        if(typeof _starShapeGeometryCache!=='undefined'){var shared=new Set(Object.values(_starShapeGeometryCache));this.hero.traverse(function(o){if(o.geometry&&shared.has(o.geometry))o.geometry=o.geometry.clone();});}
+        this.shadow=a.mesh(this.scene,a.geometry('shadow',function(){return new THREE.CircleGeometry(.8,24);}),0x88ada2,4,.015,0);this.shadow.rotation.x=-Math.PI/2;this.shadow.scale.y=.7;
+        this.resize();this.draw(0);
+    };
+    Trail.prototype.resize=function(){
+        var w=this.root.clientWidth||innerWidth,h=this.root.clientHeight||innerHeight,budget=window.DANBO_VISUAL_QUALITY&&DANBO_VISUAL_QUALITY.low?1000000:1800000;
+        this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,2,Math.sqrt(budget/(w*h))));this.renderer.setSize(w,h,false);
+        var halfW=Math.max(9,Math.min(23,w/h*12)),halfH=halfW/(w/h);this.camera.left=-halfW;this.camera.right=halfW;this.camera.top=halfH;this.camera.bottom=-halfH;this.camera.updateProjectionMatrix();
+    };
+    Trail.prototype.clearInput=function(){this.keys={};this.pointers={};if(this.touch)this.touch.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-pressed','false');});};
+    Trail.prototype.bind=function(){
+        var self=this;
+        this.on(window,'resize',function(){self.resize();});
+        this.on(window,'blur',function(){self.clearInput();if(self.state==='playing')self.showPanel('pause');});
+        this.on(window,'gamepaddisconnected',function(){self.clearInput();if(self.state==='playing')self.showPanel('pause');});
+        this.on(document,'visibilitychange',function(){if(document.hidden){self.clearInput();if(self.state==='playing')self.showPanel('pause');}self.last=performance.now();self.acc=0;});
+        this.on(window,'keydown',function(e){if(self.state!=='playing')return;var code=e.code;if(['KeyA','KeyD','ArrowLeft','ArrowRight','Space','ArrowUp','KeyW','Escape','KeyP'].indexOf(code)<0)return;e.preventDefault();e.stopImmediatePropagation();self.keys[code]=true;if(!e.repeat&&(code==='Escape'||code==='KeyP'))self.showPanel('pause');},true);
+        this.on(window,'keyup',function(e){delete self.keys[e.code];},true);
+        this.on(this.root,'click',function(e){var b=e.target.closest('[data-action]');if(!b)return;var action=b.dataset.action;
+            if(action==='start'||action==='again'){self.sim=Rules.create();self.play();}
+            else if(action==='resume')self.play();else if(action==='retry'){Rules.respawn(self.sim,self.level);self.play();}
+            else if(action==='pause')self.showPanel('pause');else if(action==='exit')self.ctx.api.finish({status:self.sim.finished?'finished':'quit',stars:self.sim.stars.length});
+        });
+        this.touch.querySelectorAll('button').forEach(function(b){
+            self.on(b,'pointerdown',function(e){e.preventDefault();if(self.pointers[b.dataset.control]!==undefined)return;self.pointers[b.dataset.control]=e.pointerId;b.setPointerCapture(e.pointerId);b.setAttribute('aria-pressed','true');});
+            ['pointerup','pointercancel','lostpointercapture'].forEach(function(event){self.on(b,event,function(e){if(self.pointers[b.dataset.control]===e.pointerId){delete self.pointers[b.dataset.control];b.setAttribute('aria-pressed','false');}});});
+        });
+    };
+    Trail.prototype.tone=function(f){
+        if(window.sfxEnabled===false)return;var Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
+        try{if(!this.audio)this.audio=new Audio();var ac=this.audio;if(ac.state==='suspended')ac.resume().catch(function(){});var o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;o.type='sine';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.4,t+.1);g.gain.setValueAtTime(.045,t);g.gain.exponentialRampToValueAtTime(.001,t+.17);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.18);o.onended=function(){o.disconnect();g.disconnect();};}catch(e){}
+    };
+    Trail.prototype.play=function(){if(window.DANBO_MENU_INPUT&&DANBO_MENU_INPUT.leaveHud)DANBO_MENU_INPUT.leaveHud();this.state='playing';this.panel.hidden=true;this.hud.hidden=false;this.touch.hidden=!this.touchMode;this.clearInput();this.acc=0;this.last=performance.now();this.instructions.textContent=this.touchMode?'':this.copy.help;this.tone(520);};
+    Trail.prototype.showPanel=function(state){
+        this.state=state;this.clearInput();this.panel.hidden=false;this.hud.hidden=true;this.touch.hidden=true;this.instructions.textContent='';this.notice.textContent='';
+        var c=this.copy,heading=state==='title'?c.title:state==='pause'?c.pause:c.complete;
+        var body=state==='title'?c.sub:state==='pause'?c.ready:'★ '+this.sim.stars.length+' / '+this.level.stars.length+' · '+c.time+' '+(this.sim.ticks/60).toFixed(1)+'s';
+        this.panel.innerHTML='<h1>'+heading+'</h1><p>'+body+'</p>'+(state==='title'?'<p>'+(this.touchMode?c.touch:c.help)+'</p>':'')+
+            '<button class="pf-primary" data-action="'+(state==='title'?'start':state==='pause'?'resume':'again')+'">'+(state==='title'?c.start:state==='pause'?c.resume:c.again)+'</button>'+
+            '<footer>'+(state==='pause'?'<button data-action="retry">'+c.retry+'</button>':'')+'<button data-action="exit">'+c.exit+'</button></footer>';
+        this.panel.setAttribute('aria-label',heading);
+        if(state==='title'){var best=this.ctx.storage.get('best-v2',null);if(best&&Number.isFinite(best.stars)&&Number.isFinite(best.ticks)){var record=document.createElement('p');record.textContent=c.best+' · ★ '+best.stars+' / '+this.level.stars.length+' · '+(best.ticks/60).toFixed(1)+'s';this.panel.appendChild(record);}}
+        if(state==='result'){var old=this.ctx.storage.get('best-v2',null),record={stars:this.sim.stars.length,ticks:this.sim.ticks};if(!old||record.stars>old.stars||record.stars===old.stars&&record.ticks<old.ticks)this.ctx.storage.set('best-v2',record);}
+    };
+    Trail.prototype.advance=function(dt){
+        if(this.state!=='playing')return;this.acc+=Math.min(.1,Math.max(0,dt));
+        while(this.acc+1e-9>=Rules.DT&&this.state==='playing'){
+            var input={move:(this.keys.KeyD||this.keys.ArrowRight||this.pointers.right!==undefined?1:0)-(this.keys.KeyA||this.keys.ArrowLeft||this.pointers.left!==undefined?1:0),jump:!!(this.keys.Space||this.keys.KeyW||this.keys.ArrowUp||this.pointers.jump!==undefined)};
+            var stars=this.sim.stars.length,grounded=this.sim.onGround;Rules.step(this.sim,input,this.level);this.acc-=Rules.DT;
+            if(this.sim.stars.length>stars)this.tone(880);else if(grounded&&this.sim.vy>0)this.tone(400);
+            if(this.sim.finished){this.tone(1320);this.showPanel('result');}
         }
-    }
-    // Patrol enemies
-    for(var pi=0;pi<allEggs.length;pi++){
-        var pe=allEggs[pi];
-        if(!pe._patrolBaseX)continue;
-        pe._patrolPhase+=pe._patrolSpeed;
-        pe.mesh.position.x=pe._patrolBaseX+Math.sin(pe._patrolPhase)*pe._patrolRange;
-    }
-    // Animate key spin
-    if(window._pfKeyMesh&&window._pfKeyMesh.parent){
-        window._pfKeyMesh.rotation.y+=0.03;
-        window._pfKeyMesh.position.y=3+Math.sin(Date.now()*0.003)*0.5;
-    }
-}catch(e){console.error('_pfUpdateMoving ERROR:',e);}}
-
-// ---- Side-view camera ----
-function _pfUpdateCamera(){try{
-    if(!_pfActive||!playerEgg)return;
-    // Update dynamic elements
-    _pfUpdateMoving();
-    // Lock Z axis — side-scrolling only (left/right + jump)
-    for(var i=0;i<allEggs.length;i++){
-        if(!allEggs[i]||!allEggs[i].mesh)continue;
-        allEggs[i].mesh.position.z=0;
-        allEggs[i].vz=0;
-    }
-    // Crumbling platform detection
-    if(window._pfCrumblePlatforms&&playerEgg&&playerEgg.onGround){
-        for(var ci=0;ci<window._pfCrumblePlatforms.length;ci++){
-            var cp=window._pfCrumblePlatforms[ci];
-            var _pfw4=_pfWasm();
-            if(!cp.triggered&&(_pfw4?_pfw4.crumbleTrigger(playerEgg.mesh.position.x,playerEgg.mesh.position.y,cp.collider.x,(cp.collider.h||cp.collider.y||0),cp.collider.hw):(DANBO_WASM.absDeltaWithin(playerEgg.mesh.position.x,cp.collider.x,cp.collider.hw+1)&&
-               DANBO_WASM.absDeltaWithin(playerEgg.mesh.position.y,(cp.collider.h||cp.collider.y||0),2)))){
-                cp.triggered=true;cp.timer=120;
-            }
-        }
-    }
-    // Mushroom bounce detection
-    if(window._pfMushroomColliders&&playerEgg&&playerEgg.vy<=0){
-        for(var mi=0;mi<window._pfMushroomColliders.length;mi++){
-            var mc=window._pfMushroomColliders[mi];
-            var _pfw5=_pfWasm();
-            if(_pfw5?_pfw5.mushroomBounce(playerEgg.mesh.position.x,playerEgg.mesh.position.y,playerEgg.vy,mc.x,mc.h,mc.hw):(DANBO_WASM.absDeltaWithin(playerEgg.mesh.position.x,mc.x,mc.hw+0.5)&&
-               playerEgg.mesh.position.y<=mc.h+0.5&&playerEgg.mesh.position.y>=mc.h-1.5)){
-                playerEgg.vy=0.4;
-                playerEgg.mesh.position.y=mc.h+0.5;
-                playerEgg.squash=0.6;
-            }
-        }
-    }
-    // Lava pool check (instant respawn)
-    if(window._pfLavaColliders&&playerEgg){
-        for(var li=0;li<window._pfLavaColliders.length;li++){
-            var lc=window._pfLavaColliders[li];
-            if(DANBO_WASM.aabb2D(playerEgg.mesh.position.x,playerEgg.mesh.position.z,lc.x,lc.z,lc.hw,lc.hd,0)&&
-               playerEgg.mesh.position.y<lc.y+1){
-                playerEgg.mesh.position.set(lc.x-lc.hw*3,5,0);
-                playerEgg.vx=0;playerEgg.vy=0;playerEgg.vz=0;
-            }
-        }
-    }
-    // Wind gust zones
-    if(window._pfWindZones&&playerEgg){
-        for(var wi=0;wi<window._pfWindZones.length;wi++){
-            var wz=window._pfWindZones[wi];
-            var _pfw6=_pfWasm();
-            var _wf=_pfw6?_pfw6.windForce(playerEgg.mesh.position.x,wz.x1,wz.x2,wz.force):((playerEgg.mesh.position.x>=wz.x1&&playerEgg.mesh.position.x<=wz.x2)?wz.force:0);
-            if(_wf)playerEgg.vx+=_wf;
-        }
-    }
-    // Key collection
-    if(window._pfKeyMesh&&!window._pfHasKey&&playerEgg){
-        if(DANBO_WASM.within3D(playerEgg.mesh.position.x,playerEgg.mesh.position.y,playerEgg.mesh.position.z,window._pfKeyMesh.position.x,window._pfKeyMesh.position.y,window._pfKeyMesh.position.z,3)){
-            window._pfHasKey=true;
-            raceGroup.remove(window._pfKeyMesh);
-            window._pfKeyMesh=null;
-        }
-    }
-    // Door removal when key collected
-    if(window._pfHasKey&&window._pfDoorCollider){
-        var didx=cityColliders.indexOf(window._pfDoorCollider);
-        if(didx!==-1)cityColliders.splice(didx,1);
-        if(window._pfDoorMesh){raceGroup.remove(window._pfDoorMesh);window._pfDoorMesh=null;}
-        if(window._pfDoorLockIcon){raceGroup.remove(window._pfDoorLockIcon);window._pfDoorLockIcon=null;}
-        window._pfDoorCollider=null;
-    }
-    // Side camera
-    var px=playerEgg.mesh.position.x;
-    var py=Math.max(playerEgg.mesh.position.y+8,10);
-    camera.position.x+=(px-camera.position.x)*0.08;
-    camera.position.y+=(py-camera.position.y)*0.08;
-    camera.position.z=45;
-    camera.lookAt(new THREE.Vector3(camera.position.x,camera.position.y-4,0));
-    // Goal check — reach the flag pole to win!
-    var _pfw7=_pfWasm();
-    if(_pfw7?_pfw7.goalReached(playerEgg.mesh.position.x,window._pfGoalX,window._pfGoalReached):(window._pfGoalX&&playerEgg.mesh.position.x>=window._pfGoalX&&!window._pfGoalReached)){
-        window._pfGoalReached=true;
-        // Victory! Show result screen
-        playerFinished=true;
-        playerEgg.finishOrder=0;
-        finishedEggs=[playerEgg];
-        gameState='raceResult';
-        document.getElementById('result-emoji').textContent='🎉';
-        document.getElementById('result-title').textContent=L('resultWin')?I18N.resultWin(1):'🏆 Victory!';
-        document.getElementById('result-sub').textContent='⭐ '+coins+' coins collected!';
-        document.getElementById('result-screen').classList.add('active');
-        document.getElementById('race-hud').classList.add('hidden');
-        // Victory sound
-        if(sfxEnabled){var _vCtx=ensureAudio();if(_vCtx){var _vt=_vCtx.currentTime;
-            [523,659,784,988,1318].forEach(function(f,i){
-                var o=_vCtx.createOscillator();var g=_vCtx.createGain();o.type='sawtooth';o.frequency.value=f;
-                g.gain.setValueAtTime(0.12,_vt+i*0.08);g.gain.exponentialRampToValueAtTime(0.001,_vt+i*0.08+0.2);
-                o.connect(g);g.connect(_vCtx.destination);o.start(_vt+i*0.08);o.stop(_vt+i*0.08+0.2);
-            });
-        }}
-    }
-}catch(e){console.error('_pfUpdateCamera ERROR:',e);}}
-
-// ---- End platformer ----
-function _pfEndGame(){
-    _pfActive=false;
-    window._pfGoalReached=false;
-    window._pfGoalX=null;
-    currentCityStyle=_pfSavedCity>=0?_pfSavedCity:0;
-    if(typeof goBackToCity==='function')goBackToCity();
-}
+    };
+    Trail.prototype.draw=function(dt){
+        var s=this.sim,time=s.ticks/60,zone=s.x<84?0:s.x<150?1:2,self=this;
+        this.hero.position.set(s.x,s.y,0);this.hero.rotation.y=s.vx<-.1?-.65:.65;this.hero.rotation.z=s.onGround?Math.sin(time*14)*Math.min(.055,Math.abs(s.vx)*.008):-.08*s.vx/7;
+        var feet=this.hero.userData.feet;if(feet)feet.forEach(function(f,i){f.position.z=.06+(s.onGround?Math.sin(time*14+i*Math.PI)*Math.min(.14,Math.abs(s.vx)*.02):0);});
+        if(typeof _animateCuteCharacterDetails==='function')_animateCuteCharacterDetails(this.hero,time*1000);
+        this.platformMeshes.forEach(function(g,i){var p=self.level.platforms[i],b=Rules.pose(p,time);g.position.x=(b.x1+b.x2)/2;g.visible=Math.abs(g.position.x-s.x)<60;});
+        this.starMeshes.forEach(function(m,i){var c=self.level.stars[i],p=self.level.platforms[c.platform];m.visible=s.stars.indexOf(c.id)<0&&Math.abs(c.x-s.x)<50;m.position.x=c.x+Rules.pose(p,time).x1-p.x1;m.position.y=c.y+Math.sin(time*3+i)*.12;m.rotation.y=time*.8;});
+        this.decor.forEach(function(g){g.visible=Math.abs(g.position.x-s.x)<65;});
+        this.checkpoints.forEach(function(c){var f=c.id<=s.checkpoint?1.15:1;c.mesh.scale.set(.35*f,.48*f,.35*f);});
+        this.shadow.visible=s.onGround;this.shadow.position.set(s.x,s.y+.025,0);
+        var targetX=s.x+4,targetY=Math.max(4,s.y+3),blend=dt>0?1-Math.exp(-dt*6):1;
+        this.camera.position.x+=(targetX-this.camera.position.x)*blend;this.camera.position.y+=(targetY+5-this.camera.position.y)*blend;this.camera.lookAt(this.camera.position.x,this.camera.position.y-5,0);
+        var colors=[0xc8e5da,0xc6d2e3,0xe0e6ec];this.scene.background.setHex(colors[zone]);this.scene.fog.color.copy(this.scene.background);
+        this.root.querySelector('[data-zone]').textContent=this.copy.zones[zone];this.root.querySelector('progress').value=s.x;this.root.querySelector('[data-score]').textContent='★ '+s.stars.length+' / '+this.level.stars.length;
+        if(this.state==='playing')this.notice.textContent=s.noticeTicks>0?(s.notice==='checkpoint'?this.copy.checkpoint:this.copy.respawn):'';
+        this.renderer.render(this.scene,this.camera);
+    };
+    Trail.prototype.loop=function(t){if(!this.running)return;var dt=Math.min(.1,Math.max(0,(t-this.last)/1000));this.last=t;if(!document.hidden){this.advance(dt);this.draw(dt);}var self=this;this.raf=requestAnimationFrame(function(now){self.loop(now);});};
+    Trail.prototype.dispose=function(){if(!this.running)return;this.running=false;cancelAnimationFrame(this.raf);this.listeners.forEach(function(off){off();});this.listeners=[];this.clearInput();if(this.audio)this.audio.close().catch(function(){});if(this.hero)disposeTransientObject3D(this.hero);this.art.dispose();if(this.renderer){this.renderer.dispose();if(this.renderer.forceContextLoss)this.renderer.forceContextLoss();}this.root.remove();};
+    window.DanboPlatformer={start:function(ctx){return new Trail(ctx);},copy:COPY};
+})();

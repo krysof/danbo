@@ -43,6 +43,32 @@ function getFloorY(z,x){
 
 const FLOOR_THEMES=RACE_CONFIG.floorThemes;
 
+// A fall must return to a SOLID approach, never getFloorY()'s -100 pit sentinel.
+function raceSafeRespawn(gz){
+    var z=Math.max(1,Math.min(trackLength-4,gz-5)),seg=getSegAt(z);
+    if(seg&&seg.type==='platforms')z=Math.max(1,seg.startZ-3);
+    var y=getFloorY(z);
+    return {x:0,y:Number.isFinite(y)&&y>-20?y+2:2,z:-z};
+}
+
+function _polishRaceArt(){
+    var a=DanboMinigameArt.create(),retiredMaterials=new Set(),retiredGeometry=new Set(),converted=new Map();
+    raceGroup.traverse(function(o){
+        if(!o.isMesh)return;
+        var old=o.material;
+        // Preserve authored rust, special surfaces, transparent warnings and labels.
+        if(old&&old.isMeshToonMaterial&&!old.map&&(!old.transparent||old.opacity>=.65)&&!(old.userData&&old.userData.danboSharedAsset)){
+            if(!converted.has(old))converted.set(old,a.material(DanboMinigameArt.pastel(old.color.getHex())));
+            o.material=converted.get(old);retiredMaterials.add(old);
+        }
+        var g=o.geometry,p=g&&g.parameters;
+        if(g&&g.type==='BoxGeometry'&&p&&Math.max(p.width,p.height,p.depth)<12){o.geometry=a.rounded(p.width,p.height,p.depth);retiredGeometry.add(g);}
+        else if(g&&g.type==='ConeGeometry'&&p&&p.radialSegments<8){o.geometry=a.geometry('cone:'+p.radius+':'+p.height,function(){return new THREE.ConeGeometry(p.radius,p.height,16);});retiredGeometry.add(g);}
+    });
+    retiredMaterials.forEach(function(m){m.dispose();});retiredGeometry.forEach(function(g){g.dispose();});
+    // The meshes now own these resources; clearRace disposes them as before.
+}
+
 function buildRaceTrack(ri){
     clearRace();
     const segs=[]; let cz=0, curY=0;
@@ -461,7 +487,8 @@ function buildRaceTrack(ri){
 
 
     trackLength=cz; trackSegments=segs;
-    const sm=1+ri*0.2;
+    // Track number selects a theme, not an unbounded difficulty multiplier.
+    const sm=1+Math.min(ri,4)*0.10;
 
     for(let si=0;si<segs.length;si++){
         const seg=segs[si], len=seg.endZ-seg.startZ, hw=seg.width;
@@ -490,7 +517,7 @@ function buildRaceTrack(ri){
                 rail.rotation.x=Math.PI/2; rail.position.set(side*hw,seg.floorY+0.6,-midZ); raceGroup.add(rail);
             });
         }
-        buildObs(seg,ri,sm);
+        buildObs(seg,Math.min(ri,4),sm);
     }
     // Finish
     for(let i=0;i<10;i++){
@@ -499,7 +526,7 @@ function buildRaceTrack(ri){
     }
     // Finish arch gate — large golden arch with glow
     const arch=new THREE.Mesh(new THREE.TorusGeometry(6,0.5,8,24,Math.PI),toon(0xFFD700,{emissive:0xFFAA00,emissiveIntensity:0.4}));
-    arch.position.set(0,0,-trackLength); arch.rotation.y=Math.PI/2; raceGroup.add(arch);
+    arch.position.set(0,0,-trackLength); raceGroup.add(arch);
     // Inner glow ring
     var archGlow=new THREE.Mesh(new THREE.TorusGeometry(6,0.2,6,24,Math.PI),new THREE.MeshBasicMaterial({color:0xFFDD44,transparent:true,opacity:0.3}));
     archGlow.position.copy(arch.position);archGlow.rotation.copy(arch.rotation);raceGroup.add(archGlow);
@@ -539,11 +566,13 @@ function buildRaceTrack(ri){
             var _pmT2=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),toon(0xCCCCCC));
             _pmT2.position.set(0.35,0,0); _piG.add(_pmT2);
         }
+        if(getSegAt(_piZ).type==='platforms')_piZ=Math.max(2,getSegAt(_piZ).startZ-3);
         var _piFloorY=getFloorY(_piZ)||0;
-        _piG.position.set((Math.sin(_pii*2.3))*3,_piFloorY+3,-_piZ);
+        _piG.position.set((Math.sin(_pii*2.3))*3,_piFloorY+1.2,-_piZ);
         raceGroup.add(_piG);
-        raceCoins.push({mesh:_piG,z:_piZ,x:(Math.sin(_pii*2.3))*3,fy:_piFloorY+3,collected:false,bobPhase:_pii*1.1,type:_piType});
+        raceCoins.push({mesh:_piG,z:_piZ,x:(Math.sin(_pii*2.3))*3,fy:_piFloorY,collected:false,bobPhase:_pii*1.1,type:_piType});
     }
+    _polishRaceArt();
     return segs;
 }
 
@@ -602,10 +631,10 @@ function buildObs(seg,ri,sm){
     }
     if(seg.type==='platforms') for(let i=0;i<seg.count;i++){
         const oz=seg.startZ+(i+0.5)*len/seg.count;
-        const pw=5+Math.random()*3, pd=3.5;
+        const pw=6.5, pd=Math.max(3.5,len/seg.count-.6);
         const pm=new THREE.Mesh(new THREE.BoxGeometry(pw,0.5,pd),toon(0x44AADD));
         pm.position.set(0,fy-0.25,-oz); pm.castShadow=true; pm.receiveShadow=true; raceGroup.add(pm);
-        const moveRange=hw*0.35;
+        const moveRange=hw*0.18;
         pm.position.x=(i%2===0?-1:1)*moveRange*0.5;
         obstacleObjects.push({type:'platform',mesh:pm,data:{z:oz,fy,width:pw,depth:pd,moveRange,speed:(0.008+ri*0.003)*sm*(i%2===0?1:-1),phase:i*Math.PI/seg.count}});
     }
@@ -725,7 +754,8 @@ function buildObs(seg,ri,sm){
         qMark2.position.set(0,0,-1.01); qg.add(qMark2);
         qg.position.set(qox,fy+qbH,-qoz);
         raceGroup.add(qg);
-        obstacleObjects.push({type:'questionBlock',mesh:qg,data:{z:qoz,fy:fy,x:qox,baseY:fy+qbH,used:false,_bouncing:false,_bounceT:0,_coinMeshes:[]}});
+        var rewardBlock={type:'questionBlock',mesh:qg,data:{z:qoz,fy:fy,x:qox,baseY:fy+qbH,used:false,_bouncing:false,_bounceT:0,_coinMeshes:[]}};
+        obstacleObjects.push(rewardBlock);
         // Place a power-up item on top of every other ? block
         if(qi%2===0){
             var _itemTypes=['star','shield','magnet'];
@@ -750,9 +780,10 @@ function buildObs(seg,ri,sm){
                 var _magTip2=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),toon(0xCCCCCC));
                 _magTip2.position.set(0.35,0,0); _itemG.add(_magTip2);
             }
-            _itemG.position.set(qox,fy+qbH+1.8,-qoz);
+            // Released below the dispenser after a hit, within normal jump reach.
+            _itemG.position.set(qox,fy+1.2,-qoz);_itemG.visible=false;
             raceGroup.add(_itemG);
-            raceCoins.push({mesh:_itemG,z:qoz,x:qox,fy:fy+qbH+1.8,collected:false,bobPhase:qi*0.7,type:_itemType});
+            raceCoins.push({mesh:_itemG,z:qoz,x:qox,fy:fy,collected:false,bobPhase:qi*0.7,type:_itemType,sourceBlock:rewardBlock});
         }
     }
 }

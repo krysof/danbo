@@ -4,7 +4,7 @@
 
 var RACE_CONFIG={
     trackWidth:10,
-    floorThemes:[[0x6EC850,0x5DB83A],[0xE8C170,0xD4A84B],[0x88BBEE,0x6699CC],[0xDD7799,0xCC5577]],
+    floorThemes:[[0xa9cbb0,0x9bbfa5],[0xe7d4af,0xdcc69e],[0xb8d5df,0xa9c6d6],[0xe3bdca,0xd5adbe]],
     coinSpacing:4,
     raceEggCount:12,
     finishLineWidth:12

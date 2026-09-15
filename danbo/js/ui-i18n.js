@@ -52,6 +52,9 @@
 来我的房间一起玩¦來我的房間一起玩¦私のルームで一緒に遊ぼう¦Come play in my room
 收起¦收起¦閉じる¦Collapse
 继续游戏¦繼續遊戲¦ゲームに戻る¦Continue playing
+比赛已暂停¦比賽已暫停¦レースを一時停止しました¦Race paused
+结束本次挑战¦結束本次挑戰¦今回の挑戦を終了¦End this run
+避开车辆，收集燃料；弯道提前减速。¦避開車輛，收集燃料；彎道提前減速。¦車をよけて燃料を集めよう。カーブの手前で減速！¦Avoid traffic, collect fuel and brake before bends.
 多人挑战¦多人挑戰¦みんなでチャレンジ¦Co-op challenge
 保存与接力¦儲存與接力¦セーブ・引き継ぎ¦Save and transfer
 奖励：初旅星环¦獎勵：初旅星環¦報酬：はじまりの星環¦Reward: First Journey Halo

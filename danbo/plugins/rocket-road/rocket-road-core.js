@@ -192,7 +192,7 @@
         "@media(min-width:560px) and (max-height:480px){.rr-panel:has(.rr-global-list){grid-template-columns:1fr 1fr;width:min(96%,680px);gap:5px;padding:10px}.rr-panel:has(.rr-global-list)>.rr-title{font-size:18px}.rr-panel:has(.rr-global-list)>.rr-board-tabs{grid-column:auto}.rr-panel:has(.rr-global-list)>.rr-global-list{grid-column:1;grid-row:4/7;min-height:124px}.rr-panel:has(.rr-global-list)>.rr-my-rank{grid-column:2;grid-row:4}.rr-panel:has(.rr-global-list)>.rr-page-nav:not(.rr-stage-nav){grid-column:2;grid-row:5}.rr-panel:has(.rr-global-list)>[data-action=board-refresh]{grid-column:1;grid-row:7}.rr-panel:has(.rr-global-list)>[data-action=title]{grid-column:2;grid-row:7}.rr-board-tabs button{min-height:30px;padding:5px}.rr-global-list>div{min-height:22px}.rr-global-list strong small{display:inline;margin-left:5px}.rr-panel:has(.rr-global-list)>.rr-small:last-child{grid-column:2;grid-row:6;align-self:center}}"+
         "@media(max-width:559px) and (max-height:560px){.rr-panel:has(.rr-global-list){padding:10px;gap:5px;width:96%}.rr-panel:has(.rr-global-list)>.rr-title{font-size:18px}.rr-panel:has(.rr-global-list)>.rr-board-tabs{grid-column:auto}.rr-panel:has(.rr-global-list) .rr-menu-btn{min-height:32px;padding:5px;font-size:11px}.rr-panel:has(.rr-global-list)>.rr-global-list{min-height:124px}.rr-panel:has(.rr-global-list) .rr-page-nav{gap:8px}.rr-board-tabs button{padding:4px;font-size:10px}}"+
         "@media(prefers-reduced-motion:reduce){.rr-menu-btn{transition:none}}"+
-        "</style>"+UI_HTML("<canvas></canvas><div class=\"rr-hud\"><div class=\"rr-dashboard\"><div class=\"rr-stat\"><span class=\"rr-label\">名次</span><b class=\"rr-value\" data-rank>40</b></div><div class=\"rr-stat\"><span class=\"rr-label\">用时</span><b class=\"rr-value\" data-time>0′00</b></div><div class=\"rr-stat\"><span class=\"rr-label\">超车</span><b class=\"rr-value\" data-cars>0</b></div><div class=\"rr-stat rr-fuel-stat\"><span class=\"rr-label\">油量</span><b class=\"rr-value\" data-fuel-value>100%</b><div class=\"rr-meter fuel\"><i data-fuel></i></div></div></div><div class=\"rr-top-track\"><em data-progress-line></em></div><button class=\"rr-top-exit\" data-action=\"quit-run\" aria-label=\"退出\">×</button></div><div class=\"rr-panel\"></div><div class=\"rr-stage-banner\"></div><div class=\"rr-countdown\"></div><div class=\"rr-toast\" role=\"status\" aria-live=\"polite\"></div><div class=\"rr-touch\"><div class=\"rr-steer-pad\" data-steer-pad role=\"group\" aria-label=\"方向\"><div class=\"rr-steer-knob\">↔</div></div><button class=\"rr-pedal rr-brake\" data-touch=\"brake\">刹车</button><button class=\"rr-pedal rr-throttle\" data-touch=\"boost\">油门</button></div>");
+        "</style>"+UI_HTML("<canvas></canvas><div class=\"rr-hud\"><div class=\"rr-dashboard\"><div class=\"rr-stat\"><span class=\"rr-label\">名次</span><b class=\"rr-value\" data-rank>40</b></div><div class=\"rr-stat\"><span class=\"rr-label\">用时</span><b class=\"rr-value\" data-time>0′00</b></div><div class=\"rr-stat\"><span class=\"rr-label\">超车</span><b class=\"rr-value\" data-cars>0</b></div><div class=\"rr-stat rr-fuel-stat\"><span class=\"rr-label\">油量</span><b class=\"rr-value\" data-fuel-value>100%</b><div class=\"rr-meter fuel\"><i data-fuel></i></div></div></div><div class=\"rr-top-track\"><em data-progress-line></em></div><button class=\"rr-top-exit\" data-action=\"quit-run\" aria-label=\"比赛已暂停\">Ⅱ</button></div><div class=\"rr-panel\"></div><div class=\"rr-stage-banner\"></div><div class=\"rr-countdown\"></div><div class=\"rr-toast\" role=\"status\" aria-live=\"polite\"></div><div class=\"rr-touch\"><div class=\"rr-steer-pad\" data-steer-pad role=\"group\" aria-label=\"方向\"><div class=\"rr-steer-knob\">↔</div></div><button class=\"rr-pedal rr-brake\" data-touch=\"brake\">刹车</button><button class=\"rr-pedal rr-throttle\" data-touch=\"boost\">油门</button></div>");
     };
 
     DanboRocketRoad.prototype.init3D=function(){
@@ -383,8 +383,9 @@
         var self=this;
         this.onResize=function(){self.resize();};window.addEventListener('resize',this.onResize);
         this.onBlur=function(){self.keys={};self.touch={};self.pedalPointers={};self.steerPointer=null;if(self.steerKnob)self.steerKnob.style.transform='translateX(0px)';self.root.querySelectorAll('[data-touch]').forEach(function(b){b.classList.remove('rr-pressed');});};
-        this.onVisibility=function(){if(document.hidden)self.onBlur();};
-        window.addEventListener('blur',this.onBlur);document.addEventListener('visibilitychange',this.onVisibility);this.pedalPointers={};
+        this.onFocusLost=function(){self.onBlur();self.pause();};
+        this.onVisibility=function(){if(document.hidden)self.onFocusLost();self.last=performance.now();};
+        window.addEventListener('blur',this.onFocusLost);window.addEventListener('gamepaddisconnected',this.onFocusLost);document.addEventListener('visibilitychange',this.onVisibility);this.pedalPointers={};
         this.onKeyDown=function(e){
             if(!self.running)return;var code=e.code||e.key;self.keys[code]=true;
             if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyD','KeyW','KeyS','Enter','Escape'].indexOf(code)>=0){e.preventDefault();e.stopImmediatePropagation();}
@@ -398,11 +399,11 @@
             }else if(self.state==='result'){
                 if(code==='Enter'||code==='Space')self.startGame();
                 else if(code==='Escape')self.showTitle();
-            }else if((self.state==='playing'||self.state==='countdown')&&code==='Escape')self.finish(false,'quit');
+            }else if((self.state==='playing'||self.state==='countdown')&&code==='Escape')self.pause();
         };
         this.onKeyUp=function(e){self.keys[e.code||e.key]=false;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space','KeyA','KeyD','KeyW','KeyS'].indexOf(e.code||e.key)>=0){e.preventDefault();e.stopImmediatePropagation();}};
         window.addEventListener('keydown',this.onKeyDown,true);window.addEventListener('keyup',this.onKeyUp,true);
-        this.onClick=function(e){var b=e.target&&e.target.closest?e.target.closest('[data-action]'):null;if(!b||b.disabled)return;var a=b.getAttribute('data-action');if(self.handleLeaderboardAction&&self.handleLeaderboardAction(a))return;if(a==='single')self.showStages();else if(a==='stage')self.startGame(Number(b.getAttribute('data-stage')||0));else if(a==='next-stage')self.startGame(Math.min(STAGE_COUNT-1,(self.stageId||0)+1));else if(a==='multi')self.showToast(UI_T('多人模式已预留，等服务器房间接入后开放'));else if(a==='scores'){self.scoresPage=0;self.showScores();}else if(a==='scores-prev'){self.scoresPage--;self.showScores();}else if(a==='scores-next'){self.scoresPage++;self.showScores();}else if(a==='exit')self.exit();else if(a==='title')self.showTitle();else if(a==='retry')self.startGame(self.stageId||0);else if(a==='quit-run')self.finish(false,'quit');};
+        this.onClick=function(e){var b=e.target&&e.target.closest?e.target.closest('[data-action]'):null;if(!b||b.disabled)return;var a=b.getAttribute('data-action');if(self.handleLeaderboardAction&&self.handleLeaderboardAction(a))return;if(a==='single')self.showStages();else if(a==='stage')self.startGame(Number(b.getAttribute('data-stage')||0));else if(a==='next-stage')self.startGame(Math.min(STAGE_COUNT-1,(self.stageId||0)+1));else if(a==='multi')self.showToast(UI_T('多人模式已预留，等服务器房间接入后开放'));else if(a==='scores'){self.scoresPage=0;self.showScores();}else if(a==='scores-prev'){self.scoresPage--;self.showScores();}else if(a==='scores-next'){self.scoresPage++;self.showScores();}else if(a==='exit')self.exit();else if(a==='title')self.showTitle();else if(a==='retry')self.startGame(self.stageId||0);else if(a==='quit-run')self.pause();else if(a==='resume-run')self.resume();else if(a==='end-run'){self.resume();self.finish(false,'quit');}};
         this.root.addEventListener('click',this.onClick);
         function resetSteer(){self.touch.steer=0;if(self.steerKnob)self.steerKnob.style.transform='translateX(0px)';}
         function steerFromEvent(e){
@@ -433,6 +434,16 @@
         this.camera.left=-halfW;this.camera.right=halfW;this.camera.top=halfH+1;this.camera.bottom=-halfH+1;this.camera.updateProjectionMatrix();
     };
 
+    DanboRocketRoad.prototype.pause=function(){
+        if(this.state!=='playing'&&this.state!=='countdown')return;
+        this.pausedState=this.state;this.state='paused';this.onBlur();this.stopMusic();this.panel.style.display='grid';this.hud.style.display='none';this.touchLayer.style.display='none';this.countdownEl.style.display='none';this.stageEl.style.display='none';if(this.startRankEl)this.startRankEl.style.display='none';
+        this.panel.innerHTML=UI_HTML('<h1 class="rr-title">比赛已暂停</h1><p class="rr-sub">避开车辆，收集燃料；弯道提前减速。</p><button class="rr-menu-btn" data-action="resume-run">继续游戏</button><button class="rr-menu-btn" data-action="end-run">结束本次挑战</button>');
+    };
+    DanboRocketRoad.prototype.resume=function(){
+        if(this.state!=='paused')return;if(window.DANBO_MENU_INPUT&&DANBO_MENU_INPUT.leaveHud)DANBO_MENU_INPUT.leaveHud();this.state=this.pausedState||'playing';this.onBlur();this.last=performance.now();this.panel.style.display='none';this.hud.style.display='flex';this.touchLayer.style.display=(navigator.maxTouchPoints>0||window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)?'block':'none';this.startMusic();
+        if(this.state==='countdown'){this.countdownEl.style.display='block';this.stageEl.style.display='block';if(this.startRankEl)this.startRankEl.style.display='block';}
+    };
+
     DanboRocketRoad.prototype.showTitle=function(){
         this.toast.style.display='none';this.toastTimer=0;this.stopMusic();this.state='title';this.hud.style.display='none';this.touchLayer.style.display='none';this.panel.style.display='grid';this.countdownEl.style.display='none';this.stageEl.style.display='none';if(this.startRankEl)this.startRankEl.style.display='none';
         this.panel.innerHTML=UI_HTML('<h1 class="rr-title">🚗 蛋宝火箭公路</h1><div class="rr-sub">街机公路 · 单关挑战</div>')+
@@ -455,6 +466,7 @@
     };
 
     DanboRocketRoad.prototype.startGame=function(stageId){
+        if(window.DANBO_MENU_INPUT&&DANBO_MENU_INPUT.leaveHud)DANBO_MENU_INPUT.leaveHud();
         stageId=clamp(stageId|0,0,STAGE_COUNT-1);
         if(stageId>this.getUnlockedStage()){this.showToast(UI_T('先通关前一关才能挑战这里'));this.showStages();return;}
         this.onBlur();this.sim=Race.create(stageId);this.simAcc=0;this.replay=[];this.stageId=stageId;this.rebuildScenery();
@@ -728,10 +740,10 @@
     };
 
     DanboRocketRoad.prototype.dispose=function(){
-        if(!this.running)return;this.onBlur();this.running=false;this.stopMusic();if(this.raf)cancelAnimationFrame(this.raf);window.removeEventListener('resize',this.onResize);window.removeEventListener('keydown',this.onKeyDown,true);window.removeEventListener('keyup',this.onKeyUp,true);window.removeEventListener('blur',this.onBlur);document.removeEventListener('visibilitychange',this.onVisibility);if(this.root)this.root.removeEventListener('click',this.onClick);
+        if(!this.running)return;this.onBlur();this.running=false;this.stopMusic();if(this.raf)cancelAnimationFrame(this.raf);window.removeEventListener('resize',this.onResize);window.removeEventListener('keydown',this.onKeyDown,true);window.removeEventListener('keyup',this.onKeyUp,true);window.removeEventListener('blur',this.onFocusLost);window.removeEventListener('gamepaddisconnected',this.onFocusLost);document.removeEventListener('visibilitychange',this.onVisibility);if(this.root)this.root.removeEventListener('click',this.onClick);
         if(this.audioCtx&&this.audioCtx.close){var closing=this.audioCtx.close();if(closing&&closing.catch)closing.catch(function(){});}
         if(this.renderer){var a=this.assets;this.scene.traverse(function(o){if(o.geometry)a.geometries.add(o.geometry);if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(function(m){a.materials.add(m);if(m.map)a.textures.add(m.map);});});
-            a.geometries.forEach(function(g){g.dispose();});a.materials.forEach(function(m){m.dispose();});a.textures.forEach(function(t){t.dispose();});this.renderer.dispose();a.geometries.clear();a.materials.clear();a.textures.clear();a.geometryCache={};a.materialCache={};this.decorTemplates={};this.decorItems=[];
+            a.geometries.forEach(function(g){g.dispose();});a.materials.forEach(function(m){m.dispose();});a.textures.forEach(function(t){t.dispose();});this.renderer.dispose();if(this.renderer.forceContextLoss)this.renderer.forceContextLoss();a.geometries.clear();a.materials.clear();a.textures.clear();a.geometryCache={};a.materialCache={};this.decorTemplates={};this.decorItems=[];
         }
         if(this.root&&this.root.parentNode)this.root.parentNode.removeChild(this.root);
     };

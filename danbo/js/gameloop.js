@@ -3084,8 +3084,8 @@ function _gameUpdate(){
                         egg.mesh.position.set(_rspX,3,0);
                     } else {
                         var _rspGz=-egg.mesh.position.z;
-                        var _rspRz=Math.max(0,_rspGz-5);
-                        egg.mesh.position.set((Math.random()-0.5)*4,getFloorY(_rspRz)+5,-_rspRz);
+                        var _rspSafe=raceSafeRespawn(_rspGz);
+                        egg.mesh.position.set(_rspSafe.x,_rspSafe.y,_rspSafe.z);
                     }
                     egg.vx=0;egg.vy=0;egg.vz=0;egg.throwTimer=0;egg._stunTimer=0;
                     egg.heldBy=null;egg.holding=null;egg._piledriverLocked=false;
@@ -3118,6 +3118,8 @@ function _gameUpdate(){
         for(var ci=0;ci<_danboRaceCoins().length;ci++){
             var rc=_danboRaceCoins()[ci];
             if(rc.collected)continue;
+            if(rc.sourceBlock&&!rc.sourceBlock.data.used){rc.mesh.visible=false;continue;}
+            rc.mesh.visible=true;
             rc.bobPhase+=0.05;
             rc.mesh.position.y=rc.fy+1.2+Math.sin(rc.bobPhase)*0.3;
             rc.mesh.rotation.y+=0.04;

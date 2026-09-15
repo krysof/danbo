@@ -642,8 +642,18 @@
             window._danboPluginTransition=false;
             if(layer){layer.innerHTML='';setLayerVisible(false);}
             var integratedCtx=makeContext(pluginId,options||{});
-            var integratedInstance=def.create(integratedCtx)||{};
-            active={id:pluginId,def:def,ctx:integratedCtx,instance:integratedInstance,startedAt:Date.now(),integratedScene:true};
+            var integratedEntry={id:pluginId,def:def,ctx:integratedCtx,instance:null,startedAt:Date.now(),integratedScene:true};
+            active=integratedEntry;
+            try{
+                var integratedInstance=def.create(integratedCtx)||{};
+                if(active===integratedEntry)integratedEntry.instance=integratedInstance;
+                else if(typeof integratedInstance.destroy==='function')integratedInstance.destroy({status:'cancelled'});
+            }catch(e){
+                stop({status:'error',reason:'create failed'});
+                if(typeof goBackToCity==='function')goBackToCity();
+                console.error('[PluginHost] integrated start failed: '+pluginId,e);
+                return null;
+            }
             return active;
         }
         beginPluginIsolation();
@@ -652,13 +662,25 @@
         beginPluginSceneSwitch();
         setLayerVisible(true);
         window._danboPluginTransition=false;
-        var instance=def.create(ctx)||{};
-        active={id:pluginId,def:def,ctx:ctx,instance:instance,startedAt:Date.now()};
+        // Establish ownership first: synchronous finish()/throws during create
+        // must restore the city/audio rather than strand an opaque empty layer.
+        var entry={id:pluginId,def:def,ctx:ctx,instance:null,startedAt:Date.now()};
+        active=entry;
+        try{
+            var instance=def.create(ctx)||{};
+            if(active===entry)entry.instance=instance;
+            else if(typeof instance.destroy==='function')instance.destroy({status:'cancelled'});
+        }catch(e){
+            stop({status:'error',reason:'create failed'});
+            console.error('[PluginHost] start failed: '+pluginId,e);
+            return null;
+        }
         return active;
     }
 
     function start(pluginId,options){
         var m=manifestEntry(pluginId);
+        if(m&&m.enabled===false)throw new Error('Plugin is disabled: '+pluginId);
         if(!registry[pluginId]&&!m)throw new Error('Plugin not registered: '+pluginId);
         var integrated=isIntegratedPlugin(pluginId,registry[pluginId]);
         if(integrated){

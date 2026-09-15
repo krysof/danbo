@@ -388,8 +388,8 @@ function updateEggPhysics(egg, isCity){
         if(Math.abs(egg.mesh.position.x)>hw-egg.radius){egg.mesh.position.x=Math.sign(egg.mesh.position.x)*(hw-egg.radius);egg.vx*=-0.3;}
         // Fall respawn
         if(egg.mesh.position.y<-5){
-            const rz=Math.max(0,gz-5);
-            egg.mesh.position.set((Math.random()-0.5)*4,getFloorY(rz)+5,-rz);
+            var safe=raceSafeRespawn(gz);
+            egg.mesh.position.set(safe.x,safe.y,safe.z);
             egg.vx=0;egg.vy=0;egg.vz=0;
             egg.squash=0.3; // poof effect
             egg._fallPenalty=60; // 1 second stun after respawn
@@ -406,7 +406,7 @@ function updateEggPhysics(egg, isCity){
         if(egg._coinMagnet>0)egg._coinMagnet--;
         // Finish — cross the finish line (arch gate at trackLength)
         var _rw=window.DANBO_MINIGAME_WASM&&DANBO_MINIGAME_WASM.race;
-        if(_rw?_rw.finishCrossed(egg.finished,_pfActive,trackLength,gz):(!egg.finished&&!_pfActive&&trackLength>0&&gz>=trackLength-2)){
+        if(egg.onGround&&(_rw?_rw.finishCrossed(egg.finished,_pfActive,trackLength,gz):(!egg.finished&&!_pfActive&&trackLength>0&&gz>=trackLength-2))){
             egg.finished=true;egg.finishOrder=finishedEggs.length;finishedEggs.push(egg);
             egg.squash=0.5; // celebrate squash
             if(egg.isPlayer){

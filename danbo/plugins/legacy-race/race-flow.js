@@ -60,7 +60,8 @@ function enterRace(raceIndex){
         if(_slot){_row=_slot[0];_col=_slot[1];}
         var _sx=_slot?_slot[2]:(-TRACK_W+_spacing*(_col+1)+_jx);
         var _sz=_slot?_slot[3]:(-2-_row*3+_jz);
-        var _rEgg=createEgg(_sx, _sz, AI_COLORS[ci], AI_COLORS[(ci+3)%AI_COLORS.length], false, undefined, CHARACTERS[i%CHARACTERS.length].type);
+        var _rSkin=CHARACTERS[i%CHARACTERS.length];
+        var _rEgg=createEgg(_sx, _sz, _rSkin.color, _rSkin.accent, false, undefined, _rSkin.type);
         window._bfRacePositions.push({egg:_rEgg, x:_sx, y:_rEgg.mesh.position.y, z:_sz});
         _rEgg.mesh.visible=false;
     }
@@ -603,12 +604,7 @@ function checkRaceEnd(){
         showRaceResult();
         return;
     }
-    const raceEggs=allEggs.filter(e=>!e.cityNPC);
-    var _rw=window.DANBO_MINIGAME_WASM&&DANBO_MINIGAME_WASM.race;
-    const surviveCount=_rw?_rw.surviveCount(raceEggs.length):Math.ceil(raceEggs.length*0.6);
-    if(finishedEggs.length>=surviveCount&&!playerFinished){
-        showRaceResult();
-    }
+    // Companions finishing first must not cut a learner's run short.
 }
 
 var _raceExpAwarded=false;
@@ -619,7 +615,7 @@ function showRaceResult(){
     if(playerFinished&&!_raceExpAwarded&&typeof Explorer!=='undefined'){_raceExpAwarded=true;Explorer.raceFinish(place);}
     const total=allEggs.filter(e=>!e.cityNPC).length;
     var _rw=window.DANBO_MINIGAME_WASM&&DANBO_MINIGAME_WASM.race;
-    const won=playerFinished && (_rw?_rw.isWinningPlace(place,total):(place<=Math.ceil(total*0.6)));
+    const won=playerFinished;
     document.getElementById('result-emoji').textContent=won?'🎉':'😵';
     document.getElementById('result-title').textContent=won?I18N.resultWin(place):L('resultLose');
     document.getElementById('result-sub').textContent=won?I18N.resultSub(raceCoinScore):L('tryAgain');

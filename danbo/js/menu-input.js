@@ -18,6 +18,7 @@
         if(window._shopOpen&&$('shop-overlay'))return $('shop-overlay');
         if(window._worldMapOpen&&$('worldmap-overlay'))return $('worldmap-overlay');
         if($('lb-panel'))return $('lb-panel');
+        var trail=document.querySelector('.pf-panel');if(visible(trail))return trail;
         var rocket=document.querySelector('.rr-panel');if(rocket&&rocket.style.display!=='none'&&rocket.querySelector('button'))return rocket;
         if(typeof gameState!=='undefined'){
             var ids=['server-select-screen','select-screen','start-screen','result-screen'];
@@ -26,7 +27,7 @@
         var focused=document.activeElement,frame=focused&&focused.closest&&focused.closest('.journey-frame');
         if(visible(frame))return frame;
         if(lastRoot&&lastRoot.classList.contains('journey-frame')&&visible(lastRoot))return lastRoot;
-        return hudMode?(document.querySelector('.rr-root')||$('game-container')):null;
+        return hudMode?(document.querySelector('.pf-root,.rr-root')||$('game-container')):null;
     }
     function items(root){
         if(root===window._langMenu){Array.from(root.children).forEach(function(n){n.tabIndex=0;n.setAttribute('role','menuitem');});return Array.from(root.children).filter(visible);}
@@ -101,8 +102,9 @@
         if(root.id==='shop-overlay'){_closeShop();return true;}
         if(root.id==='worldmap-overlay'){_closeWorldMap();return true;}
         if(root.id==='lb-panel'){$('lb-close').click();return true;}
-        if(root.classList.contains('rr-panel')){var rb=root.querySelector('[data-action="title"],[data-action="exit"]');if(rb)rb.click();return true;}
-        if(root===$('game-container')||root.classList.contains('rr-root')){hudMode=false;if(marked)marked.blur();return true;}
+        if(root.classList.contains('rr-panel')){var rb=root.querySelector('[data-action="resume-run"],[data-action="title"],[data-action="exit"]');if(rb)rb.click();return true;}
+        if(root.classList.contains('pf-panel')){var pb=root.querySelector('[data-action="resume"],[data-action="exit"]');if(pb)pb.click();return true;}
+        if(root===$('game-container')||root.classList.contains('rr-root')||root.classList.contains('pf-root')){hudMode=false;if(marked)marked.blur();return true;}
         var cancel={ 'character-name-overlay':'character-name-back','character-resume-overlay':'character-resume-change','account-overlay':visible($('account-back'))?'account-back':'account-close','multiplayer-overlay':'multiplayer-close'}[root.id];
         if(cancel){if(visible($(cancel)))$(cancel).click();return true;}
         if(root.classList.contains('journey-frame')){DANBO_JOURNEY.close();if(marked)marked.blur();return true;}
@@ -182,23 +184,25 @@
             if((gameState==='city'||gameState==='racing'||window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive())&&!window._chatOpen&&!editable(document.activeElement)){
                 var held={KeyW:y<0,KeyS:y>0,KeyA:x<0,KeyD:x>0,Space:down(0),KeyF:down(1),KeyR:down(2),KeyT:down(3),ShiftLeft:down(4)};
                 Object.keys(held).forEach(function(k){if(!held[k])delete held[k];});applyPad(held);
-                if(edge(8)&&typeof _toggleWorldMap==='function'&&gameState==='city')_toggleWorldMap();
-                if(edge(5)){
+                var plugin=window.DANBO_PLUGIN_HOST&&DANBO_PLUGIN_HOST.getActive(),inWorld=!plugin||plugin.integratedScene;
+                if(edge(8)&&inWorld&&typeof _toggleWorldMap==='function'&&gameState==='city')_toggleWorldMap();
+                if(edge(5)&&inWorld){
                     var interaction=gameState==='city'&&!(typeof _danboPortalPromptActive==='function'&&_danboPortalPromptActive())&&(window._interiorActive||window._nearShopDoor||window._nearDoorBuilding)?'KeyE':'Enter';
                     keyEvent('keydown',interaction);keyEvent('keyup',interaction);
                 }
-                if(edge(11)&&typeof _cycleViewMode==='function'&&gameState==='city')_cycleViewMode();
+                if(edge(11)&&inWorld&&typeof _cycleViewMode==='function'&&gameState==='city')_cycleViewMode();
                 var rx=Math.abs(pad.axes[2]||0)>.2?pad.axes[2]:0,ry=Math.abs(pad.axes[3]||0)>.2?pad.axes[3]:0;
-                if((rx||ry)&&gameState==='city'&&typeof _tpsCamYaw==='number'){
+                if(inWorld&&(rx||ry)&&gameState==='city'&&typeof _tpsCamYaw==='number'){
                     if(_viewMode===0)_setViewMode(1);
                     _tpsCamYaw-=rx*.035;_tpsCamPitch=Math.max(-1.57,Math.min(1.2,_tpsCamPitch+ry*.025));_tpsManual=true;
                 }
-                if(typeof _cameraZoom==='number')_cameraZoom=Math.max(.04,Math.min(1000,_cameraZoom*(down(6)?1.018:down(7)?.982:1)));
+                if(inWorld&&typeof _cameraZoom==='number')_cameraZoom=Math.max(.04,Math.min(1000,_cameraZoom*(down(6)?1.018:down(7)?.982:1)));
             }else releasePad();
         }
         padPrevious=pressed;
     }
     // Pointer clicks do not force keyboard highlight or steal control ownership.
     addEventListener('pointerdown',function(){hudMode=false;lastRoot=null;if(marked)marked.classList.remove('danbo-nav-focus');});
-    window.DANBO_MENU_INPUT={update:update,context:context,move:move,confirm:confirm,back:back,releaseGameplay:reset};
+    function leaveHud(){hudMode=false;lastRoot=null;if(marked)marked.blur();}
+    window.DANBO_MENU_INPUT={update:update,context:context,move:move,confirm:confirm,back:back,releaseGameplay:reset,leaveHud:leaveHud};
 })();

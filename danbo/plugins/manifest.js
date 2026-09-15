@@ -7,7 +7,7 @@
             version:'0.2.0',
             enabled:true,
             integratedScene:true,
-            scripts:['plugins/legacy-race/race-core.js','plugins/legacy-race/race-flow.js','plugins/legacy-race/plugin.js'],
+            scripts:['plugins/minigame-art.js','plugins/legacy-race/race-core.js','plugins/legacy-race/race-flow.js','plugins/legacy-race/plugin.js'],
             networkReady:true,
             legacyAdapter:false,
             description:'竞速赛道插件：核心赛道构建代码位于本插件目录，入口通过 DANBO_PLUGIN_HOST 启动。'
@@ -15,10 +15,9 @@
         {
             id:'legacy-platformer',
             name:'蛋宝冒险',
-            version:'0.2.0',
+            version:'0.3.0',
             enabled:true,
-            integratedScene:true,
-            scripts:['plugins/legacy-platformer/platformer-core.js','plugins/legacy-platformer/plugin.js'],
+            scripts:['plugins/minigame-art.js','plugins/legacy-platformer/platformer-rules.js','plugins/legacy-platformer/platformer-core.js','plugins/legacy-platformer/plugin.js'],
             networkReady:true,
             legacyAdapter:false,
             description:'横版平台关插件：核心关卡代码位于本插件目录，入口通过 DANBO_PLUGIN_HOST 启动。'
@@ -40,7 +39,7 @@
             id:'ability-card',
             name:'角色能力卡测试',
             version:'0.1.0',
-            enabled:true,
+            enabled:false,
             script:'plugins/ability-card/plugin.js',
             networkReady:true,
             devOnly:true,

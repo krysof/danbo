@@ -200,7 +200,7 @@ function updateObstacles(){
                 _qc._vy-=0.008; _qc.mesh.position.y+=_qc._vy;
                 _qc.mesh.position.x+=_qc._vx; _qc.mesh.position.z+=_qc._vz;
                 _qc.mesh.rotation.y+=0.1; _qc._life--;
-                if(_qc._life<=0){raceGroup.remove(_qc.mesh);ob.data._coinMeshes.splice(_qci,1);}
+                if(_qc._life<=0){raceGroup.remove(_qc.mesh);disposeTransientObject3D(_qc.mesh);ob.data._coinMeshes.splice(_qci,1);}
             }
             // Hit detection from below
             if(!ob.data.used){
