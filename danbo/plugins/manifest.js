@@ -26,13 +26,15 @@
         {
             id:'rocket-road',
             name:'蛋宝火箭公路',
-            version:'0.1.3',
+            version:'0.3.0',
             enabled:true,
             entranceScript:'plugins/rocket-road/entrance.js',
-            scripts:['plugins/rocket-road/rocket-road-core.js','plugins/rocket-road/plugin.js'],
+            scripts:['plugins/rocket-road/rocket-road-rules.js',
+                'plugins/rocket-road/rocket-road-leaderboard.js',
+                'plugins/rocket-road/rocket-road-core.js','plugins/rocket-road/plugin.js'],
             networkReady:true,
             legacyAdapter:false,
-            description:'蛋宝原创火箭车致敬小游戏：3D 画面、2D 俯视公路玩法、独立 WASM 规则模块。'
+            description:'蛋宝火箭公路：六关街机挑战、四服共享排行、服务端操作回放验分。'
         },
         {
             id:'ability-card',

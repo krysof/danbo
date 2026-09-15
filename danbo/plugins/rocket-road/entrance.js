@@ -12,10 +12,10 @@
         en:'🏁 Rocket Car Garage'
     };
     var DESC={
-        zhs:'进入 F1 火箭车维修站，开始蛋宝火箭公路！',
-        zht:'進入 F1 火箭車維修站，開始蛋寶火箭公路！',
-        ja:'F1風ガレージに入ってロケットロードへ！',
-        en:'Enter the F1-style garage to start Danbo Rocket Road!'
+        zhs:'开着小车，出发去蛋宝火箭公路！',
+        zht:'開著小車，出發去蛋寶火箭公路！',
+        ja:'小さな車でロケットロードへ出発！',
+        en:'Hop into a little car and explore Egg Rocket Road!'
     };
 
     function pickLang(map,lang){
@@ -27,7 +27,7 @@
         pluginId:'rocket-road',
         hiddenType:'rocketRoad',
         targetStyle:-99,
-        color:0xFFCE45,
+        color:0xE9C489,
         name:NAME,
         desc:DESC,
         disabledCityStyles:[5],
@@ -58,19 +58,19 @@
             }
 
             // F1-style themed garage / mini-game house.
-            box(10.2,0.28,9.2,0x2B3344,0,0.14,0);
+            box(10.2,0.28,9.2,0x8EA9A4,0,0.14,0);
             box(8.3,4.1,6.2,0xF6F0DC,0,2.22,0);
-            box(8.8,0.55,6.8,0xD91E35,0,4.55,0);
-            box(9.3,0.32,7.3,0xFFF1A6,0,4.92,0);
-            box(3.35,2.55,0.16,0x263043,0,1.55,3.16);
+            box(8.8,0.55,6.8,0xDDA497,0,4.55,0);
+            box(9.3,0.32,7.3,0xFFF0D3,0,4.92,0);
+            box(3.35,2.55,0.16,0x5E858B,0,1.55,3.16);
             for(var sl=0;sl<5;sl++)box(3.45,0.06,0.18,0xE8F0FF,0,0.56+sl*0.42,3.28);
-            box(4.1,0.12,1.55,0xFFCE45,0,0.2,4.08);
+            box(4.1,0.12,1.55,0xE9C489,0,0.2,4.08);
             box(1.1,0.12,1.55,0xFFFFFF,-1.55,0.28,4.08);
-            box(1.1,0.12,1.55,0x111827,1.55,0.28,4.08);
+            box(1.1,0.12,1.55,0x65969A,1.55,0.28,4.08);
 
             for(var cy=0;cy<2;cy++){
                 for(var cx=0;cx<10;cx++){
-                    box(0.42,0.28,0.08,((cx+cy)&1)?0x111827:0xFFFFFF,-2.1+cx*0.47,3.72-cy*0.3,3.34);
+                    box(0.42,0.28,0.08,((cx+cy)&1)?0x65969A:0xFFFFFF,-2.1+cx*0.47,3.72-cy*0.3,3.34);
                 }
             }
 
@@ -87,10 +87,10 @@
 
             var car=new THREE.Group();
             function carBox(w,h,d,c,x,y,z){return box(w,h,d,c,x,y,z,car);}
-            carBox(1.05,0.28,2.15,0xFF3348,0,0.32,0);
+            carBox(1.05,0.28,2.15,0xE9AAA0,0,0.32,0);
             carBox(0.46,0.22,1.02,0xFFE06A,0,0.56,-0.18);
-            carBox(0.32,0.2,0.7,0xFF3348,0,0.34,1.22);
-            carBox(1.85,0.12,0.32,0x111827,0,0.33,-1.18);
+            carBox(0.32,0.2,0.7,0xE9AAA0,0,0.34,1.22);
+            carBox(1.85,0.12,0.32,0x65969A,0,0.33,-1.18);
             for(var wi=0;wi<4;wi++){
                 var wh=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.18,ctx.currentCityStyle===0?18:10),tireMat);
                 wh.rotation.z=Math.PI/2;
@@ -104,7 +104,7 @@
             // Invisible technical portal objects: shared city animation/trigger code expects ring + inner.
             var ring=new THREE.Mesh(
                 new THREE.TorusGeometry(0.55,0.06,6,18),
-                new THREE.MeshBasicMaterial({color:0xFFCE45,transparent:true,opacity:0.01})
+                new THREE.MeshBasicMaterial({color:0xE9C489,transparent:true,opacity:0.01})
             );
             ring.position.set(0,0.18,4.08);
             group.add(ring);
@@ -137,7 +137,7 @@
                 x:basePos.x,
                 z:basePos.z+4.08,
                 y:0,
-                color:0xFFCE45,
+                color:0xE9C489,
                 name:NAME,
                 desc:DESC,
                 pluginId:'rocket-road',

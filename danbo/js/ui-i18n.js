@@ -345,6 +345,10 @@ STAGE 3 · 港湾高架¦STAGE 3 · 港灣高架¦STAGE 3 · 港の高架¦STAGE
 STAGE 4 · 海岸公路¦STAGE 4 · 海岸公路¦STAGE 4 · 海岸道路¦STAGE 4 · Coastal highway
 STAGE 5 · 峡谷荒原¦STAGE 5 · 峽谷荒原¦STAGE 5 · 峡谷の荒野¦STAGE 5 · Canyon wilds
 STAGE 6 · 田园冲刺¦STAGE 6 · 田園衝刺¦STAGE 6 · 田園スプリント¦STAGE 6 · Countryside sprint
+名次¦名次¦順位¦Rank
+用时¦用時¦タイム¦Time
+超车¦超車¦追い越し¦Passed
+油量¦油量¦燃料¦Fuel
 方向¦方向¦ハンドル¦Steer
 退出¦退出¦終了¦Exit
 刹车¦煞車¦ブレーキ¦Brake
@@ -423,4 +427,40 @@ STAGE 6 · 田园冲刺¦STAGE 6 · 田園衝刺¦STAGE 6 · 田園スプリン�
 账号服务暂时不可用，请稍后重试¦帳號服務暫時無法使用，請稍後重試¦アカウントサービスを利用できません。後でお試しください¦Account service unavailable. Try again later
 请求格式或长度不正确¦請求格式或長度不正確¦リクエストの形式または長さが不正です¦Invalid request format or length
 进入失败，请重试¦進入失敗，請重試¦開始できません。再試行してください¦Could not enter. Please try again`);
+    add(`全服排行¦全服排行¦全サーバーランキング¦Global rankings
+本地记录¦本機紀錄¦ローカル記録¦Local records
+总榜¦總榜¦総合¦All-time
+周榜¦週榜¦週間¦Weekly
+上一关¦上一關¦前のステージ¦Previous stage
+下一关¦下一關¦次のステージ¦Next stage
+刷新排行¦重新整理排行¦ランキング更新¦Refresh rankings
+我的排名¦我的排名¦自分の順位¦My rank
+我的排名：尚未上榜¦我的排名：尚未上榜¦自分の順位：記録なし¦My rank: unranked
+还没有通关记录，来拿第一名吧！¦還沒有通關紀錄，來拿第一名吧！¦まだクリア記録がありません。一番乗りを目指そう！¦No clears yet. Be the first!
+游客可查看排行；注册后可上榜¦遊客可查看排行；註冊後可上榜¦ゲストも閲覧できます。登録すると参加できます¦Guests can browse; register to rank
+四服共用 · 周一 00:00 UTC 更新¦四服共用 · 週一 00:00 UTC 更新¦4サーバー共通 · 月曜 00:00 UTC 更新¦All 4 servers · Resets Monday 00:00 UTC
+四服共用 · 每人每关保留最佳成绩¦四服共用 · 每人每關保留最佳成績¦4サーバー共通 · 各ステージの自己ベスト¦All 4 servers · Your best per stage
+准备比赛¦準備比賽¦レース準備¦Preparing race
+正在连接排行榜…¦正在連線排行榜…¦ランキングに接続中…¦Connecting to rankings…
+只玩本地¦只玩本機¦ローカルで遊ぶ¦Play locally
+本局通关将参加全服排行¦本局通關將參加全服排行¦クリアすると全サーバーランキングに参加¦Clear this run to join global rankings
+排行榜未连接，本局保存在本地¦排行榜未連線，本局儲存在本機¦ランキング未接続。この記録はローカル保存¦Rankings offline. This run stays local
+本局成绩已保存在本地¦本局成績已儲存在本機¦記録をローカルに保存しました¦Run saved locally
+本局成绩保存在本地¦本局成績儲存在本機¦この記録はローカルに保存されます¦This run is saved locally
+未通关成绩保存在本地¦未通關成績儲存在本機¦未クリアの記録はローカル保存¦Unfinished run saved locally
+账号已变化，成绩仅保存在本地¦帳號已變更，成績僅儲存在本機¦アカウントが変わったためローカル保存のみ¦Account changed. Run stays local
+正在验证成绩…¦正在驗證成績…¦記録を検証中…¦Verifying your run…
+全服成绩已验证并保存¦全服成績已驗證並儲存¦全サーバー記録を検証・保存しました¦Global record verified and saved
+上传未完成，可重试；本地成绩已保存¦上傳未完成，可重試；本機成績已儲存¦送信未完了。再試行できます。ローカル保存済み¦Upload incomplete. Retry available; saved locally
+本局未计入全服排行，本地成绩已保存¦本局未計入全服排行，本機成績已儲存¦ランキング対象外。記録はローカル保存済み¦Not ranked globally. Run saved locally
+重试上传¦重試上傳¦再送信¦Retry upload
+排行榜暂时不可用¦排行榜暫時無法使用¦ランキングを利用できません¦Rankings unavailable
+正在读取排行…¦正在讀取排行…¦ランキング読み込み中…¦Loading rankings…
+补油成功¦補油成功¦給油できた！¦Refueled!
+比赛操作记录不正确¦比賽操作紀錄不正確¦レース操作記録が不正です¦Invalid race input record
+注册账号后才能参加全服排行¦註冊帳號後才能參加全服排行¦ランキングに参加するにはアカウント登録が必要です¦Register an account to enter global rankings
+比赛规则已更新，请刷新游戏¦比賽規則已更新，請重新整理遊戲¦ルールが更新されました。ゲームを再読み込みしてください¦Race rules updated. Refresh the game
+成绩验证中，请稍后重试¦成績驗證中，請稍後重試¦記録を検証中です。後で再試行してください¦Verification busy. Try again shortly
+比赛凭证已失效，请重新挑战¦比賽憑證已失效，請重新挑戰¦レースの有効期限が切れました。もう一度挑戦してください¦Run ticket expired. Start a new run
+只有完整通关成绩可以上榜¦只有完整通關成績可以上榜¦最後までクリアした記録のみランキング対象です¦Only completed runs can enter rankings`);
 })(window);
