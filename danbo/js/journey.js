@@ -108,7 +108,7 @@
         var nearby=window.DANBO_COOP&&DANBO_COOP.nearby&&DANBO_COOP.nearby();
         var coopHint=nearby||(window.DANBO_COOP&&(DANBO_COOP.hint()||(done&&DANBO_COOP.invitation())));
         coopTask=!!coopHint;
-        $('journey-task').textContent=coopHint||UI_T(done?'旅程手册 · {hint}':'初次旅行 · {hint}',{hint:hint});
+        $('journey-task').textContent=coopHint||UI_T(done?'旅程手册 · {hint}':'寻回星光 · {hint}',{hint:hint});
         $('journey-objectives').textContent=hint;
         $('journey-reward').textContent=UI_T(done?'奖励：初旅星环 ✓':'奖励：初旅星环');
         $('journey-stamps').textContent=UI_T('旅行纪念章：{n} 枚。{today} 不连续登录也不会扣奖励。',{n:j.stamps.length,today:UI_T(j.stamps.indexOf(date())>=0?'今天已获得。':'打开一个新宝箱，留下今天的足迹。')});

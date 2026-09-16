@@ -138,6 +138,13 @@ async function _confirmCharacter(reuse){
         try{await DANBO_OPENING.play();}catch(_movieError){console.warn('Opening unavailable; entering game.');}
         showScreen('select-screen');
     }
+    // The first visit gains a reason to explore, without replacing either film
+    // or leaving an unprotected player standing in a live city while reading.
+    if(window.DANBO_STORY){
+        showScreen(null);
+        try{await DANBO_STORY.playIfNew();}catch(_storyError){console.warn('Story unavailable; entering game.');}
+        showScreen('select-screen');
+    }
     var _selCh=CHARACTERS[selectedChar];
     var _enterSelectedCharacter=function(){
         showScreen(null);

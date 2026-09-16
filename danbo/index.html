@@ -32,7 +32,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260916.1">
+<link rel="stylesheet" href="style.css?v=20260917.1">
 <!-- Error actions do not depend on the engine or another script download. -->
 <style id="load-error-style">
 #engine-load-error[hidden],#engine-load-url[hidden]{display:none!important}
@@ -170,6 +170,16 @@
     <video id="opening-video" playsinline webkit-playsinline preload="none" disablepictureinpicture></video>
     <div class="opening-message"><p id="opening-status" role="status"></p><button id="opening-play" type="button" hidden data-ui-text="播放片头">播放片头</button></div>
     <div class="opening-actions"><button id="opening-mute" type="button" data-ui-text="静音">静音</button><button id="opening-skip" type="button" data-ui-text="跳过片头 →">跳过片头 →</button></div>
+  </section>
+
+  <!-- Server browser shown before character selection. -->
+  <section id="story-overlay" class="story-overlay hidden" role="region" aria-label="星光序章" data-ui-aria-label="星光序章">
+    <div class="story-book">
+      <header class="story-header"><span id="story-count"></span><button id="story-skip" type="button" data-ui-text="跳过故事">跳过故事</button></header>
+      <div class="story-picture"><img id="story-art" width="1536" height="1024" alt="" decoding="async"><p id="story-image-error" hidden data-ui-text="插画暂时无法加载，仍可继续或跳过">插画暂时无法加载，仍可继续或跳过</p></div>
+      <div class="story-caption" aria-live="polite" aria-atomic="true"><h2 id="story-title"></h2><p id="story-text"></p></div>
+      <footer class="story-actions"><button id="story-previous" type="button" data-ui-text="上一页">上一页</button><button id="story-next" type="button" data-ui-text="下一页 →">下一页 →</button></footer>
+    </div>
   </section>
 
   <!-- Server browser shown before character selection. -->
@@ -435,7 +445,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260916.1';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260917.1';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
@@ -484,6 +494,7 @@
     'js/intro.js',
     'js/audio.js',
     'js/opening-movie.js',
+    'js/story-opening.js',
     'js/renderer.js',
     'js/world-labels.js',
     'js/postfx.js',

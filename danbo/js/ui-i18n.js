@@ -30,6 +30,7 @@
         }
         document.querySelectorAll('[data-ui-text]').forEach(function(el){el.textContent=text(el.getAttribute('data-ui-text'));});
         ['aria-label','placeholder','title'].forEach(function(attr){document.querySelectorAll('[data-ui-'+attr+']').forEach(function(el){el.setAttribute(attr,text(el.getAttribute('data-ui-'+attr)));});});
+        if(root.DANBO_STORY)root.DANBO_STORY.render();
     }
     root.UI_T=text;root.UI_HTML=html;root.DANBO_UI_I18N={text:text,html:html,refresh:refresh,add:add,locales:locales,table:table};
     add(`被抓住了 · 连按方向或跳跃挣脱¦被抓住了 · 連按方向或跳躍掙脫¦つかまれた！方向かジャンプを連打して脱出¦Grabbed! Tap directions or Jump to escape
@@ -44,6 +45,23 @@
 点击播放，也可直接跳过¦點擊播放，也可直接跳過¦再生するか、スキップできます¦Play the opening, or skip ahead
 静音¦靜音¦ミュート¦Mute
 开启声音¦開啟聲音¦音声をオン¦Turn sound on`);
+    add(`星光序章¦星光序章¦星あかりのプロローグ¦A starlight story
+星光序章 · {n} / 4¦星光序章 · {n} / 4¦星あかりの物語 · {n} / 4¦Starlight prologue · {n} / 4
+平静的每一天¦平靜的每一天¦おだやかな毎日¦Carefree days
+蛋宝们在蛋宝世界无忧无虑地生活。温柔的星光，照亮了大家回家的路。¦蛋寶們在蛋寶世界無憂無慮地生活。溫柔的星光，照亮了大家回家的路。¦たまごのなかまたちは、のんびり暮らしていました。やさしい星あかりが、みんなの帰り道を照らしていました。¦The little egg friends lived carefree lives. Gentle starlight always guided them home.
+直到那一夜¦直到那一夜¦あの夜が来るまでは¦Until one night
+一场突如其来的星光风暴，把指路的星星吹散了。它们落进了小镇与远方。¦一場突如其來的星光風暴，把指路的星星吹散了。它們落進了小鎮與遠方。¦突然の星の嵐が、道しるべの星を吹き飛ばしました。星たちは、町にも遠くにも散らばってしまいました。¦A sudden starstorm swept the guiding stars away, scattering them across the town and far beyond.
+小小的约定¦小小的約定¦小さな約束¦A little promise
+「一起把星光找回来吧！」蛋宝们约好了，从脚边的第一点光开始。¦「一起把星光找回來吧！」蛋寶們約好了，從腳邊的第一點光開始。¦「いっしょに星あかりを集めよう！」みんなで約束しました。まずは足元の、小さな光から。¦“Let's gather the starlight together!” the friends promised. They would start with the little light at their feet.
+故事，从你开始¦故事，從你開始¦物語は、きみから¦Your story starts here
+你的第一份委托：在希望之城找回 3 点星光。完成初次旅行，戴上属于你的初旅星环。¦你的第一份委託：在希望之城找回 3 點星光。完成初次旅行，戴上屬於你的初旅星環。¦最初のお願いは、希望の街で星あかりを3つ集めること。はじめての旅を終えて、旅立ちの星の輪を身につけよう。¦Your first task: find 3 starlights in Hope City. Complete your first journey to earn and wear your Journey Halo.
+跳过故事¦跳過故事¦スキップ¦Skip story
+你已经找回了第一批星光。和伙伴一起探索，打开新的宝箱，留下今天的旅行纪念章。¦你已經找回了第一批星光。和夥伴一起探索，打開新的寶箱，留下今天的旅行紀念章。¦最初の星あかりは、もう集まりました。なかまと探検して、新しい宝箱を開け、今日の旅のスタンプを残そう。¦You've already found your first starlights. Explore with friends, open a new chest, and earn today's travel stamp.
+继续旅程 →¦繼續旅程 →¦旅をつづける →¦Continue the journey →
+下一页 →¦下一頁 →¦つづきへ →¦Next page →
+出发，寻找星光 →¦出發，尋找星光 →¦星あかりを探しに →¦Find the starlight →
+插画暂时无法加载，仍可继续或跳过¦插畫暫時無法載入，仍可繼續或跳過¦絵を読み込めません。つづけるかスキップできます¦Illustration unavailable. You can still continue or skip.
+寻回星光 · {hint}¦尋回星光 · {hint}¦星あかりを集めよう · {hint}¦Find the starlight · {hint}`);
     add(`发送¦傳送¦送信¦Send
 旅行装扮¦旅行裝扮¦旅の装い¦Expedition outfit
 日常装扮¦日常裝扮¦いつもの装い¦Everyday outfit
