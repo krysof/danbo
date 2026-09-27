@@ -5,6 +5,11 @@
 The station is also a **real ninth city (city 8)** in Little Egg Friends. In Hope
 City, enter the pink **Sakura Station** gate west of the arrival plaza (x=-15,
 z=16). The return gate is on the station's shopping street (x=1.6, z=40).
+On narrow screens, use the existing **MAP** button, then **Sakura Station ·
+Travel →**; the same menu offers a return to Hope inside the station. This named
+route is available before the first visit, uses the normal city transfer and
+does not bypass carry/stun/throw locks. The mini-map marks the entrance with a
+pink blossom instead of the generic warp-pipe diamond.
 
 - `../../js/station-city.js` registers the city; `city-runtime.js` lazily builds
   only the scenery and its collision grid during the normal city transfer.

@@ -44,6 +44,21 @@
  }
  function theme(){if(!active())return;scene.fog=new THREE.FogExp2(0xDDE9F3,.0018);sun.intensity=2.0;scene.children.forEach(function(light){if(light.isHemisphereLight){light.color.setHex(0xDDE9FF);light.groundColor.setHex(0xB8A1AA);light.intensity=1.1;}});}
  function update(dt){if(active())runtime.update(dt,playerEgg&&playerEgg.mesh.position);}
+ // A named route in the existing MAP panel is also usable on a narrow phone
+ // screen, where the plaza gate can be outside the camera's field of view.
+ function mapRoute(){
+  if(typeof gameState==='undefined'||gameState!=='city'||!playerEgg||(currentCityStyle!==0&&currentCityStyle!==ID))return null;
+  var target=currentCityStyle===ID?0:ID,p=playerEgg;
+  var verb={zhs:'前往',zht:'前往',ja:'移動',en:'Travel'};
+  return {target:target,label:CITY_STYLES[target].name+' · '+(verb[_langCode]||verb.en)+' →',
+   enabled:!(_pipeTraveling||window._danboPluginTransition||p.alive===false||p.heldBy||p._networkHeldBy||p.holding||p.holdingProp||p.holdingObs||p._networkHolding||p._networkFlight||p.throwTimer>0||p._stunTimer>0||p._hitStun>0||p._piledriverLocked||p._hondaDash||p._blankaSpinTimer||p._tatsuActive||p._shoryuActive||p._guileSomersault||p._blankaShock||p._yogaFlame||p._hyakuretsuTimer||p._hyakuretsuKickTimer)};
+ }
+ function travelFromMap(){
+  var route=mapRoute();if(!route||!route.enabled)return false;
+  var p=playerEgg.mesh.position;
+  _closeWorldMap();if(typeof _releaseGameplayControls==='function')_releaseGameplayControls();
+  return startPipeTravel(p.x,p.z,route.target,p.y);
+ }
  function cameraUpdate(){if(!active()||!playerEgg||_viewMode===2)return false;var p=playerEgg.mesh.position,yaw=_tpsCamMode?_tpsCamYaw:0,pitch=_tpsCamMode?Math.max(.05,Math.min(1.1,_tpsCamPitch)):.6,dist=_tpsCamMode?Math.max(2,Math.min(15,_tpsCamDist)):Math.max(3,Math.min(26,17*_cameraZoom));runtime.camera(p,yaw,pitch,dist);sun.position.set(p.x+RENDER_CONFIG.sunPos.x,RENDER_CONFIG.sunPos.y,p.z+RENDER_CONFIG.sunPos.z);sun.target.position.set(p.x,0,p.z);return true;}
- window.DANBO_STATION={id:ID,active:active,build:build,clear:clear,floor:floor,contents:contents,gate:gate,arrive:arrive,theme:theme,update:update,camera:cameraUpdate,resolve:function(egg,x,z){if(active())runtime.resolve(egg,x,z);},getRuntime:function(){return runtime;}};
+ window.DANBO_STATION={id:ID,active:active,build:build,clear:clear,floor:floor,contents:contents,gate:gate,arrive:arrive,theme:theme,update:update,mapRoute:mapRoute,travelFromMap:travelFromMap,camera:cameraUpdate,resolve:function(egg,x,z){if(active())runtime.resolve(egg,x,z);},getRuntime:function(){return runtime;}};
 })();

@@ -34,7 +34,7 @@
 }
 </script>
 <link rel="icon" href="favicon.ico" type="image/x-icon">
-<link rel="stylesheet" href="style.css?v=20260927.2">
+<link rel="stylesheet" href="style.css?v=20260927.3">
 <!-- Error actions do not depend on the engine or another script download. -->
 <style id="load-error-style">
 #engine-load-error[hidden],#engine-load-url[hidden]{display:none!important}
@@ -447,7 +447,7 @@
   // old position until the visible game version changed.
   var editorPreview='';
   try{editorPreview=new URLSearchParams(location.search).get('mapEditorPreview')||'';}catch(e){}
-  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260927.2';
+  var cache=editorPreview?('v=mapeditor-'+editorPreview):'v=20260927.3';
   window.DANBO_ASSET_VERSION=cache;
   window.DANBO_CITY_LOAD_MODE='wasm';
   window.DANBO_MULTIPLAYER_URL="wss://danbo.kryso.net";
