@@ -228,6 +228,7 @@ function _fadeBuildingMesh(mesh,fade,tps){
 function updateCamera(){
     if(gameState==='raceIntro'&&window._raceBifrostCamera)return;
     if(!playerEgg)return;
+    if(gameState==='city'&&window.DANBO_STATION&&DANBO_STATION.camera())return;
     if(gameState!=='city'&&playerEgg.mesh&&!playerEgg.mesh.visible)playerEgg.mesh.visible=true;
     // Spectator mode — free camera on moon
     if(_spectatorMode&&currentCityStyle===5){

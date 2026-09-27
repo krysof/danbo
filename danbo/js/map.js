@@ -347,10 +347,11 @@ var _WORLD_NODES=[
     {key:'c4',style:4,x:0.67,y:0.86},
     {key:'c6',style:6,x:0.14,y:0.42},
     {key:'c7',style:7,x:0.86,y:0.42},
+    {key:'c8',style:8,x:0.16,y:0.16},
     {key:'cloud',style:'cloud',x:0.50,y:0.32},
     {key:'c5',style:5,x:0.50,y:0.12}
 ];
-var _WORLD_LINKS=[['c0','c1'],['c0','c2'],['c0','c3'],['c0','c4'],['c0','c6'],['c0','c7'],['c0','cloud'],['cloud','c5']];
+var _WORLD_LINKS=[['c0','c1'],['c0','c2'],['c0','c3'],['c0','c4'],['c0','c6'],['c0','c7'],['c0','c8'],['c0','cloud'],['cloud','c5']];
 function _worldNodeName(node){
     if(node.style==='cloud'){var _cn={zhs:'\u2601\uFE0F 云栖蛋境',zht:'\u2601\uFE0F 雲棲蛋境',ja:'\u2601\uFE0F \u30AF\u30E9\u30A6\u30C9\u30A8\u30C3\u30B0',en:'\u2601\uFE0F Cloud Egg'};return _cn[_langCode]||_cn.en;}
     return (typeof CITY_STYLES!=='undefined'&&CITY_STYLES[node.style])?CITY_STYLES[node.style].name:('City'+node.style);

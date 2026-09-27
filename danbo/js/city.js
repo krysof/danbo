@@ -16,7 +16,7 @@ var currentCityStyle=0;
 // Keep first-journey and co-op approach space free of randomly placed props.
 function _hopeActivitySpace(x,z,padding){
     padding=padding||0;
-    return currentCityStyle===0&&Math.abs(x)<24+padding&&z>14-padding&&z<50+padding;
+    return currentCityStyle===0&&((Math.abs(x)<24+padding&&z>14-padding&&z<50+padding)||(Math.abs(x+15)<4+padding&&Math.abs(z-16)<4+padding));
 }
 var _prevCityStyle=0; // track previous city for earth return
 var CITY_STYLES=(window.DANBO_CITY_REGISTRY&&DANBO_CITY_REGISTRY.getStyles)?DANBO_CITY_REGISTRY.getStyles():[];

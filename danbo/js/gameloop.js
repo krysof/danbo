@@ -2589,7 +2589,7 @@ function showPortalConfirm(portal){
     _portalConfirmOpen=true;
     // All confirm types now unified
     _portalConfirmRace=portal.raceIndex;
-    _portalConfirmTarget=portal._targetStyle||(-1);
+    _portalConfirmTarget=typeof portal._targetStyle==='number'?portal._targetStyle:-1;
     _portalConfirmHidden=portal._hiddenType||null;
     _portalConfirmWarpPipe=portal._isWarpPipe?{x:portal._pipeX,z:portal._pipeZ,target:portal._targetStyle}:null;
     _portalConfirmBabelDir=portal._babelDir||0;
@@ -2945,6 +2945,7 @@ function _gameUpdate(){
     // Travel owns camera/player transforms. Do not run combat, NPCs, map updates
     // or the normal camera behind it (the old loop overwrote the flight camera).
     if(gameState==='city'&&_pipeTraveling){updatePipeTravel();return;}
+    if(gameState==='city'&&window.DANBO_STATION)DANBO_STATION.update(dt);
     // Shell status above EVERY character, every mode (player + race rivals + city NPCs).
     if(typeof _updateAllShellStatus==='function')_updateAllShellStatus();
     _updateChatBubbles();

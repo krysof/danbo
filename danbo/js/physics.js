@@ -79,6 +79,8 @@ function updateEggPhysics(egg, isCity){
     // Terminal velocity — cap fall speed so high falls have visible duration
     if(egg.vy<-0.5)egg.vy=-0.5;
     egg._prevY=egg.mesh.position.y;
+    var _stationPhysics=isCity&&currentCityStyle===8&&window.DANBO_STATION&&DANBO_STATION.active();
+    var _stationOldX=egg.mesh.position.x,_stationOldZ=egg.mesh.position.z;
     egg.mesh.position.x += egg.vx + (egg.conveyorVx||0);
     egg.mesh.position.y += egg.vy;
     // NaN guard — reset to safe values if position becomes non-finite
@@ -89,6 +91,7 @@ function updateEggPhysics(egg, isCity){
     // Thrown egg bounce
     if(egg.throwTimer>0&&egg.vy<-0.05){
         var _bFloor=isCity&&currentCityStyle===7?3.01:0.01;
+        if(_stationPhysics)_bFloor=DANBO_STATION.floor(egg.mesh.position.x,egg.mesh.position.z+egg.vz,egg._prevY);
         if(!isCity){var _bgz=-egg.mesh.position.z;_bFloor=getFloorY(_bgz)+0.01;}
         // Platform levels have no global floor; do not bounce over empty space.
         var _hasBounceFloor=!isCity||(!_pfActive&&Math.abs(egg.mesh.position.x)<=(currentCityStyle===5?MOON_CITY_SIZE:(currentCityStyle===7?CITY_SIZE*4:CITY_SIZE))&&Math.abs(egg.mesh.position.z)<=(currentCityStyle===5?MOON_CITY_SIZE:(currentCityStyle===7?CITY_SIZE*4:CITY_SIZE)));
@@ -104,6 +107,7 @@ function updateEggPhysics(egg, isCity){
     }
     egg.mesh.position.z += egg.vz + (egg.conveyorVz||0);
     egg.conveyorVx=0; egg.conveyorVz=0;
+    if(_stationPhysics)DANBO_STATION.resolve(egg,_stationOldX,_stationOldZ);
 
     if(isCity){
         // Platformer mode: no global ground, only cityColliders matter
@@ -114,6 +118,7 @@ function updateEggPhysics(egg, isCity){
         var _cityBound=(currentCityStyle===5?MOON_CITY_SIZE:(currentCityStyle===7?CITY_SIZE*4:CITY_SIZE));
         var _inBounds=DANBO_WASM.aabb2D(egg.mesh.position.x,egg.mesh.position.z,0,0,_cityBound,_cityBound,0);
         var _groundY=currentCityStyle===7?3.01:0.01; // snow village island surface at y=3
+        if(_stationPhysics)_groundY=DANBO_STATION.floor(egg.mesh.position.x,egg.mesh.position.z,egg._prevY);
         if(_inBounds&&egg.mesh.position.y<=_groundY&&egg.vy<=0){egg.mesh.position.y=_groundY;if(egg.vy<-0.1)egg.squash=0.7;egg.vy=0;egg.onGround=true;
             if(egg._dropCoinsOnLand&&!egg._coinsDropped){egg._coinsDropped=true;_dropNpcStolenCoins(egg);}
         }else if(!_inBounds){egg.onGround=false;}
@@ -142,7 +147,9 @@ function updateEggPhysics(egg, isCity){
         const bound=(currentCityStyle===5?MOON_CITY_SIZE:(currentCityStyle===7?CITY_SIZE*4:CITY_SIZE));
         // Fall respawn: if egg falls below -5, respawn at center
         if(egg.mesh.position.y<-5){
-            if(currentCityStyle===5){
+            if(_stationPhysics){
+                egg.mesh.position.set(1.6,DANBO_STATION.floor(1.6,29,10)+2,29);
+            } else if(currentCityStyle===5){
                 // Moon: respawn inside Von Braun
                 egg.mesh.position.set(-200,5,0);
             } else if(currentCityStyle===7){

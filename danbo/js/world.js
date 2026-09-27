@@ -816,6 +816,8 @@ function _showRewardBanner(area,def){
 function buildWarpPipes(){
     warpPipeMeshes.forEach(function(wp){wp.group.traverse(function(o){if(o._worldLabel)DANBO_WORLD_LABELS.dispose(o);});cityGroup.remove(wp.group);});
     warpPipeMeshes=[];
+    if(window.DANBO_STATION)DANBO_STATION.gate();
+    if(currentCityStyle===8)return;
     // No ground warp pipes on moon (only reachable from cloud world)
     if(currentCityStyle===5)return;
     // Build pipe targets: ground pipes go to cities 0-4 only (not moon=5)
@@ -823,6 +825,7 @@ function buildWarpPipes(){
     for(var ti=0;ti<CITY_STYLES.length;ti++){
         if(ti===currentCityStyle)continue;
         if(ti===5)continue; // Moon city only reachable from cloud world
+        if(ti===8)continue; // Dedicated station gate in Hope; existing pipes stay in place.
         targets.push(ti);
     }
     // Place pipes at city edges (from config)
@@ -983,12 +986,17 @@ function _prewarmCityShaders(){
 }
 
 function clearCity(){
+    if(window.DANBO_STATION)DANBO_STATION.clear();
     if(typeof _clearCityVisualFX==='function')_clearCityVisualFX();
     cityGroup.userData._danboInstancesOptimized=false;
     // Release transient city GPU resources before dropping the last references.
     // Shared geometry, PBR textures and player/world resources remain cached.
     _disposeCityGroupResources();
     while(cityGroup.children.length>0)cityGroup.remove(cityGroup.children[0]);
+    // Logic must leave with the geometry. Cities without race gates (station,
+    // moon) must not retain invisible triggers from the previous city.
+    portals.length=0;
+    if(typeof hidePortalConfirm==='function'){hidePortalConfirm();_portalPromptPortal=null;_portalDismissed=null;}
     if(typeof R!=='undefined'&&R.renderLists&&R.renderLists.dispose)R.renderLists.dispose();
     cityColliders.length=0;
     cityBuildingMeshes.length=0;
@@ -1114,6 +1122,7 @@ function applyCityTheme(){
     // Update HUD
     document.getElementById('city-name-hud').textContent=st.name;
     if(typeof _rebuildCityVisualFX==='function')_rebuildCityVisualFX(currentCityStyle,st);
+    if(window.DANBO_STATION)DANBO_STATION.theme();
 }
 
 // ---- Pipe travel animation state ----
@@ -1167,11 +1176,11 @@ async function _buildTransferCity(style){
     _cityRetiredMaterials=new Set();
     try{
         await _runCityTransferStep('1 / 8',function(){clearCity();currentCityStyle=style;});
-        await _runCityTransferStep('2 / 8',function(){return _buildCitySteps();});
-        await _runCityTransferStep('3 / 8',function(){buildPortals();buildCityCoins();buildCityChests();buildWarpPipes();});
-        await _runCityTransferStep('4 / 8',function(){if(typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();});
-        await _runCityTransferStep('5 / 8',function(){_optimizeCityInstances();});
-        await _runCityTransferStep('6 / 8',function(){addClouds();return _spawnCityNPCSteps();});
+        await _runCityTransferStep('2 / 8',function(){return style===8?DANBO_STATION.build():_buildCitySteps();});
+        await _runCityTransferStep('3 / 8',function(){if(style===8)DANBO_STATION.contents();else{buildPortals();buildCityCoins();buildCityChests();}buildWarpPipes();});
+        await _runCityTransferStep('4 / 8',function(){if(style!==8&&typeof _cityUpgradeMaterialsToPBR==='function')_cityUpgradeMaterialsToPBR();});
+        await _runCityTransferStep('5 / 8',function(){if(style!==8)_optimizeCityInstances();});
+        await _runCityTransferStep('6 / 8',function(){if(style!==8){addClouds();return _spawnCityNPCSteps();}});
         await _runCityTransferStep('7 / 8',function(){applyCityTheme();});
         await _runCityTransferStep('8 / 8',async function(){
             // Retained old materials keep matching GPU programs alive. Bound
@@ -1431,6 +1440,7 @@ function updatePipeTravel(){
             camera.up.set(0,1,0);
         }
         for(var i=0;i<warpPipeMeshes.length;i++)warpPipeMeshes[i]._cooldown=true;
+        if(currentCityStyle===8)DANBO_STATION.arrive();
         // SOTN area name reveal after pipe travel
         _showCityAreaName(currentCityStyle);
     }
@@ -1438,6 +1448,7 @@ function updatePipeTravel(){
 
 function switchCity(targetStyle){
     if(targetStyle===currentCityStyle||_pipeTraveling)return;
+    if(targetStyle===8&&(gameState!=='city'||!playerEgg))return false;
     if(typeof gameState!=='undefined'&&gameState==='city'&&playerEgg){
         return startPipeTravel(playerEgg.mesh.position.x,playerEgg.mesh.position.z,targetStyle,playerEgg.mesh.position.y);
     }
