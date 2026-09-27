@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/mrdoob/three.js",
+  "revision": "r180",
+  "license": "MIT",
+  "files": {
+    "LICENSE": "df2a91696186fe58c92518a25d48bc59c8ee2edc7cac9ca6d19a5a0d599a2a05",
+    "geometries/RoundedBoxGeometry.js": "c1b7c9bd2cddff2e3f3a0723f618a3d364a47450e3d25771d21faed88410bec8",
+    "utils/BufferGeometryUtils.js": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751"
+  }
+}

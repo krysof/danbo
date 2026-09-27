@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4e8e1"><meta name="robots" content="noindex">
+<title>蛋宝世界 · 樱花车站预览</title>
+<link rel="stylesheet" href="preview.css?v=20260927.1">
+<script type="importmap">{"imports":{"three":"../../js/vendor/three-r180/three.module.min.js","three/addons/":"../../js/vendor/three-r180/addons/","three/addons/geometries/":"./vendor/three-r180/geometries/","three/addons/utils/":"./vendor/three-r180/utils/"}}</script>
+</head>
+<body>
+<canvas id="scene" aria-label="樱花车站"></canvas>
+<header id="toolbar"><div class="brand"><strong id="brand"></strong><span id="subtitle"></span></div><nav>
+<select id="locale" aria-label="Language"><option value="zhs">简体中文</option><option value="zht">繁體中文</option><option value="ja">日本語</option><option value="en">English</option></select>
+<select id="quality" aria-label="画质"><option value="balanced"></option><option value="high"></option><option value="low"></option></select>
+<button id="mute" type="button"></button><a id="back" href="../../"></a>
+</nav></header>
+<main id="gate"><section class="welcome"><span class="eyebrow" id="eyebrow"></span><h1 id="title">樱花车站 / Sakura Station</h1><p id="description"></p><div class="line"></div><p id="load-status" role="status">正在准备小镇 / Preparing the town…</p><progress id="progress" max="1" value="0"></progress><button id="go" disabled type="button">开始 / Start</button><button id="retry" hidden type="button"></button><small id="notice"></small><a id="credits" href="README.md" target="_blank" rel="noopener">Sakuragaoka Station · MIT / WAWE</a></section></main>
+<div id="hud" hidden><div class="task"><span aria-hidden="true">✦</span><span id="task" aria-live="polite"></span></div>
+<div id="destinations"><button data-spot="street" type="button"></button><button data-spot="plaza" type="button"></button><button data-spot="station" type="button"></button><button data-spot="river" type="button"></button><button id="portrait" type="button"></button></div>
+<div id="hint"></div><output id="stats" hidden></output>
+<div id="stick" aria-label="移动摇杆"><span id="knob"></span></div><button id="jump" type="button"></button>
+</div>
+<script src="boot.js?v=20260927.1"></script>
+<script type="module" src="preview.js?v=20260927.1" onerror="sakuraLoadFailed()"></script>
+<noscript>This preview requires JavaScript. <a href="../../">Back to game</a></noscript>
+</body></html>

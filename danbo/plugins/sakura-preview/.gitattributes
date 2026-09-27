@@ -1,0 +1,4 @@
+# Preserve pinned third-party bytes and their SHA-256 provenance across Windows
+# and Linux checkouts. Existing upstream whitespace is intentionally unchanged.
+upstream/** -text -whitespace
+vendor/** -text -whitespace
